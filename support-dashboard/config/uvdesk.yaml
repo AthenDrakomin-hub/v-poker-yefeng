@@ -1,0 +1,18 @@
+# UVdesk 客服工单与流水平账系统集成配置
+uvdesk:
+  site_url: "http://localhost:8080"
+  company:
+    name: "棋牌平台虚拟经济风控与客服中心"
+  integrations:
+    wallet_bff:
+      base_url: "http://bff:4000/api/support"
+      endpoints:
+        player_profile: "/player_profile"
+        dispute_trace: "/dispute_trace"
+  automations:
+    - trigger: "ticket_created"
+      conditions:
+        tag: "chip_dispute"
+      actions:
+        - call_webhook: "http://bff:4000/api/support/player_profile"
+        - assign_agent: "risk_team"

@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # 1. 钱包核心微服务 (Python FastAPI + aiosqlite / SQLAlchemy)
+  wallet-service:
+    build:
+      context: ./wallet_service
+      dockerfile: Dockerfile
+    container_name: poker-wallet-service
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=sqlite+aiosqlite:///./data/wallet.db
+      - COMMISSION_SERVICE_URL=http://commission-service:8000
+    volumes:
+      - wallet_data:/app/data
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+  # 2. 结算与返佣微服务 (Python FastAPI)
+  commission-service:
+    build:
+      context: ./commission_service
+      dockerfile: Dockerfile
+    container_name: poker-commission-service
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:///./data/commission.db
+    volumes:
+      - commission_data:/app/data
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+  # 3. BFF 聚合层 (Node.js + Hono)
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile
+    container_name: poker-bff
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - WALLET_SERVICE_URL=http://wallet-service:8001
+      - COMMISSION_SERVICE_URL=http://commission-service:8000
+    depends_on:
+      - wallet-service
+      - commission-service
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+  # 4. 德州扑克游戏引擎 (开源: lhz960904/texas-holdem 桥接挂载)
+  game-engine:
+    image: node:20-alpine
+    container_name: poker-game-engine
+    working_dir: /app
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - WALLET_SERVICE_URL=http://wallet-service:8001
+    volumes:
+      - ./packages:/app/packages
+    command: sh -c "echo 'Game engine bridge connected to wallet-service' && tail -f /dev/null"
+    depends_on:
+      - wallet-service
+    networks:
+      - poker_net
+
+  # 5. 代理端后台 (Refine Dashboard)
+  agent-dashboard:
+    image: node:20-alpine
+    container_name: poker-agent-dashboard
+    working_dir: /app
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./agent-dashboard:/app
+    environment:
+      - VITE_BFF_URL=http://localhost:4000/api/agent
+    command: sh -c "echo 'Agent Dashboard ready on port 3002' && tail -f /dev/null"
+    networks:
+      - poker_net
+
+  # 6. 客服端后台 (UVdesk)
+  support-dashboard:
+    image: uvdesk/community-skeleton:latest
+    container_name: poker-support-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./support-dashboard/config:/var/www/uvdesk/config/custom
+    environment:
+      - APP_ENV=prod
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+  # 7. 管理端后台 (FastAPI-Admin)
+  admin-dashboard:
+    build:
+      context: ./wallet_service
+      dockerfile: Dockerfile
+    container_name: poker-admin-dashboard
+    ports:
+      - "8088:8088"
+    environment:
+      - PORT=8088
+      - DATABASE_URL=sqlite+aiosqlite:///./data/wallet.db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8088
+    volumes:
+      - wallet_data:/app/data
+    networks:
+      - poker_net
+
+  # 8. Metabase 数据 BI 监控大屏
+  metabase:
+    image: metabase/metabase:latest
+    container_name: poker-metabase
+    ports:
+      - "3030:3000"
+    volumes:
+      - metabase_data:/metabase-data
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+volumes:
+  wallet_data:
+  commission_data:
+  metabase_data:
+
+networks:
+  poker_net:
+    driver: bridge

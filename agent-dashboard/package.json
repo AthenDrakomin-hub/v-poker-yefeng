@@ -1,0 +1,12 @@
+{
+  "name": "agent-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "代理端后台 (基于 @refinedev/core + Ant Design / Tailwind)",
+  "dependencies": {
+    "@refinedev/core": "^4.53.0",
+    "@refinedev/simple-rest": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
