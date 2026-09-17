@@ -15,12 +15,13 @@ class APIResponse(BaseModel, Generic[T]):
 
 
 class SettleRequest(BaseModel):
+    """代理返佣结算请求 (由 wallet_service 调用)"""
     transaction_id: str
     room_id: str
     total_flow: int = Field(..., gt=0, description="总流水 S")
     platform_fee_rate: Decimal = Field(default=Decimal("0.0500"), description="平台房费比例 p")
     agent_commission_rate: Decimal = Field(default=Decimal("0.0300"), description="代理总返佣比例 a")
-    room_agent_id: Optional[str] = Field(default=None, description="开房代理ID")
+    agent_ids: List[str] = Field(default_factory=list, description="代理分账名单 [room_agent, sub_agent, top_agent]")
 
 
 class AgentShareResult(BaseModel):

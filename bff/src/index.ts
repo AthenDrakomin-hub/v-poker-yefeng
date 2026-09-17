@@ -11,6 +11,7 @@ import { agentRouter } from "./agent/index.js";
 import { supportRouter } from "./support/index.js";
 import { adminRouter } from "./admin/index.js";
 import { debugRouter } from "./debug/index.js";
+import { loginHandler } from "./auth/index.js";
 
 const app = new Hono();
 
@@ -23,6 +24,9 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "X-User-Role", "X-User-Id", "X-Debug-Auth-Key"]
   })
 );
+
+// 认证登录接口（公开，不需要 token）
+app.post("/api/auth/login", loginHandler);
 
 // 注册微服务路由
 app.route("/api/agent", agentRouter);

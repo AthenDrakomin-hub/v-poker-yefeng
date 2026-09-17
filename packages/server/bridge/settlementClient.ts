@@ -1,30 +1,25 @@
 /**
- * 德州扑克开源引擎 (lhz960904/texas-holdem) 桥接客户端
- * 作用：在每手牌局 (Hand) 结束时，将牌桌底池、抽水及赢家数据原子上报至 wallet-service 进行结算分账
+ * 德州扑克开源引擎桥接客户端 (settlementClient.ts)
+ * 在每手牌局结束时，将牌桌底池、抽水及赢家数据上报至 wallet-service 结算分账
+ * 对齐全局契约：winner_ids + agent_ids
  */
 
-export interface WinnerPayout {
-  userId: string;
-  weight?: number; // 默认权重1，平分底池
-}
-
 export interface GameSettlementPayload {
-  roomId: string;
-  totalPot: number; // 本局总底池 (筹码整数)
-  playerCount: number;
-  winners: WinnerPayout[];
-  platformFeeRate?: number; // 如 0.0500 (5%)
-  agentCommissionRate?: number; // 如 0.0300 (3%)
-  roomAgentId?: string; // 该桌所属开房代理
+  room_id: string;
+  total_pot: number;
+  winner_ids: string[];
+  platform_fee_rate?: number;
+  agent_commission_rate?: number;
+  agent_ids?: string[];
 }
 
 export interface SettlementResult {
-  transactionId: string;
-  totalPot: number;
-  totalRake: number;
-  agentPool: number;
-  platformRevenue: number;
-  winnersPayout: number;
+  transaction_id: string;
+  total_pot: number;
+  total_rake: number;
+  agent_pool: number;
+  platform_revenue: number;
+  winners_payout: number;
 }
 
 export class TexasSettlementBridge {
@@ -34,36 +29,30 @@ export class TexasSettlementBridge {
     this.walletServiceUrl = walletServiceUrl;
   }
 
-  /**
-   * 生成全局唯一幂等流水号 (格式: stl_{roomId}_{handNumber}_{timestamp})
-   */
+  /** 生成全局唯一幂等流水号 */
   public generateTxId(roomId: string, handNumber: number): string {
     return `stl_${roomId}_h${handNumber}_${Date.now()}`;
   }
 
   /**
-   * 调用钱包微服务 /api/wallet/game_settle
-   * 包含自动指数退避重试，防止网络抖动导致的掉账
+   * 调用 wallet-service /api/wallet/game_settle
+   * 含指数退避重试
    */
   public async settleHand(
     handNumber: number,
     payload: GameSettlementPayload,
     maxRetries = 3
   ): Promise<SettlementResult> {
-    const txId = this.generateTxId(payload.roomId, handNumber);
+    const txId = this.generateTxId(payload.room_id, handNumber);
 
     const body = {
       transaction_id: txId,
-      room_id: payload.roomId,
-      total_pot: Math.floor(payload.totalPot),
-      player_count: payload.playerCount,
-      winners: payload.winners.map((w) => ({
-        user_id: w.userId,
-        weight: w.weight || 1
-      })),
-      platform_fee_rate: (payload.platformFeeRate ?? 0.05).toFixed(4),
-      agent_commission_rate: (payload.agentCommissionRate ?? 0.03).toFixed(4),
-      room_agent_id: payload.roomAgentId || "agt_room_03"
+      room_id: payload.room_id,
+      total_pot: Math.floor(payload.total_pot),
+      winner_ids: payload.winner_ids,
+      platform_fee_rate: (payload.platform_fee_rate ?? 0.05).toFixed(4),
+      agent_commission_rate: (payload.agent_commission_rate ?? 0.03).toFixed(4),
+      agent_ids: payload.agent_ids ?? ["agt_room_03", "agt_sub_02", "agt_top_01"]
     };
 
     let attempt = 0;
@@ -71,9 +60,7 @@ export class TexasSettlementBridge {
       try {
         const response = await fetch(`${this.walletServiceUrl}/api/wallet/game_settle`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
         });
 
@@ -89,22 +76,20 @@ export class TexasSettlementBridge {
 
         const data = resJson.data;
         return {
-          transactionId: data.transaction_id,
-          totalPot: data.total_pot,
-          totalRake: data.total_rake,
-          agentPool: data.agent_pool,
-          platformRevenue: data.platform_revenue,
-          winnersPayout: data.winners_payout
+          transaction_id: data.transaction_id,
+          total_pot: data.total_pot,
+          total_rake: data.total_rake,
+          agent_pool: data.agent_pool,
+          platform_revenue: data.platform_revenue,
+          winners_payout: data.winners_payout
         };
       } catch (error) {
         attempt++;
         console.error(`[SettlementBridge] Hand #${handNumber} settle attempt ${attempt} failed:`, error);
         if (attempt >= maxRetries) {
-          // 记录落盘应急告警日志，便于人工对账
           console.error(`[CRITICAL] Settlement failed after ${maxRetries} attempts. TxId: ${txId}`);
           throw error;
         }
-        // 退避 500ms, 1000ms...
         await new Promise((r) => setTimeout(r, attempt * 500));
       }
     }
@@ -113,5 +98,4 @@ export class TexasSettlementBridge {
   }
 }
 
-// 导出单例
 export const settlementBridge = new TexasSettlementBridge();

@@ -4,7 +4,7 @@
  * 规则插件负责：卡牌初始化、发牌逻辑、动作规则验证、牌型评估、比牌与净分计算 (PlayerNetResult[])
  */
 
-import { Card, GameAction, GameMode, GameRoom, GameType, PlayerNetResult, RoundPhase, Seat } from "../shared/types.js";
+import { Card, GameAction, GameMode, GameRoom, GameType, PlayerNetResult, RoundPhase, Seat, SidePot } from "../shared/types.js";
 
 export interface HandEvaluation {
   rank_name: string;        // 牌型中文名 (如 "同花顺", "牛牛", "大三公", "金花")
@@ -35,6 +35,7 @@ export interface PluginRoundState {
   current_highest_bet: number;
   min_call_amount: number;
   betting_round_count: number; // 当前轮次
+  side_pots?: SidePot[];      // 边池 (德州 all-in 时拆分)
 }
 
 export interface GamePlugin {

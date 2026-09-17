@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.pytest_cache/

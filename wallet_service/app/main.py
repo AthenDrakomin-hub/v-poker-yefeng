@@ -3,8 +3,9 @@
 运行端口：8001
 """
 import time
+import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -15,17 +16,26 @@ from app.models import FeePool, Agent, Wallet
 from app.routers import wallet, audit
 
 
+async def verify_internal_key(request: Request):
+    """
+    内部服务鉴权：管理员铸币等敏感操作必须携带 X-Internal-Auth-Key
+    开发环境若未设置 WALLET_INTERNAL_KEY 则放行（本地调试友好）
+    """
+    expected = os.getenv("WALLET_INTERNAL_KEY", "")
+    if not expected:
+        return  # 未配置密钥则不校验（开发模式）
+    provided = request.headers.get("X-Internal-Auth-Key", "")
+    if provided != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Internal-Auth-Key")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    服务启动与关闭生命周期管理：自动建表与初始化单例数据
-    """
+    """服务启动与关闭：自动建表与初始化种子数据"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # 初始化种子数据 (fee_pool 与 基础代理树)
     async with AsyncSessionLocal() as session:
-        # 1. 初始化手续费池
         fee_pool_res = await session.execute(
             select(FeePool).where(FeePool.pool_id == settings.PLATFORM_FEE_POOL_ID)
         )
@@ -37,7 +47,6 @@ async def lifespan(app: FastAPI):
             )
             session.add(pool)
 
-        # 2. 初始化三级测试代理 (若不存在)
         agent_res = await session.execute(select(Agent))
         if not agent_res.scalars().first():
             agents = [
@@ -50,18 +59,16 @@ async def lifespan(app: FastAPI):
         await session.commit()
 
     yield
-
     await engine.dispose()
 
 
 app = FastAPI(
     title="Wallet Microservice (封闭式虚拟经济钱包微服务)",
-    description="支持筹码铸造、万分之一自由转账扣费、德扑结算分润与能量守恒对账",
+    description="支持筹码铸造、万分之一自由转账扣费、德扑结算分润与能量守恒审计",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# 允许跨域请求 (供 BFF / 前端测试)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -71,11 +78,22 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """HTTP 异常统一输出 { code, message, data }"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "code": exc.status_code,
+            "message": exc.detail,
+            "data": None
+        }
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """
-    统一全局异常捕获，确保输出格式永远严格遵循 { code, message, data }
-    """
+    """统一全局异常捕获，输出 { code, message, data }"""
     status_code = getattr(exc, "status_code", 500)
     detail = getattr(exc, "detail", str(exc))
     return JSONResponse(
@@ -88,9 +106,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# 挂载路由
+# 挂载路由（mint 路由叠加内部鉴权）
 app.include_router(wallet.router)
 app.include_router(audit.router)
+
+# 给 mint 路由单独加鉴权依赖
+for route in wallet.router.routes:
+    if getattr(route, "path", "").endswith("/mint"):
+        route.dependencies.append(Depends(verify_internal_key))
 
 
 @app.get("/health", tags=["Health"])

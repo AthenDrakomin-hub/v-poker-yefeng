@@ -1,6 +1,6 @@
 /**
- * 多游戏引擎主微服务 (Node.js + Hono + WebSocket)
- * 核心架构：统一平台核心 (Core) + 6 规则插件 (Plugins) + 钱包桥接 (Bridge)
+ * 多游戏引擎主微服务 (Node.js + Hono)
+ * 架构：统一平台核心 (Core) + 游戏规则插件 + 钱包桥接 (Bridge)
  */
 
 import { Hono } from "hono";
@@ -21,9 +21,7 @@ app.get("/health", (c) => {
   });
 });
 
-/**
- * 1. 创建游戏房间 POST /api/engine/room/create
- */
+/** 1. 创建游戏房间 */
 app.post("/api/engine/room/create", async (c) => {
   try {
     const body = await c.req.json();
@@ -40,27 +38,19 @@ app.post("/api/engine/room/create", async (c) => {
       base_score: base_score ? Number(base_score) : 100
     });
 
-    return c.json({
-      code: 0,
-      message: "Room created successfully",
-      data: created.room
-    });
+    return c.json({ code: 0, message: "Room created successfully", data: created.room });
   } catch (err: any) {
     return c.json({ code: 500, message: err.message }, 500);
   }
 });
 
-/**
- * 2. 获取所有房间列表 GET /api/engine/rooms
- */
+/** 2. 获取所有房间列表 */
 app.get("/api/engine/rooms", (c) => {
   const rooms = coreRoomManager.getAllRooms();
   return c.json({ code: 0, message: "OK", data: rooms });
 });
 
-/**
- * 3. 获取房间状态 GET /api/engine/room/:id
- */
+/** 3. 获取房间状态 */
 app.get("/api/engine/room/:id", (c) => {
   const roomId = c.req.param("id");
   const room = coreRoomManager.getRoom(roomId);
@@ -71,40 +61,25 @@ app.get("/api/engine/room/:id", (c) => {
   }
 
   return c.json({
-    code: 0,
-    message: "OK",
-    data: {
-      room,
-      round_state: sm.roundState,
-      seats: sm.seatManager.getSeats()
-    }
+    code: 0, message: "OK",
+    data: { room, round_state: sm.roundState, seats: sm.seatManager.getSeats() }
   });
 });
 
-/**
- * 4. 玩家操作 POST /api/engine/room/:id/action
- */
+/** 4. 玩家操作 */
 app.post("/api/engine/room/:id/action", async (c) => {
   const roomId = c.req.param("id");
   const body = await c.req.json();
   const { user_id, action } = body;
 
-  const result = coreActionRouter.routeAction({
-    room_id: roomId,
-    user_id,
-    action
-  });
-
+  const result = coreActionRouter.routeAction({ room_id: roomId, user_id, action });
   if (!result.success) {
     return c.json({ code: 400, message: result.error }, 400);
   }
-
   return c.json({ code: 0, message: "Action accepted", data: result });
 });
 
-/**
- * 5. 结算当前牌局并上报钱包服务 POST /api/engine/room/:id/settle
- */
+/** 5. 结算当前牌局并上报钱包服务 */
 app.post("/api/engine/room/:id/settle", async (c) => {
   const roomId = c.req.param("id");
   const sm = coreRoomManager.getStateMachine(roomId);
@@ -112,40 +87,18 @@ app.post("/api/engine/room/:id/settle", async (c) => {
     return c.json({ code: 404, message: "Room not found" }, 404);
   }
 
-  const results = sm.forceShowdown();
-  const totalPot = sm.roundState.total_pot > 0
-    ? sm.roundState.total_pot
-    : sm.roundState.room.base_score * 4;
-
-  const txId = walletClient.generateRoundTxId(roomId);
-  const settlePayload: GameSettleRequest = {
-    transaction_id: txId,
-    game_type: sm.roundState.room.game_type,
-    room_id: roomId,
-    total_pot: totalPot,
-    platform_fee_rate: sm.roundState.room.platform_fee_rate,
-    agent_commission_rate: sm.roundState.room.agent_commission_rate,
-    agent_ids: sm.roundState.room.agent_ids,
-    player_results: results
-  };
-
   try {
-    const settleRes = await walletClient.settleGame(settlePayload);
-    sm.finishSettlement();
-
+    const { request, response } = await sm.settleRound();
     return c.json({
       code: 0,
       message: "Game settled successfully",
-      data: {
-        request: settlePayload,
-        response: settleRes
-      }
+      data: { request, response }
     });
   } catch (err: any) {
     return c.json({
       code: 500,
       message: `Failed to settle with wallet: ${err.message}`,
-      data: { payload: settlePayload }
+      data: null
     }, 500);
   }
 });
@@ -153,10 +106,7 @@ app.post("/api/engine/room/:id/settle", async (c) => {
 const PORT = Number(process.env.ENGINE_PORT || 8003);
 
 if (process.env.NODE_ENV !== "test") {
-  serve({
-    fetch: app.fetch,
-    port: PORT
-  });
+  serve({ fetch: app.fetch, port: PORT });
   console.log(`[GameEngine] Running on http://0.0.0.0:${PORT}`);
 }
 

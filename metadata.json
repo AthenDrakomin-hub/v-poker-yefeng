@@ -1,6 +1,0 @@
-{
-  "name": "棋牌微服务虚拟经济平台",
-  "description": "基于微服务架构的封闭式虚拟经济系统，集成BFF调试命名空间(/__debug/*)与服务注册表反向代理，提供统一游戏平台核心与6大规则插件，闭环钱包微服务与能量守恒审计。",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

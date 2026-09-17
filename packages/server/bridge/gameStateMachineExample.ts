@@ -1,58 +1,43 @@
 /**
- * 德州扑克状态机 (gameStateMachine.ts) 结算节点挂载示范
- * 展示开源德扑游戏在 Showdown / Winner Determination 环节如何无缝接入 wallet-service
+ * 德州扑克状态机结算节点挂载示范
+ * 在 Showdown / Winner Determination 环节接入 wallet-service
  */
 import { settlementBridge } from "./settlementClient.js";
 
 export interface GameState {
-  roomId: string;
-  handNumber: number;
-  pot: number;
-  activePlayers: Array<{ id: string; name: string }>;
-  winners: Array<{ id: string; handRank: string }>;
-  roomAgentId?: string;
+  room_id: string;
+  hand_number: number;
+  total_pot: number;
+  winner_ids: string[];
+  agent_ids?: string[];
+  platform_fee_rate?: number;
+  agent_commission_rate?: number;
 }
 
 /**
  * 当一局德州扑克进入 SHOWDOWN 并完成比牌后触发
  */
 export async function onHandComplete(state: GameState) {
-  console.log(`[GameStateMachine] Hand #${state.handNumber} finished in room ${state.roomId}. Pot: ${state.pot}`);
+  console.log(`[GameStateMachine] Hand #${state.hand_number} finished in room ${state.room_id}. Pot: ${state.total_pot}`);
 
-  // 1. 提取赢家列表
-  const winnersPayload = state.winners.map((w) => ({
-    userId: w.id,
-    weight: 1 // 平分底池
-  }));
-
-  // 2. 调用钱包微服务进行扣水分账
   try {
-    const settleResult = await settlementBridge.settleHand(state.handNumber, {
-      roomId: state.roomId,
-      totalPot: state.pot,
-      playerCount: state.activePlayers.length,
-      winners: winnersPayload,
-      platformFeeRate: 0.05, // 抽水 5%
-      agentCommissionRate: 0.03, // 代理返佣 3%
-      roomAgentId: state.roomAgentId || "agt_room_03"
+    const settleResult = await settlementBridge.settleHand(state.hand_number, {
+      room_id: state.room_id,
+      total_pot: state.total_pot,
+      winner_ids: state.winner_ids,
+      platform_fee_rate: state.platform_fee_rate ?? 0.05,
+      agent_commission_rate: state.agent_commission_rate ?? 0.03,
+      agent_ids: state.agent_ids
     });
 
     console.log(
-      `[GameStateMachine] Settlement succeeded! Tx: ${settleResult.transactionId}, ` +
-      `Payout to winners: ${settleResult.winnersPayout}, Platform rake: ${settleResult.totalRake}`
+      `[GameStateMachine] Settlement succeeded! Tx: ${settleResult.transaction_id}, ` +
+      `Payout: ${settleResult.winners_payout}, Rake: ${settleResult.total_rake}`
     );
 
-    // 3. 广播给前端客户端
-    return {
-      success: true,
-      settleResult
-    };
+    return { success: true, settleResult };
   } catch (error) {
-    console.error(`[GameStateMachine] FAILED to settle hand #${state.handNumber}:`, error);
-    // 触发牌桌异常保护逻辑
-    return {
-      success: false,
-      error
-    };
+    console.error(`[GameStateMachine] FAILED to settle hand #${state.hand_number}:`, error);
+    return { success: false, error };
   }
 }

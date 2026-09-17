@@ -1,7 +1,7 @@
 /**
  * 平台核心状态机 (Core Game State Machine)
- * 严格管理牌局生命周期：
- * WAITING -> DEALING -> ACTION/BETTING -> SHOWDOWN -> SETTLING -> FINISHED
+ * 管理牌局生命周期：WAITING -> DEALING -> ACTION/BETTING -> SHOWDOWN -> SETTLING -> FINISHED
+ * 资金流闭环：玩家下注(bet) → 结算(game_settle) → 异常退款(refund)
  */
 
 import { GamePlugin, PluginRoundState } from "../games/plugin.interface.js";
@@ -15,6 +15,12 @@ export class GameStateMachine {
   public plugin: GamePlugin;
   public seatManager: SeatManager;
   public lastResults: PlayerNetResult[] = [];
+
+  /** 本局每个玩家已下注总额（用于异常退款） */
+  private playerBetsThisRound: Map<string, number> = new Map();
+
+  /** 当前轮次编号（用于生成 bet transaction_id） */
+  private currentRoundNumber: number = 0;
 
   constructor(room: GameRoom, plugin: GamePlugin, seatManager: SeatManager) {
     this.plugin = plugin;
@@ -44,13 +50,9 @@ export class GameStateMachine {
     return readyCount >= this.roundState.room.min_players_to_start;
   }
 
-  /**
-   * 启动新一局
-   */
   public startRound(): boolean {
     if (!this.canStart()) return false;
 
-    // 重置状态
     this.seatManager.resetRoundState();
     this.roundState.deck = this.plugin.initDeck();
     this.roundState.community_cards = [];
@@ -59,23 +61,100 @@ export class GameStateMachine {
     this.roundState.min_call_amount = this.roundState.room.base_score;
     this.roundState.betting_round_count = 0;
     this.lastResults = [];
+    this.playerBetsThisRound.clear();
+    this.currentRoundNumber++;
 
     this.transitionTo("DEALING");
     this.plugin.dealCards(this.roundState);
 
-    // 发牌完毕后推进到下一阶段
+    // 发牌后处理小盲/大盲的下注（自动 bet）
+    this.processBlindBets();
+
     const nextPhase = this.plugin.getNextPhase(this.roundState);
     this.transitionTo(nextPhase);
-
     return true;
   }
 
   /**
-   * 处理玩家输入动作
+   * 处理小盲/大盲自动下注
+   * 德州扑克发牌后自动扣 SB/BB，需要同步调用 wallet-service/bet
    */
+  private async processBlindBets(): Promise<void> {
+    const activeSeats = this.roundState.seats.filter(
+      (s) => s.status === "playing" || s.status === "ready"
+    );
+    if (activeSeats.length < 2) return;
+
+    // SB = activeSeats[0], BB = activeSeats[1]
+    const sbSeat = activeSeats[0];
+    const bbSeat = activeSeats[1];
+
+    if (sbSeat.user_id && sbSeat.current_bet > 0) {
+      await this.recordPlayerBet(sbSeat.user_id, sbSeat.current_bet);
+    }
+    if (bbSeat.user_id && bbSeat.current_bet > 0) {
+      await this.recordPlayerBet(bbSeat.user_id, bbSeat.current_bet);
+    }
+  }
+
+  /**
+   * 记录玩家下注并调用 wallet-service/bet
+   * @param userId 玩家 ID
+   * @param amount 本次下注金额（增量）
+   */
+  public async recordPlayerBet(userId: string, amount: number): Promise<boolean> {
+    if (amount <= 0) return true;
+
+    // 累计本局下注总额
+    const previous = this.playerBetsThisRound.get(userId) || 0;
+    this.playerBetsThisRound.set(userId, previous + amount);
+
+    // 调用 wallet-service 扣款
+    const txId = walletClient.generateBetTxId(
+      this.roundState.room.room_id,
+      userId,
+      this.currentRoundNumber
+    );
+
+    try {
+      const res = await walletClient.betChips({
+        transaction_id: txId,
+        room_id: this.roundState.room.room_id,
+        user_id: userId,
+        amount,
+        remark: `Round ${this.currentRoundNumber} bet`
+      });
+      console.log(`[Bet] ${userId} bet ${amount} → room ${this.roundState.room.room_id}`);
+      return true;
+    } catch (err: any) {
+      console.error(`[Bet Failed] ${userId} bet ${amount}:`, err.message);
+      // 下注失败，回滚累计
+      this.playerBetsThisRound.set(userId, previous);
+      return false;
+    }
+  }
+
   public handleAction(action: GameAction): { success: boolean; error?: string } {
+    // 记录执行前玩家的 current_bet
+    const seat = this.roundState.seats.find((s) => s.user_id === action.user_id);
+    const oldCurrentBet = seat?.current_bet || 0;
+
     const result = this.plugin.handleAction(this.roundState, action);
     if (!result.success) return result;
+
+    // 如果是下注类动作，计算增量并调用 wallet-service/bet
+    const betActions = ["bet", "call", "raise", "all_in"];
+    if (betActions.includes(action.action_type) && seat) {
+      const newCurrentBet = seat.current_bet;
+      const delta = newCurrentBet - oldCurrentBet;
+
+      if (delta > 0) {
+        // 异步调用 bet（不阻塞动作路由，失败进补偿队列）
+        this.recordPlayerBet(action.user_id, delta).catch((err) => {
+          console.error(`[Bet Async Failed]`, err);
+        });
+      }
+    }
 
     coreEventBus.emit("action_executed", {
       roomId: this.roundState.room.room_id,
@@ -83,24 +162,18 @@ export class GameStateMachine {
       phase: this.roundState.phase
     });
 
-    // 检查本阶段是否完成
     if (this.plugin.isPhaseComplete(this.roundState)) {
       const nextPhase = this.plugin.getNextPhase(this.roundState);
       this.transitionTo(nextPhase);
 
-      // 若跃迁到 SHOWDOWN，自动算分
       if (this.roundState.phase === "SHOWDOWN") {
         this.lastResults = this.plugin.calculateNetScores(this.roundState);
         this.transitionTo("SETTLING");
       }
     }
-
     return { success: true };
   }
 
-  /**
-   * 强制推进到比牌结算 (方便演示或超时触发)
-   */
   public forceShowdown(): PlayerNetResult[] {
     this.transitionTo("SHOWDOWN");
     this.lastResults = this.plugin.calculateNetScores(this.roundState);
@@ -110,8 +183,7 @@ export class GameStateMachine {
 
   /**
    * 执行微服务原子结算 (POST /api/wallet/game_settle)
-   * 核心原则：游戏引擎只管规则与净输赢，不碰筹码。
-   * 钱包服务负责移动筹码 + 调用 commission-service 分佣。
+   * 从牌桌虚拟钱包扣款，分给赢家 + 平台 + 代理
    */
   public async settleRound(client: WalletClient = walletClient): Promise<{
     request: GameSettleRequest;
@@ -128,16 +200,24 @@ export class GameStateMachine {
       ? this.roundState.total_pot
       : this.roundState.room.base_score * 4;
 
-    const txId = client.generateRoundTxId(roomId);
+    // 从净输赢结果提取赢家 (net_amount > 0)
+    const winnerIds = this.lastResults
+      .filter(r => r.net_amount > 0)
+      .map(r => r.user_id);
+
+    if (winnerIds.length === 0) {
+      throw new Error("No winners found in settlement results.");
+    }
+
+    const txId = client.generateSettleTxId(roomId);
     const settlePayload: GameSettleRequest = {
       transaction_id: txId,
-      game_type: this.roundState.room.game_type,
       room_id: roomId,
       total_pot: totalPot,
+      winner_ids: winnerIds,
       platform_fee_rate: this.roundState.room.platform_fee_rate,
       agent_commission_rate: this.roundState.room.agent_commission_rate,
-      agent_ids: this.roundState.room.agent_ids,
-      player_results: this.lastResults
+      agent_ids: this.roundState.room.agent_ids
     };
 
     const settleRes = await client.settleGame(settlePayload);
@@ -150,11 +230,58 @@ export class GameStateMachine {
   }
 
   /**
-   * 完成结算切回 WAITING
+   * 异常退款：玩家中途退出 / 房间解散 / 游戏中断
+   * 从牌桌虚拟钱包退还给玩家本局已下注但未结算的筹码
    */
+  public async refundOnAbort(
+    reason: string = "aborted",
+    client: WalletClient = walletClient
+  ): Promise<{ refunds: Array<{ user_id: string; amount: number }>; response: any }> {
+    const roomId = this.roundState.room.room_id;
+    const refunds: Array<{ user_id: string; amount: number }> = [];
+
+    // 遍历本局所有有下注记录的玩家
+    for (const [userId, amount] of this.playerBetsThisRound.entries()) {
+      if (amount > 0) {
+        refunds.push({ user_id: userId, amount });
+      }
+    }
+
+    if (refunds.length === 0) {
+      return { refunds: [], response: null };
+    }
+
+    const txId = client.generateRefundTxId(roomId);
+    const refundPayload = {
+      transaction_id: txId,
+      room_id: roomId,
+      refunds,
+      remark: `Abnormal refund: ${reason}`
+    };
+
+    const refundRes = await client.refundChips(refundPayload);
+
+    // 清空下注记录
+    this.playerBetsThisRound.clear();
+    this.transitionTo("WAITING");
+
+    return { refunds, response: refundRes };
+  }
+
+  /** 获取本局某玩家已下注总额 */
+  public getPlayerBetTotal(userId: string): number {
+    return this.playerBetsThisRound.get(userId) || 0;
+  }
+
+  /** 获取本局所有玩家下注总额 */
+  public getAllPlayerBets(): Map<string, number> {
+    return new Map(this.playerBetsThisRound);
+  }
+
   public finishSettlement(): void {
     this.transitionTo("FINISHED");
     this.roundState.phase = "WAITING";
+    this.playerBetsThisRound.clear();
     coreEventBus.emit("round_finished", {
       roomId: this.roundState.room.room_id,
       results: this.lastResults

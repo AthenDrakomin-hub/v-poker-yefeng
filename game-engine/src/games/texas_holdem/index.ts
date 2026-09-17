@@ -4,7 +4,7 @@
  * 严格遵循国际德州扑克规范与微服务零和净输赢原则。
  */
 
-import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat } from "../../shared/types.js";
+import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, SidePot } from "../../shared/types.js";
 import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
 import { evaluate7Cards, evaluate5Cards, compareEvaluations, getCombinations } from "./evaluator.js";
 import { TexasHoldemDeck, createStandardDeck, shuffleDeck } from "./deck.js";
@@ -196,36 +196,112 @@ export class TexasHoldemPlugin implements GamePlugin {
   }
 
   calculateNetScores(state: PluginRoundState): PlayerNetResult[] {
-    const comp = this.compareHands(state);
-    if (comp.winner_user_ids.length === 0) return [];
+    // 1. 收集所有参与下注的玩家（未弃牌且有下注额）
+    const activeSeats = state.seats.filter(
+      (s) => s.user_id && s.current_bet > 0 && s.status !== "folded"
+    );
+    if (activeSeats.length === 0) return [];
 
-    const winnerId = comp.winner_user_ids[0];
-    const totalPot = state.total_pot;
+    // 2. 计算边池拆分
+    const sidePots = this.calculateSidePots(state);
+    state.side_pots = sidePots;
 
+    // 3. 计算每个玩家的净输赢
+    const netResults: Record<string, number> = {};
+    const betTotals: Record<string, number> = {};
+    const handNames: Record<string, string> = {};
+
+    activeSeats.forEach((seat) => {
+      netResults[seat.user_id!] = -seat.current_bet;
+      betTotals[seat.user_id!] = seat.current_bet;
+      handNames[seat.user_id!] = seat.hand_result?.rank_name || "未评估";
+    });
+
+    // 4. 每个边池独立分配
+    for (const pot of sidePots) {
+      // 找出有资格竞争该边池的玩家（未弃牌且在 eligible 列表中）
+      const contenders = activeSeats.filter((s) =>
+        pot.eligible_user_ids.includes(s.user_id!)
+      );
+      if (contenders.length === 0) continue;
+
+      // 对竞争者按牌力排序
+      contenders.sort((a, b) => {
+        const evalA = a.hand_result || this.evaluateHand(a.cards, state.community_cards);
+        const evalB = b.hand_result || this.evaluateHand(b.cards, state.community_cards);
+        return evalB.score - evalA.score;
+      });
+
+      // 找出最高分
+      const topScore = (contenders[0].hand_result || this.evaluateHand(contenders[0].cards, state.community_cards)).score;
+      const winners = contenders.filter((s) => {
+        const ev = s.hand_result || this.evaluateHand(s.cards, state.community_cards);
+        return ev.score === topScore;
+      });
+
+      // 边池金额均分
+      const sharePerWinner = Math.floor(pot.amount / winners.length);
+      const remainder = pot.amount - sharePerWinner * winners.length;
+
+      winners.forEach((w, idx) => {
+        // 前 remainder 个赢家多拿 1 个筹码（处理整除余数）
+        netResults[w.user_id!] += sharePerWinner + (idx < remainder ? 1 : 0);
+      });
+    }
+
+    // 5. 组装返回结果
     const results: PlayerNetResult[] = [];
     state.seats.forEach((seat) => {
       if (!seat.user_id || seat.current_bet <= 0) return;
-
-      if (seat.user_id === winnerId) {
-        results.push({
-          user_id: seat.user_id,
-          net_amount: totalPot - seat.current_bet,
-          bet_total: seat.current_bet,
-          gross_win: totalPot,
-          hand_name: seat.hand_result?.rank_name || "德州胜出牌型"
-        });
-      } else {
-        results.push({
-          user_id: seat.user_id,
-          net_amount: -seat.current_bet,
-          bet_total: seat.current_bet,
-          gross_win: 0,
-          hand_name: seat.hand_result?.rank_name || (seat.status === "folded" ? "弃牌" : "比牌落败")
-        });
-      }
+      const net = netResults[seat.user_id] || 0;
+      results.push({
+        user_id: seat.user_id,
+        net_amount: net,
+        bet_total: betTotals[seat.user_id] || 0,
+        gross_win: Math.max(0, net + (betTotals[seat.user_id] || 0)),
+        hand_name: handNames[seat.user_id] || (seat.status === "folded" ? "弃牌" : "未评估")
+      });
     });
 
     return results;
+  }
+
+  /**
+   * 计算边池拆分
+   * 算法：
+   * 1. 收集所有未弃牌玩家的下注额
+   * 2. 按下注额从小到大排序去重
+   * 3. 每一层拆一个边池：金额 = (当前层 - 上一层) * 参与人数
+   */
+  private calculateSidePots(state: PluginRoundState): SidePot[] {
+    // 未弃牌且有下注的玩家
+    const players = state.seats.filter(
+      (s) => s.user_id && s.current_bet > 0 && s.status !== "folded"
+    );
+    if (players.length === 0) return [];
+
+    // 按下注额从小到大排序
+    const sortedBets = [...new Set(players.map((p) => p.current_bet))].sort((a, b) => a - b);
+
+    const sidePots: SidePot[] = [];
+    let prevLevel = 0;
+
+    for (const level of sortedBets) {
+      // 参与该层的玩家：下注额 >= level
+      const eligible = players.filter((p) => p.current_bet >= level);
+      const layerAmount = (level - prevLevel) * eligible.length;
+
+      if (layerAmount > 0) {
+        sidePots.push({
+          amount: layerAmount,
+          eligible_user_ids: eligible.map((p) => p.user_id!)
+        });
+      }
+
+      prevLevel = level;
+    }
+
+    return sidePots;
   }
 
   isPhaseComplete(state: PluginRoundState): boolean {

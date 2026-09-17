@@ -165,7 +165,7 @@ describe("【Iteration 1】德州扑克完整一局生命周期验证", () => {
     // 9. 触发微服务原子结算 (POST /api/wallet/game_settle)
     let capturedPayload: GameSettleRequest | null = null;
     const mockWalletClient = {
-      generateRoundTxId: (rId: string) => `tx_test_${rId}_${Date.now()}`,
+      generateSettleTxId: (rId: string) => `tx_test_${rId}_${Date.now()}`,
       settleGame: vi.fn().mockImplementation(async (req: GameSettleRequest) => {
         capturedPayload = req;
         return {
@@ -190,7 +190,9 @@ describe("【Iteration 1】德州扑克完整一局生命周期验证", () => {
     expect(capturedPayload!.total_pot).toBe(800);
     expect(capturedPayload!.platform_fee_rate).toBe(0.05);
     expect(capturedPayload!.agent_commission_rate).toBe(0.03);
-    expect(capturedPayload!.player_results).toEqual(sm.lastResults);
+    expect(capturedPayload!.winner_ids).toEqual(
+      sm.lastResults.filter(r => r.net_amount > 0).map(r => r.user_id)
+    );
 
     // 牌局结算完成，状态机回到 WAITING 就绪态，等待下一局启动
     expect(sm.getPhase()).toBe("WAITING");

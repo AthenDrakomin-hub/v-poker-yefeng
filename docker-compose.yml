@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. 钱包核心微服务 (Python FastAPI + aiosqlite / SQLAlchemy)
+  # 1. 钱包核心微服务 (Python FastAPI + aiosqlite)
   wallet-service:
     build:
       context: ./wallet_service
@@ -13,6 +13,7 @@ services:
       - PORT=8001
       - DATABASE_URL=sqlite+aiosqlite:///./data/wallet.db
       - COMMISSION_SERVICE_URL=http://commission-service:8000
+      - WALLET_INTERNAL_KEY=change-me-in-prod
     volumes:
       - wallet_data:/app/data
     restart: unless-stopped
@@ -48,6 +49,7 @@ services:
       - PORT=4000
       - WALLET_SERVICE_URL=http://wallet-service:8001
       - COMMISSION_SERVICE_URL=http://commission-service:8000
+      - GAME_ENGINE_URL=http://game-engine:8003
     depends_on:
       - wallet-service
       - commission-service
@@ -55,25 +57,24 @@ services:
     networks:
       - poker_net
 
-  # 4. 德州扑克游戏引擎 (开源: lhz960904/texas-holdem 桥接挂载)
+  # 4. 多游戏引擎 (Node.js + Hono + WebSocket)
   game-engine:
-    image: node:20-alpine
+    build:
+      context: ./game-engine
+      dockerfile: Dockerfile
     container_name: poker-game-engine
-    working_dir: /app
     ports:
-      - "3001:3001"
+      - "8003:8003"
     environment:
-      - PORT=3001
+      - ENGINE_PORT=8003
       - WALLET_SERVICE_URL=http://wallet-service:8001
-    volumes:
-      - ./packages:/app/packages
-    command: sh -c "echo 'Game engine bridge connected to wallet-service' && tail -f /dev/null"
     depends_on:
       - wallet-service
+    restart: unless-stopped
     networks:
       - poker_net
 
-  # 5. 代理端后台 (Refine Dashboard)
+  # 5. 代理端后台 (Refine React)
   agent-dashboard:
     image: node:20-alpine
     container_name: poker-agent-dashboard
@@ -84,7 +85,7 @@ services:
       - ./agent-dashboard:/app
     environment:
       - VITE_BFF_URL=http://localhost:4000/api/agent
-    command: sh -c "echo 'Agent Dashboard ready on port 3002' && tail -f /dev/null"
+    command: sh -c "npm install && npm run dev -- --port 3002"
     networks:
       - poker_net
 
@@ -119,7 +120,7 @@ services:
     networks:
       - poker_net
 
-  # 8. Metabase 数据 BI 监控大屏
+  # 8. Metabase 数据 BI 监控
   metabase:
     image: metabase/metabase:latest
     container_name: poker-metabase

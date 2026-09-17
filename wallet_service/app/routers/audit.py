@@ -18,15 +18,15 @@ async def audit_system_energy(
     """
     GET /api/wallet/audit 能量守恒对账
     核心公式：
-    Sum(所有钱包余额 + 冻结余额) + Sum(手续费池 fee_pool) == Sum(所有成功的 mint 铸币总量)
+    sum_all_wallets + sum_fee_pool == total_minted
     若 difference != 0 则表明系统发生资产泄漏或虚增，必须报警！
     """
     metrics = await calculate_audit_metrics(db)
-    is_conserved = metrics["is_conserved"]
-    msg = "Energy conserved: System in balance." if is_conserved else "CRITICAL ALERT: Energy conservation violated!"
+    check_passed = metrics["check_passed"]
+    msg = "Energy conserved: System in balance." if check_passed else "CRITICAL ALERT: Energy conservation violated!"
 
     return APIResponse(
-        code=0 if is_conserved else 5001,
+        code=0 if check_passed else 5001,
         message=msg,
         data=AuditResponseData(**metrics)
     )

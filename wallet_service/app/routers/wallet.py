@@ -1,5 +1,5 @@
 """
-钱包服务 API 路由：铸币、转账、游戏结算、余额及流水查询
+钱包服务 API 路由：铸币、转账、下注、退款、游戏结算、余额及流水查询
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +12,10 @@ from app.schemas import (
     MintResponseData,
     TransferRequest,
     TransferResponseData,
+    BetRequest,
+    BetResponseData,
+    RefundRequest,
+    RefundResponseData,
     GameSettleRequest,
     GameSettleResponseData,
     BalanceResponseData,
@@ -30,14 +34,10 @@ async def mint_chips(
 ):
     """
     POST /api/wallet/mint 管理员铸币
-    向指定用户账户增加筹码，写入流水（type: mint），严格执行幂等校验
+    唯一凭空产生筹码的接口，写入流水（type: mint），幂等校验
     """
     data = await WalletEngine.process_mint(db, req)
-    return APIResponse(
-        code=0,
-        message="Mint successful",
-        data=MintResponseData(**data)
-    )
+    return APIResponse(code=0, message="Mint successful", data=MintResponseData(**data))
 
 
 @router.post("/transfer", response_model=APIResponse[TransferResponseData])
@@ -47,14 +47,36 @@ async def transfer_chips(
 ):
     """
     POST /api/wallet/transfer 用户自由转账
-    校验余额，扣除 0.01% (万分之一) 手续费（向下取整），手续费归集到 fee_pool，写入流水
+    扣 0.01% 手续费入 fee_pool，守恒校验
     """
     data = await WalletEngine.process_transfer(db, req)
-    return APIResponse(
-        code=0,
-        message="Transfer successful",
-        data=TransferResponseData(**data)
-    )
+    return APIResponse(code=0, message="Transfer successful", data=TransferResponseData(**data))
+
+
+@router.post("/bet", response_model=APIResponse[BetResponseData])
+async def bet_chips(
+    req: BetRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    POST /api/wallet/bet 下注扣款
+    玩家钱包扣款到牌桌虚拟钱包 (type: bet)，守恒校验
+    """
+    data = await WalletEngine.process_bet(db, req)
+    return APIResponse(code=0, message="Bet successful", data=BetResponseData(**data))
+
+
+@router.post("/refund", response_model=APIResponse[RefundResponseData])
+async def refund_chips(
+    req: RefundRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    POST /api/wallet/refund 异常退款
+    牌桌虚拟钱包退还给玩家 (type: refund)，守恒校验
+    """
+    data = await WalletEngine.process_refund(db, req)
+    return APIResponse(code=0, message="Refund successful", data=RefundResponseData(**data))
 
 
 @router.post("/game_settle", response_model=APIResponse[GameSettleResponseData])
@@ -64,14 +86,10 @@ async def settle_game_pot(
 ):
     """
     POST /api/wallet/game_settle 游戏对局结算分账
-    房费抽水 + 赢家分账 + 代理层级分佣 + 平台留存入账
+    从牌桌虚拟钱包扣款，分给赢家 + 平台 + 代理，守恒校验
     """
     data = await WalletEngine.process_game_settle(db, req)
-    return APIResponse(
-        code=0,
-        message="Game settled successfully",
-        data=GameSettleResponseData(**data)
-    )
+    return APIResponse(code=0, message="Game settled successfully", data=GameSettleResponseData(**data))
 
 
 @router.get("/balance/{user_id}", response_model=APIResponse[BalanceResponseData])
@@ -87,8 +105,7 @@ async def get_balance(
         raise HTTPException(status_code=404, detail=f"User wallet '{user_id}' not found.")
 
     return APIResponse(
-        code=0,
-        message="success",
+        code=0, message="success",
         data=BalanceResponseData(
             user_id=wallet.user_id,
             wallet_id=wallet.wallet_id,
