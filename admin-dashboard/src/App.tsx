@@ -300,7 +300,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: '26px',
     fontWeight: '700',
-    color: '#d4af37',
+    color: 'var(--vp-gold)',
     letterSpacing: '2px',
   },
   subtitle: {
@@ -325,8 +325,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   button: {
     padding: '14px',
-    background: 'linear-gradient(135deg, #d4af37 0%, #f4e4bc 100%)',
-    color: '#1a1a2e',
+    background: 'linear-gradient(135deg, var(--vp-gold) 0%, var(--vp-gold-hover) 100%)',
+    color: 'var(--vp-surface)',
     border: 'none',
     borderRadius: '10px',
     fontSize: '15px',
@@ -335,7 +335,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
   error: {
-    color: '#ff6b6b',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
     margin: 0,
     padding: '10px 14px',
@@ -345,7 +345,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    background: 'radial-gradient(ellipse at top, #1a1a2e 0%, #0d0d1a 100%)',
+    background: 'radial-gradient(ellipse at top, var(--vp-surface) 0%, var(--vp-ink) 100%)',
   },
   sidebar: {
     width: '220px',
@@ -357,7 +357,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    color: '#d4af37',
+    color: 'var(--vp-gold)',
     fontSize: '18px',
     fontWeight: '700',
     padding: '0 20px 20px',
@@ -393,7 +393,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '10px',
     background: 'rgba(239,68,68,0.15)',
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
   },
   main: {
     flex: 1,
@@ -415,7 +415,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutBtn: {
     padding: '8px 16px',
     background: 'rgba(239,68,68,0.15)',
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     border: '1px solid rgba(239,68,68,0.3)',
     borderRadius: '8px',
     cursor: 'pointer',

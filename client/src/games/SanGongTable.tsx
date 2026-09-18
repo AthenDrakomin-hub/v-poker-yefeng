@@ -173,33 +173,33 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '20px',
   },
   title: {
-    color: '#3b82f6',
+    color: 'var(--vp-info)',
     fontSize: '24px',
     margin: 0,
   },
   modeBadge: {
     background: 'rgba(59, 130, 246, 0.2)',
-    color: '#3b82f6',
+    color: 'var(--vp-info)',
     padding: '4px 12px',
     borderRadius: '16px',
     fontSize: '14px',
   },
   bankerBadge: {
     textAlign: 'center',
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '16px',
     marginBottom: '10px',
   },
   table: {
-    background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
+    background: 'linear-gradient(135deg, var(--vp-info) 0%, var(--vp-info) 100%)',
     padding: '30px',
     borderRadius: '30px',
-    border: '3px solid #3b82f6',
+    border: '3px solid var(--vp-info)',
     position: 'relative',
   },
   pot: {
     textAlign: 'center',
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '20px',
     fontWeight: 'bold',
     marginBottom: '20px',
@@ -235,16 +235,16 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '10px',
   },
   cardType: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '20px',
     fontWeight: 'bold',
   },
   multiplier: {
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     fontSize: '16px',
   },
   pointsTip: {
-    color: '#9ca3af',
+    color: 'var(--vp-muted)',
     fontSize: '12px',
     marginTop: '5px',
   },
@@ -253,8 +253,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto 20px',
     padding: '10px 24px',
     background: 'rgba(251, 191, 36, 0.2)',
-    color: '#fbbf24',
-    border: '2px solid #fbbf24',
+    color: 'var(--vp-warning)',
+    border: '2px solid var(--vp-warning)',
     borderRadius: '24px',
     cursor: 'pointer',
     fontSize: '16px',
@@ -274,7 +274,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
   },
   bankerSeat: {
-    border: '2px solid #fbbf24',
+    border: '2px solid var(--vp-warning)',
   },
   crown: {
     position: 'absolute',
@@ -289,11 +289,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '8px',
   },
   playerChips: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '14px',
   },
   playerBet: {
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
   },
   actions: {
@@ -304,7 +304,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   betBtn: {
     padding: '10px 20px',
-    background: '#3b82f6',
+    background: 'var(--vp-info)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',

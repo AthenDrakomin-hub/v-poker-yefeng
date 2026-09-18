@@ -56,10 +56,10 @@ export default function Leaderboard() {
   };
 
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return { color: '#ffd700', bg: 'rgba(255, 215, 0, 0.1)' };
-    if (rank === 2) return { color: '#c0c0c0', bg: 'rgba(192, 192, 192, 0.1)' };
-    if (rank === 3) return { color: '#cd7f32', bg: 'rgba(205, 127, 50, 0.1)' };
-    return { color: '#9ca3af', bg: 'rgba(255, 255, 255, 0.05)' };
+    if (rank === 1) return { color: 'var(--vp-gold)', bg: 'rgba(255, 215, 0, 0.1)' };
+    if (rank === 2) return { color: 'var(--vp-muted)', bg: 'rgba(192, 192, 192, 0.1)' };
+    if (rank === 3) return { color: 'var(--vp-gold)', bg: 'rgba(205, 127, 50, 0.1)' };
+    return { color: 'var(--vp-muted)', bg: 'rgba(255, 255, 255, 0.05)' };
   };
 
   const getTrendIcon = (trend?: 'up' | 'down' | 'same') => {

@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 
 const txTypeColors: Record<string, string> = {
-  mint: "#10b981",
-  transfer: "#3b82f6",
-  bet: "#f59e0b",
-  refund: "#8b5cf6",
-  game_settle: "#e94560",
+  mint: "var(--vp-success)",
+  transfer: "var(--vp-info)",
+  bet: "var(--vp-warning)",
+  refund: "var(--vp-info)",
+  game_settle: "var(--vp-gold)",
 };
 
 export default function Wallet() {
@@ -111,7 +111,7 @@ export default function Wallet() {
                       <span style={styles.txRemark}>{tx.remark || tx.transaction_id}</span>
                     </div>
                     <div style={styles.txRight}>
-                      <span style={{ ...styles.txAmount, color: isOutgoing ? "#ef4444" : "#10b981" }}>
+                      <span style={{ ...styles.txAmount, color: isOutgoing ? "var(--vp-danger)" : "var(--vp-success)" }}>
                         {isOutgoing ? "-" : "+"}{tx.amount.toLocaleString()}
                       </span>
                       <span style={styles.txTime}>
@@ -132,7 +132,7 @@ export default function Wallet() {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
-    background: "radial-gradient(ellipse at top, #1a1a2e 0%, #0d0d1a 100%)",
+    background: "radial-gradient(ellipse at top, var(--vp-surface) 0%, var(--vp-ink) 100%)",
   },
   header: {
     display: "flex",
@@ -165,7 +165,7 @@ const styles: Record<string, React.CSSProperties> = {
   transferToggle: {
     padding: "8px 16px",
     background: "rgba(233,69,96,0.15)",
-    color: "#e94560",
+    color: "var(--vp-gold)",
     border: "1px solid rgba(233,69,96,0.3)",
     borderRadius: "8px",
     cursor: "pointer",
@@ -196,7 +196,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
   },
   balanceValue: {
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     fontSize: "36px",
     fontWeight: "700",
     margin: "4px 0",
@@ -234,7 +234,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   transferBtn: {
     padding: "12px",
-    background: "linear-gradient(135deg, #e94560 0%, #ff6b9d 100%)",
+    background: "linear-gradient(135deg, var(--vp-gold) 0%, var(--vp-danger) 100%)",
     color: "#fff",
     border: "none",
     borderRadius: "10px",

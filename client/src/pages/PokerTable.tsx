@@ -217,7 +217,7 @@ export default function PokerTable() {
   const myCards = mySeat?.hole_cards || [];
 
   // 倒计时颜色：最后5秒变红闪烁
-  const countdownColor = countdown <= 5 ? "#ff4444" : "#4ade80";
+  const countdownColor = countdown <= 5 ? "var(--vp-danger)" : "var(--vp-success)";
   const countdownAnimation = countdown <= 5 ? "blink 1s infinite" : "none";
 
   return (
@@ -355,7 +355,7 @@ export default function PokerTable() {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)",
+    background: "linear-gradient(135deg, var(--vp-surface) 0%, var(--vp-info) 100%)",
   },
   header: {
     display: "flex",
@@ -382,7 +382,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
   },
   phase: {
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     fontSize: "14px",
   },
   balance: {
@@ -396,12 +396,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   table: {
     position: "relative",
-    background: "linear-gradient(135deg, #2d5a3d 0%, #1a3d2a 100%)",
+    background: "linear-gradient(135deg, var(--vp-felt) 0%, var(--vp-felt) 100%)",
     width: "100%",
     maxWidth: "900px",
     padding: "40px",
     borderRadius: "40px",
-    border: "4px solid #8b6914",
+    border: "4px solid var(--vp-gold-press)",
   },
   countdown: {
     position: "absolute",
@@ -415,7 +415,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   pot: {
     textAlign: "center",
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     fontSize: "24px",
     fontWeight: "bold",
     marginBottom: "30px",
@@ -433,7 +433,7 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
   mySeat: {
-    border: "2px solid #e94560",
+    border: "2px solid var(--vp-gold)",
   },
   seatUser: {
     color: "#fff",
@@ -441,11 +441,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "8px",
   },
   seatChips: {
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     fontSize: "14px",
   },
   seatBet: {
-    color: "#e94560",
+    color: "var(--vp-gold)",
     fontSize: "14px",
   },
   seatStatus: {
@@ -454,7 +454,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   message: {
     textAlign: "center",
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     marginTop: "20px",
   },
   settleModal: {
@@ -479,7 +479,7 @@ const styles: Record<string, React.CSSProperties> = {
   settleClose: {
     marginTop: "20px",
     padding: "10px 30px",
-    background: "#e94560",
+    background: "var(--vp-gold)",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -501,7 +501,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   checkBtn: {
     padding: "12px 24px",
-    background: "#0f3460",
+    background: "var(--vp-info)",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -509,7 +509,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   callBtn: {
     padding: "12px 24px",
-    background: "#2d5a3d",
+    background: "var(--vp-felt)",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -517,7 +517,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   raiseBtn: {
     padding: "12px 24px",
-    background: "#e94560",
+    background: "var(--vp-gold)",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -525,7 +525,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   allInBtn: {
     padding: "12px 24px",
-    background: "#ff6b35",
+    background: "var(--vp-danger)",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
@@ -551,7 +551,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
   },
   communityCard: {
-    border: "2px solid #8b6914",
+    border: "2px solid var(--vp-gold-press)",
   },
   myCards: {
     display: "flex",
@@ -566,7 +566,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginRight: "10px",
   },
   holeCard: {
-    border: "2px solid #e94560",
+    border: "2px solid var(--vp-gold)",
     transformStyle: "preserve-3d",
   },
 };

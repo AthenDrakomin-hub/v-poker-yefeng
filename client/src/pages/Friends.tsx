@@ -74,9 +74,9 @@ export default function Friends() {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      online: '#10b981',
-      offline: '#6b7280',
-      playing: '#f59e0b',
+      online: 'var(--vp-success)',
+      offline: 'var(--vp-muted)',
+      playing: 'var(--vp-warning)',
     };
     const labels: Record<string, string> = {
       online: '在线',
@@ -142,8 +142,8 @@ export default function Friends() {
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
                     style={{
-                      background: 'linear-gradient(135deg, #d4af3740, #d4af3720)',
-                      border: '2px solid #d4af3760',
+                      background: 'linear-gradient(135deg, color-mix(in srgb, var(--vp-gold) 40%, transparent), color-mix(in srgb, var(--vp-gold) 20%, transparent))',
+                      border: '2px solid color-mix(in srgb, var(--vp-gold) 60%, transparent)',
                     }}
                   >
                     {friend.username[0]}

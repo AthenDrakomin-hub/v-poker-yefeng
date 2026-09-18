@@ -79,7 +79,7 @@ export default function Login() {
         {/* 注册链接 */}
         <div style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
           还没有账号？{' '}
-          <Link to="/register" style={{ color: '#d4af37', textDecoration: 'none' }}>
+          <Link to="/register" style={{ color: 'var(--vp-gold)', textDecoration: 'none' }}>
             立即注册
           </Link>
         </div>
@@ -163,7 +163,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: "32px",
     fontWeight: "700",
-    color: "#d4af37",
+    color: "var(--vp-gold)",
     letterSpacing: "4px",
     textShadow: "0 0 20px rgba(212, 175, 55, 0.5)",
   },
@@ -205,8 +205,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   button: {
     padding: "16px",
-    background: "linear-gradient(135deg, #d4af37 0%, #f4e4bc 100%)",
-    color: "#1a1a2e",
+    background: "linear-gradient(135deg, var(--vp-gold) 0%, var(--vp-gold-hover) 100%)",
+    color: "var(--vp-surface)",
     border: "none",
     borderRadius: "12px",
     fontSize: "16px",
@@ -227,7 +227,7 @@ const styles: Record<string, React.CSSProperties> = {
     animation: "spin 1s linear infinite",
   },
   error: {
-    color: "#ff6b6b",
+    color: "var(--vp-danger)",
     fontSize: "14px",
     margin: 0,
     padding: "10px 14px",

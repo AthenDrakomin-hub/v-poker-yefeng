@@ -157,35 +157,35 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '20px',
   },
   title: {
-    color: '#f59e0b',
+    color: 'var(--vp-warning)',
     fontSize: '24px',
     margin: 0,
   },
   blindStatus: {},
   seenBadge: {
     background: 'rgba(16, 185, 129, 0.2)',
-    color: '#10b981',
+    color: 'var(--vp-success)',
     padding: '4px 12px',
     borderRadius: '16px',
     fontSize: '14px',
   },
   blindBadge: {
     background: 'rgba(245, 158, 11, 0.2)',
-    color: '#f59e0b',
+    color: 'var(--vp-warning)',
     padding: '4px 12px',
     borderRadius: '16px',
     fontSize: '14px',
   },
   table: {
-    background: 'linear-gradient(135deg, #7c2d12 0%, #431407 100%)',
+    background: 'linear-gradient(135deg, var(--vp-gold-press) 0%, var(--vp-gold-press) 100%)',
     padding: '30px',
     borderRadius: '30px',
-    border: '3px solid #b45309',
+    border: '3px solid var(--vp-warning)',
     position: 'relative',
   },
   pot: {
     textAlign: 'center',
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '20px',
     fontWeight: 'bold',
     marginBottom: '20px',
@@ -218,14 +218,14 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
   },
   cardSeen: {
-    border: '2px solid #10b981',
+    border: '2px solid var(--vp-success)',
   },
   cardBlind: {
-    background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
-    color: '#f59e0b',
+    background: 'linear-gradient(135deg, var(--vp-info) 0%, var(--vp-info) 100%)',
+    color: 'var(--vp-warning)',
   },
   cardType: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '14px',
   },
   seeBtn: {
@@ -233,8 +233,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto 20px',
     padding: '8px 20px',
     background: 'rgba(245, 158, 11, 0.2)',
-    color: '#f59e0b',
-    border: '1px solid #f59e0b',
+    color: 'var(--vp-warning)',
+    border: '1px solid var(--vp-warning)',
     borderRadius: '20px',
     cursor: 'pointer',
     fontSize: '14px',
@@ -258,11 +258,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '8px',
   },
   playerChips: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '14px',
   },
   playerBet: {
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
   },
   otherCards: {
@@ -274,8 +274,8 @@ const styles: Record<string, React.CSSProperties> = {
   compareBtn: {
     padding: '4px 12px',
     background: 'rgba(239, 68, 68, 0.2)',
-    color: '#ef4444',
-    border: '1px solid #ef4444',
+    color: 'var(--vp-danger)',
+    border: '1px solid var(--vp-danger)',
     borderRadius: '12px',
     cursor: 'pointer',
     fontSize: '12px',
@@ -296,7 +296,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   callBtn: {
     padding: '10px 20px',
-    background: '#10b981',
+    background: 'var(--vp-success)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
@@ -304,7 +304,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   raiseBtn: {
     padding: '10px 20px',
-    background: '#f59e0b',
+    background: 'var(--vp-warning)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
@@ -312,7 +312,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   allInBtn: {
     padding: '10px 20px',
-    background: '#ef4444',
+    background: 'var(--vp-danger)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',

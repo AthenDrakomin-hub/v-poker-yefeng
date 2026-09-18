@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { api, clearToken } from "../api/client";
 
 const gameTypes = [
-  { id: "texas_holdem", name: "德州扑克", icon: "♠", players: "2-9人", accent: "#e94560" },
-  { id: "zha_jin_hua", name: "炸金花", icon: "🃏", players: "2-6人", accent: "#f59e0b" },
-  { id: "niu_niu", name: "牛牛", icon: "🐂", players: "2-8人", accent: "#10b981" },
-  { id: "san_gong", name: "三公", icon: "🎴", players: "2-8人", accent: "#3b82f6" },
+  { id: "texas_holdem", name: "德州扑克", icon: "♠", players: "2-9人", accent: "var(--vp-gold)" },
+  { id: "zha_jin_hua", name: "炸金花", icon: "🃏", players: "2-6人", accent: "var(--vp-warning)" },
+  { id: "niu_niu", name: "牛牛", icon: "🐂", players: "2-8人", accent: "var(--vp-success)" },
+  { id: "san_gong", name: "三公", icon: "🎴", players: "2-8人", accent: "var(--vp-info)" },
 ];
 
 interface RoomItem {
@@ -221,7 +221,7 @@ export default function Lobby() {
             onClick={handleQuickMatch}
             style={{
               padding: '12px 32px',
-              background: 'linear-gradient(135deg, #d4af37, #b8962e)',
+              background: 'linear-gradient(135deg, var(--vp-gold), var(--vp-gold-press))',
               color: '#000',
               border: 'none',
               borderRadius: '8px',
@@ -267,7 +267,7 @@ export default function Lobby() {
               </div>
               <h3 style={styles.gameName}>{game.name}</h3>
               <p style={styles.gameMeta}>{game.players} · 即时开局</p>
-              <div style={{ ...styles.playBtn, background: `linear-gradient(135deg, ${game.accent}, ${game.accent}dd)` }}>
+              <div style={{ ...styles.playBtn, background: `linear-gradient(135deg, ${game.accent}, color-mix(in srgb, ${game.accent} 86%, transparent))` }}>
                 选择游戏 →
               </div>
             </div>
@@ -462,7 +462,7 @@ const styles: Record<string, React.CSSProperties> = {
     objectFit: "contain",
   },
   logoText: {
-    color: "#d4af37",
+    color: "var(--vp-gold)",
     fontSize: "20px",
     fontWeight: "700",
     letterSpacing: "2px",
@@ -484,7 +484,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "11px",
   },
   balanceValue: {
-    color: "#ffd700",
+    color: "var(--vp-gold)",
     fontSize: "16px",
     fontWeight: "700",
   },
@@ -503,7 +503,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutBtn: {
     padding: "8px 16px",
     background: "rgba(233,69,96,0.15)",
-    color: "#e94560",
+    color: "var(--vp-gold)",
     border: "1px solid rgba(233,69,96,0.3)",
     borderRadius: "8px",
     cursor: "pointer",
@@ -538,8 +538,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   primaryBtn: {
     padding: "12px 28px",
-    background: "linear-gradient(135deg, #e94560, #e94560dd)",
-    color: "#fff",
+    background: "linear-gradient(135deg, var(--vp-gold), var(--vp-gold-press))",
+    color: "var(--vp-ink)",
     border: "none",
     borderRadius: "10px",
     cursor: "pointer",
@@ -631,7 +631,7 @@ const styles: Record<string, React.CSSProperties> = {
   privateBadge: {
     marginLeft: "auto",
     fontSize: "12px",
-    color: "#f59e0b",
+    color: "var(--vp-warning)",
   },
   roomMeta: {
     display: "flex",
@@ -646,11 +646,11 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
   },
   roomStatus: {
-    color: "#10b981",
+    color: "var(--vp-success)",
     fontSize: "13px",
   },
   joinBtn: {
-    color: "#e94560",
+    color: "var(--vp-gold)",
     fontSize: "14px",
     fontWeight: "600",
   },
@@ -668,7 +668,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 1000,
   },
   modalContent: {
-    background: "#1a1a2e",
+    background: "var(--vp-surface)",
     padding: "32px",
     borderRadius: "16px",
     width: "90%",
@@ -723,8 +723,8 @@ const styles: Record<string, React.CSSProperties> = {
   confirmBtn: {
     flex: 1,
     padding: "12px",
-    background: "linear-gradient(135deg, #e94560, #e94560dd)",
-    color: "#fff",
+    background: "linear-gradient(135deg, var(--vp-gold), var(--vp-gold-press))",
+    color: "var(--vp-ink)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",

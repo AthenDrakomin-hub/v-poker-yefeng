@@ -189,7 +189,7 @@ function App() {
               style={{
                 ...styles.navItem,
                 background: page === item.id ? 'rgba(245,158,11,0.15)' : 'transparent',
-                color: page === item.id ? '#f59e0b' : 'rgba(255,255,255,0.6)',
+                color: page === item.id ? 'var(--vp-warning)' : 'rgba(255,255,255,0.6)',
               }}
               onClick={() => setPage(item.id)}
             >
@@ -265,7 +265,7 @@ function App() {
                       <span style={styles.roomGame}>{getGameName(room.game_type)}</span>
                       <span style={{
                         ...styles.roomStatus,
-                        color: room.status === 'waiting' ? '#10b981' : room.status === 'playing' ? '#f59e0b' : '#ef4444'
+                        color: room.status === 'waiting' ? 'var(--vp-success)' : room.status === 'playing' ? 'var(--vp-warning)' : 'var(--vp-danger)'
                       }}>
                         {room.status === 'waiting' ? '等待中' : room.status === 'playing' ? '游戏中' : '已结束'}
                       </span>
@@ -300,7 +300,7 @@ function App() {
                     {commissionRecords.map((record: any, idx: number) => (
                       <tr key={idx} style={styles.tr}>
                         <td style={styles.td}>{new Date(record.created_at).toLocaleString()}</td>
-                        <td style={{ ...styles.td, color: '#10b981', fontWeight: '600' }}>
+                        <td style={{ ...styles.td, color: 'var(--vp-success)', fontWeight: '600' }}>
                           +{record.commission_amount?.toLocaleString() || record.amount?.toLocaleString()}
                         </td>
                         <td style={styles.td}>L{record.level || '-'}</td>
@@ -334,7 +334,7 @@ function App() {
                       <tr key={idx} style={styles.tr}>
                         <td style={styles.td}>{child.agent_id}</td>
                         <td style={styles.td}>L{child.level}</td>
-                        <td style={{ ...styles.td, color: '#ffd700' }}>
+                        <td style={{ ...styles.td, color: 'var(--vp-gold)' }}>
                           {(child.commission_balance || 0).toLocaleString()}
                         </td>
                         <td style={styles.td}>
@@ -458,7 +458,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: '26px',
     fontWeight: '700',
-    color: '#d4af37',
+    color: 'var(--vp-gold)',
     letterSpacing: '2px',
   },
   subtitle: {
@@ -483,8 +483,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   button: {
     padding: '14px',
-    background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-    color: '#1a1a2e',
+    background: 'linear-gradient(135deg, var(--vp-warning) 0%, var(--vp-warning) 100%)',
+    color: 'var(--vp-surface)',
     border: 'none',
     borderRadius: '10px',
     fontSize: '15px',
@@ -493,7 +493,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
   error: {
-    color: '#ff6b6b',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
     margin: 0,
     padding: '10px 14px',
@@ -503,7 +503,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    background: 'radial-gradient(ellipse at top, #1a1a2e 0%, #0d0d1a 100%)',
+    background: 'radial-gradient(ellipse at top, var(--vp-surface) 0%, var(--vp-ink) 100%)',
   },
   sidebar: {
     width: '220px',
@@ -512,7 +512,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '20px 0',
   },
   sidebarLogo: {
-    color: '#f59e0b',
+    color: 'var(--vp-warning)',
     fontSize: '18px',
     fontWeight: '700',
     padding: '0 20px 20px',
@@ -556,7 +556,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutBtn: {
     padding: '8px 16px',
     background: 'rgba(239,68,68,0.15)',
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     border: '1px solid rgba(239,68,68,0.3)',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -580,8 +580,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   createBtn: {
     padding: '10px 20px',
-    background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-    color: '#1a1a2e',
+    background: 'linear-gradient(135deg, var(--vp-warning) 0%, var(--vp-warning) 100%)',
+    color: 'var(--vp-surface)',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -648,7 +648,7 @@ const styles: Record<string, React.CSSProperties> = {
   roomIdText: {
     fontSize: '18px',
     fontFamily: 'monospace',
-    color: '#f59e0b',
+    color: 'var(--vp-warning)',
     marginBottom: '8px',
   },
   roomMeta: {
@@ -692,7 +692,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12px',
     fontWeight: '500',
     background: 'rgba(16,185,129,0.15)',
-    color: '#10b981',
+    color: 'var(--vp-success)',
   },
   modalOverlay: {
     position: 'fixed',
@@ -708,7 +708,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 1000,
   },
   modalContent: {
-    background: '#1a1a2e',
+    background: 'var(--vp-surface)',
     padding: '32px',
     borderRadius: '16px',
     width: '90%',
@@ -763,8 +763,8 @@ const styles: Record<string, React.CSSProperties> = {
   confirmBtn: {
     flex: 1,
     padding: '12px',
-    background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-    color: '#1a1a2e',
+    background: 'linear-gradient(135deg, var(--vp-warning) 0%, var(--vp-warning) 100%)',
+    color: 'var(--vp-surface)',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',

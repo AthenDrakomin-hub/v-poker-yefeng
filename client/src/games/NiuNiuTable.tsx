@@ -165,33 +165,33 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '20px',
   },
   title: {
-    color: '#10b981',
+    color: 'var(--vp-success)',
     fontSize: '24px',
     margin: 0,
   },
   modeBadge: {
     background: 'rgba(16, 185, 129, 0.2)',
-    color: '#10b981',
+    color: 'var(--vp-success)',
     padding: '4px 12px',
     borderRadius: '16px',
     fontSize: '14px',
   },
   bankerBadge: {
     textAlign: 'center',
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '16px',
     marginBottom: '10px',
   },
   table: {
-    background: 'linear-gradient(135deg, #065f46 0%, #022c22 100%)',
+    background: 'linear-gradient(135deg, var(--vp-felt) 0%, var(--vp-felt) 100%)',
     padding: '30px',
     borderRadius: '30px',
-    border: '3px solid #059669',
+    border: '3px solid var(--vp-success)',
     position: 'relative',
   },
   pot: {
     textAlign: 'center',
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '20px',
     fontWeight: 'bold',
     marginBottom: '20px',
@@ -227,12 +227,12 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '10px',
   },
   niuType: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '20px',
     fontWeight: 'bold',
   },
   multiplier: {
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     fontSize: '16px',
   },
   bankerBtn: {
@@ -240,8 +240,8 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 auto 20px',
     padding: '10px 24px',
     background: 'rgba(251, 191, 36, 0.2)',
-    color: '#fbbf24',
-    border: '2px solid #fbbf24',
+    color: 'var(--vp-warning)',
+    border: '2px solid var(--vp-warning)',
     borderRadius: '24px',
     cursor: 'pointer',
     fontSize: '16px',
@@ -261,7 +261,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
   },
   bankerSeat: {
-    border: '2px solid #fbbf24',
+    border: '2px solid var(--vp-warning)',
   },
   crown: {
     position: 'absolute',
@@ -276,11 +276,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '8px',
   },
   playerChips: {
-    color: '#fbbf24',
+    color: 'var(--vp-warning)',
     fontSize: '14px',
   },
   playerBet: {
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
   },
   actions: {
@@ -291,7 +291,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   betBtn: {
     padding: '10px 20px',
-    background: '#10b981',
+    background: 'var(--vp-success)',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',

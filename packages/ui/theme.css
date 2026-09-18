@@ -1,0 +1,60 @@
+/* ============================================================
+ * V-Poker 共享设计 tokens（唯一真源 single source of truth）
+ * 适用：admin / support / agent 三个后台（Tailwind v4）
+ * client 不依赖 Tailwind，在自己的 index.css 里用同名 CSS 变量。
+ *
+ * 设计基调：赌场金 + 近黑深色，绒布绿仅用于游戏牌桌。
+ * ============================================================ */
+
+@theme {
+  /* 品牌金（主色 / CTA） */
+  --color-vp-gold: #d4af37;
+  --color-vp-gold-hover: #e6c85a;
+  --color-vp-gold-press: #b8962e;
+
+  /* 中性深色阶（替代原来散落的 gray-900/800/700） */
+  --color-vp-ink: #0a0e14;        /* 页面底 */
+  --color-vp-surface: #141922;     /* 卡片 */
+  --color-vp-surface-2: #1c232e;   /* 浮层 / 输入 */
+  --color-vp-border: #2a323e;
+  --color-vp-text: #e8ecf1;
+  --color-vp-muted: #9aa4b2;
+
+  /* 游戏区专用 */
+  --color-vp-felt: #0c5a3c;       /* 牌桌绒布绿 */
+
+  /* 语义色（替代随机 amber/green/blue/purple） */
+  --color-vp-success: #10b981;
+  --color-vp-warning: #f59e0b;
+  --color-vp-danger: #ef4444;
+
+  /* 字体 */
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* 圆角（卡片 12 / 控件 8） */
+  --radius-md: 0.5rem;
+
+  /* 阴影 */
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-glow-gold: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+/* 普通 CSS 变量别名：供内联 style / 非 Tailwind 代码用 var(--vp-*) 引用。
+   Tailwind @theme 已把 --color-vp-* 输出到 :root，这里再暴露一份短名。 */
+:root {
+  --vp-gold: var(--color-vp-gold);
+  --vp-gold-hover: var(--color-vp-gold-hover);
+  --vp-gold-press: var(--color-vp-gold-press);
+  --vp-ink: var(--color-vp-ink);
+  --vp-surface: var(--color-vp-surface);
+  --vp-surface-2: var(--color-vp-surface-2);
+  --vp-border: var(--color-vp-border);
+  --vp-text: var(--color-vp-text);
+  --vp-muted: var(--color-vp-muted);
+  --vp-felt: var(--color-vp-felt);
+  --vp-success: var(--color-vp-success);
+  --vp-warning: var(--color-vp-warning);
+  --vp-danger: var(--color-vp-danger);
+  --vp-info: #3b82f6;
+}
+

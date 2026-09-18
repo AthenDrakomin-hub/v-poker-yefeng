@@ -153,19 +153,19 @@ function App() {
                 <div style={styles.statCard}>
                   <div>
                     <div style={styles.statLabel}>待处理工单</div>
-                    <div style={{...styles.statValue, color: '#f59e0b'}}>{data?.open || 0}</div>
+                    <div style={{...styles.statValue, color: 'var(--vp-warning)'}}>{data?.open || 0}</div>
                   </div>
                 </div>
                 <div style={styles.statCard}>
                   <div>
                     <div style={styles.statLabel}>处理中</div>
-                    <div style={{...styles.statValue, color: '#3b82f6'}}>{data?.processing || 0}</div>
+                    <div style={{...styles.statValue, color: 'var(--vp-info)'}}>{data?.processing || 0}</div>
                   </div>
                 </div>
                 <div style={styles.statCard}>
                   <div>
                     <div style={styles.statLabel}>已关闭</div>
-                    <div style={{...styles.statValue, color: '#10b981'}}>{data?.closed || 0}</div>
+                    <div style={{...styles.statValue, color: 'var(--vp-success)'}}>{data?.closed || 0}</div>
                   </div>
                 </div>
                 <div style={styles.statCard}>
@@ -209,8 +209,8 @@ function App() {
                               background: ticket.status === 'open' ? 'rgba(245,158,11,0.15)' : 
                                           ticket.status === 'processing' ? 'rgba(59,130,246,0.15)' :
                                           'rgba(16,185,129,0.15)',
-                              color: ticket.status === 'open' ? '#f59e0b' : 
-                                      ticket.status === 'processing' ? '#3b82f6' : '#10b981',
+                              color: ticket.status === 'open' ? 'var(--vp-warning)' : 
+                                      ticket.status === 'processing' ? 'var(--vp-info)' : 'var(--vp-success)',
                             }}>
                               {ticket.status}
                             </span>
@@ -285,7 +285,7 @@ function App() {
                   </div>
                   <div style={styles.detailRow}>
                     <span style={styles.detailLabel}>余额</span>
-                    <span style={{...styles.detailValue, color: '#ffd700'}}>
+                    <span style={{...styles.detailValue, color: 'var(--vp-gold)'}}>
                       {(playerData.wallet?.balance || 0).toLocaleString()} 筹码
                     </span>
                   </div>
@@ -370,7 +370,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: '26px',
     fontWeight: '700',
-    color: '#d4af37',
+    color: 'var(--vp-gold)',
     letterSpacing: '2px',
   },
   subtitle: {
@@ -395,7 +395,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   button: {
     padding: '14px',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+    background: 'linear-gradient(135deg, var(--vp-info) 0%, var(--vp-info) 100%)',
     color: '#fff',
     border: 'none',
     borderRadius: '10px',
@@ -405,7 +405,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
   error: {
-    color: '#ff6b6b',
+    color: 'var(--vp-danger)',
     fontSize: '14px',
     margin: 0,
     padding: '10px 14px',
@@ -415,7 +415,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    background: 'radial-gradient(ellipse at top, #1a1a2e 0%, #0d0d1a 100%)',
+    background: 'radial-gradient(ellipse at top, var(--vp-surface) 0%, var(--vp-ink) 100%)',
   },
   sidebar: {
     width: '220px',
@@ -424,7 +424,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '20px 0',
   },
   sidebarLogo: {
-    color: '#3b82f6',
+    color: 'var(--vp-info)',
     fontSize: '18px',
     fontWeight: '700',
     padding: '0 20px 20px',
@@ -455,7 +455,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '10px',
     background: 'rgba(59,130,246,0.15)',
-    color: '#3b82f6',
+    color: 'var(--vp-info)',
   },
   main: {
     flex: 1,
@@ -477,7 +477,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoutBtn: {
     padding: '8px 16px',
     background: 'rgba(239,68,68,0.15)',
-    color: '#ef4444',
+    color: 'var(--vp-danger)',
     border: '1px solid rgba(239,68,68,0.3)',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -592,7 +592,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid rgba(255,255,255,0.05)',
   },
   chatSender: {
-    color: '#3b82f6',
+    color: 'var(--vp-info)',
     fontSize: '13px',
     fontWeight: '600',
     marginRight: '8px',
@@ -618,7 +618,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   searchBtn: {
     padding: '12px 24px',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+    background: 'linear-gradient(135deg, var(--vp-info) 0%, var(--vp-info) 100%)',
     color: '#fff',
     border: 'none',
     borderRadius: '10px',
