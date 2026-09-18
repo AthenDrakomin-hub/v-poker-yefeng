@@ -11,3 +11,9 @@ coverage/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# 环境变量文件（包含密钥，不要提交）
+.env
+.env.local
+.env.*.local
+

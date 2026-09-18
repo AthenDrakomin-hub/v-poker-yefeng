@@ -1,5 +1,11 @@
 version: '3.8'
 
+# V-POKER 环境变量说明：
+# 生产环境：cp .env.production .env
+# 测试环境：cp .env.test .env
+# 开发环境：cp .env.development .env
+# 切换环境后执行：docker-compose up -d 即可
+
 services:
   # 1. 钱包核心微服务 (Python FastAPI + Async SQLAlchemy)
   wallet-service:
@@ -8,12 +14,15 @@ services:
       dockerfile: Dockerfile
     container_name: poker-wallet-service
     ports:
-      - "8001:8001"
+      - "${WALLET_SERVICE_PORT:-8001}:8001"
     environment:
       - PORT=8001
-      - DATABASE_URL=postgresql+asyncpg://poker_admin:PokerDB2024@postgres:5432/poker_platform
-      - COMMISSION_SERVICE_URL=http://commission-service:8000
-      - WALLET_INTERNAL_KEY=change-me-in-prod
+      - DATABASE_URL=${DATABASE_URL}
+      - COMMISSION_SERVICE_URL=${COMMISSION_SERVICE_URL}
+      - WALLET_INTERNAL_KEY=${WALLET_INTERNAL_KEY:-change-me-in-prod}
+      - PLATFORM_FEE_RATE=${PLATFORM_FEE_RATE:-0.0300}
+      - AGENT_COMMISSION_RATE=${AGENT_COMMISSION_RATE:-0.0300}
+      - DEBUG=${DEBUG:-false}
     restart: unless-stopped
     networks:
       - poker_net
@@ -25,10 +34,11 @@ services:
       dockerfile: Dockerfile
     container_name: poker-commission-service
     ports:
-      - "8000:8000"
+      - "${COMMISSION_SERVICE_PORT:-8000}:8000"
     environment:
       - PORT=8000
-      - DATABASE_URL=postgresql+asyncpg://poker_admin:PokerDB2024@postgres:5432/poker_platform
+      - DATABASE_URL=${DATABASE_URL}
+      - DEBUG=${DEBUG:-false}
     restart: unless-stopped
     networks:
       - poker_net
@@ -40,12 +50,16 @@ services:
       dockerfile: Dockerfile
     container_name: poker-bff
     ports:
-      - "4000:4000"
+      - "${BFF_PORT:-4000}:4000"
     environment:
       - PORT=4000
-      - WALLET_SERVICE_URL=http://wallet-service:8001
-      - COMMISSION_SERVICE_URL=http://commission-service:8000
-      - GAME_ENGINE_URL=http://game-engine:8003
+      - WALLET_SERVICE_URL=${WALLET_SERVICE_URL}
+      - COMMISSION_SERVICE_URL=${COMMISSION_SERVICE_URL}
+      - GAME_ENGINE_URL=${GAME_ENGINE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_HOURS=${JWT_EXPIRE_HOURS:-168}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - DEBUG=${DEBUG:-false}
     depends_on:
       - wallet-service
       - commission-service
@@ -60,12 +74,14 @@ services:
       dockerfile: Dockerfile
     container_name: poker-game-engine
     ports:
-      - "8003:8003"
+      - "${GAME_ENGINE_PORT:-8003}:8003"
     environment:
       - ENGINE_PORT=8003
-      - WALLET_SERVICE_URL=http://wallet-service:8001
-      - DATABASE_URL=postgresql://poker_admin:PokerDB2024@postgres:5432/poker_platform
-      - DISCONNECT_TIMEOUT_MS=300000
+      - WALLET_SERVICE_URL=${WALLET_SERVICE_URL}
+      - DATABASE_URL=${DATABASE_URL_SYNC}
+      - DISCONNECT_TIMEOUT_MS=${DISCONNECT_TIMEOUT_MS:-300000}
+      - PLATFORM_FEE_RATE=${PLATFORM_FEE_RATE:-0.0300}
+      - DEBUG=${DEBUG:-false}
     depends_on:
       - wallet-service
     restart: unless-stopped
