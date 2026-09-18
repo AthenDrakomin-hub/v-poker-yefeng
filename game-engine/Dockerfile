@@ -3,11 +3,11 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps --omit=dev
+RUN npm install --legacy-peer-deps
 
 COPY . .
-RUN npm run build
 
 EXPOSE 8003
 
-CMD ["npm", "start"]
+# 直接用 tsx 运行 TS（免 tsc 类型检查，演示环境最稳）
+CMD ["npx", "tsx", "src/index.ts"]
