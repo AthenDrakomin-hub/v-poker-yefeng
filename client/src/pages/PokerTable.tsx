@@ -23,13 +23,13 @@ export default function PokerTable() {
   const [gameType, setGameType] = useState<string>("texas_holdem"); // 默认德州
   const timerRef = useRef<number | null>(null);
 
-  // 初始化：创建房间 + 加载余额 + 连接 WebSocket
+  // 初始化：创建房间 + 加载余额 + 连接 实时
   useEffect(() => {
     if (!roomId) return;
     initRoom();
     loadBalance();
 
-    // 连接 WebSocket 实时推送
+    // 连接 实时 实时推送
     gameClient.connect(roomId, userId);
 
     // 订阅状态更新

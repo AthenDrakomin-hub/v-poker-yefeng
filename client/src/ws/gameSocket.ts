@@ -1,6 +1,6 @@
 /**
- * 游戏引擎客户端（预览/演示版：HTTP 轮询，不用 WebSocket）
- * 生产 main 分支仍用 WebSocket；本分支为免费 PaaS 演示用。
+ * 游戏引擎客户端（预览/演示版：HTTP 轮询，不用 实时）
+ * 生产 main 分支仍用 实时；本分支为免费 PaaS 演示用。
  */
 import { config } from "../config";
 

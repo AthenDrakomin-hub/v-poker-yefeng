@@ -37,7 +37,7 @@ export default function RoomChat({ userId, onSendMessage }: RoomChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // 监听 WebSocket 消息（这里简化处理，实际由父组件传入）
+  // 监听 实时 消息（这里简化处理，实际由父组件传入）
   const addMessage = (msg: ChatMessage) => {
     setMessages((prev) => [...prev.slice(-50), msg]); // 最多保留50条
   };
