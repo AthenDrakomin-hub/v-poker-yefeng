@@ -74,6 +74,25 @@ export default function Login() {
               "登 录"
             )}
           </button>
+
+          {/* 演示分支：无后端时直接进入预览 */}
+          <button
+            type="button"
+            onClick={() => {
+              setToken("demo-token");
+              localStorage.setItem("vp_user_id", "demo_user");
+              navigate("/");
+            }}
+            style={{
+              ...styles.button,
+              background: "transparent",
+              border: "1px solid rgba(212,175,55,0.4)",
+              boxShadow: "none",
+              marginTop: "8px",
+            }}
+          >
+            演示进入（免登录）
+          </button>
         </form>
 
         {/* 注册链接 */}
