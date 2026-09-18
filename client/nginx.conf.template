@@ -1,30 +1,29 @@
 server {
     listen 80;
-    server_name localhost;
-
+    server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
-    # SPA 路由回退
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # 反向代理 BFF API
+    # 反向代理 BFF API（upstream 由环境变量 BFF_URL 在启动时注入）
     location /api/ {
-        proxy_pass http://bff:4000;
+        proxy_pass ${BFF_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
-    # 反向代理 WebSocket (game-engine)
+    # 反向代理 WebSocket (game-engine)，upstream 由 GAME_ENGINE_URL 注入
     location /ws/ {
-        proxy_pass http://game-engine:8003;
+        proxy_pass ${GAME_ENGINE_URL};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 3600s;
     }
 }

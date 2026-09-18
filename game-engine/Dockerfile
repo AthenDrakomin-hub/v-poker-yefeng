@@ -2,11 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps --omit=dev
 
 COPY . .
+RUN npm run build
 
 EXPOSE 8003
 
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["npm", "start"]

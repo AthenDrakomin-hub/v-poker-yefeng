@@ -4,14 +4,13 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # 单页应用路由
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # API 代理到 BFF
+    # 反向代理 BFF API（upstream 由环境变量 BFF_URL 在启动时注入）
     location /api/ {
-        proxy_pass http://bff:4000;
+        proxy_pass ${BFF_URL};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

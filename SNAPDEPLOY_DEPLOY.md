@@ -133,9 +133,14 @@ CMD ["/bin/sh","-c","envsubst '${BFF_URL} ${GAME_ENGINE_URL}' < /etc/nginx/conf.
 
 ---
 
-## 六、风险与待确认
+## 六、已确认结论
 
-- **内网 vs 公网调用**：若 SnapDeploy 支持同项目内部私网域名，后端互调走私网更稳更安全；否则上表用公网 URL。需在控制台确认是否有 internal service URL。
-- **WebSocket 长连接**：确认 SnapDeploy 网关支持 WS 升级、`proxy_read_timeout` 不被掐断（已在 nginx 设 3600s）。
-- **数据库迁移**：仓库里有没有自动建表/迁移脚本？首次启动需确认 `create_all` 或 alembic 会跑。
-- **JWT_SECRET / DB 密码**：SnapDeploy 环境变量里配，不要提交进 `.env.production`。
+- **私网**：SnapDeploy Add-on（PostgreSQL/Redis）走私网、自动注入连接串；自建的 8 个容器之间无私网，互调走各服务分配的公网 URL（HTTPS/TLS，安全够用）。不另建 MySQL 容器，直接用 Add-on Postgres。
+- **建表**：无需 alembic、无需手动跑 `database/init.sql`。`wallet_service` / `commission_service` 的 FastAPI `lifespan` 启动时执行 `Base.metadata.create_all` 并写 FeePool/Agent 种子。对着 Add-on Postgres 直接起服务即自动建表。
+  - 注意：因种子在 lifespan 里跑，Python 服务**暂保持单 worker**，避免多 worker 并发写种子触发主键冲突；后续接入迁移脚本后再扩 worker。
+
+## 七、风险
+
+- **WebSocket 长连接**：确认 SnapDeploy 网关支持 WS 升级、不掐 `proxy_read_timeout`（nginx 模板已设 3600s）。
+- **JWT_SECRET / DB 密码**：SnapDeploy 环境变量里配，不提交进 `.env.production`。
+- **create_all 只建不alter**：全新 Add-on 库没问题；后续改表结构需补迁移。
