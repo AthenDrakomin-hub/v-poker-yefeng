@@ -1,0 +1,38 @@
+name: Deploy Frontend
+
+# 触发：推送到 main 时自动部署，或在 Actions 页手动点 "Run workflow"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "admin-dashboard/**"
+      - "support-dashboard/**"
+      - "agent-dashboard/**"
+      - "packages/**"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 部署到服务器
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASS }}
+          script: |
+            set -e
+            cd /opt/v-poker-yefeng
+            echo "===== git pull ====="
+            git pull origin main
+            echo "===== 停掉旧的独立 client 容器(若有) ====="
+            docker rm -f poker-client 2>/dev/null || true
+            echo "===== 重建并启动全部 compose 服务(含 client) ====="
+            docker compose up -d --build
+            echo "===== status ====="
+            docker ps --format "{{.Names}}\t{{.Status}}" | grep poker-

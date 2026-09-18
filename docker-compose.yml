@@ -88,7 +88,22 @@ services:
     networks:
       - poker_net
 
-  # 5. 代理端后台 (React + Vite + Nginx)
+  # 5. 玩家端游戏客户端 (React + Nginx, 反代 bff 与 game-engine)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: poker-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - bff
+      - game-engine
+    restart: unless-stopped
+    networks:
+      - poker_net
+
+  # 6. 代理端后台 (React + Vite + Nginx)
   agent-dashboard:
     build:
       context: ./agent-dashboard
