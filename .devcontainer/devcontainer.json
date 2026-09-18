@@ -1,14 +1,13 @@
 {
-  "name": "V-Poker Frontend (Codespaces)",
+  "name": "V-Poker Frontends",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
-  "forwardPorts": [5173],
-  "postCreateCommand": "cd client && npm install --legacy-peer-deps",
-  "postStartCommand": "cd /workspaces/v-poker-yefeng/client && pkill -f 'vite' 2>/dev/null; nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &",
+  "forwardPorts": [5173, 5174, 5175, 5176],
+  "postCreateCommand": "for d in client admin-dashboard support-dashboard agent-dashboard; do (cd $d && npm install --legacy-peer-deps); done",
+  "postStartCommand": "ROOT=/workspaces/v-poker-yefeng; pkill -f vite 2>/dev/null; nohup sh -c \"cd $ROOT/client && npm run dev -- --host 0.0.0.0 --port 5173\" > /tmp/vite-client.log 2>&1 & nohup sh -c \"cd $ROOT/admin-dashboard && npm run dev -- --host 0.0.0.0 --port 5174\" > /tmp/vite-admin.log 2>&1 & nohup sh -c \"cd $ROOT/agent-dashboard && npm run dev -- --host 0.0.0.0 --port 5175\" > /tmp/vite-agent.log 2>&1 & nohup sh -c \"cd $ROOT/support-dashboard && npm run dev -- --host 0.0.0.0 --port 5176\" > /tmp/vite-support.log 2>&1 &",
   "portsAttributes": {
-    "5173": {
-      "label": "Game Client",
-      "onAutoForward": "silent",
-      "visibility": "public"
-    }
+    "5173": {"label": "Client (游戏端)", "visibility": "public"},
+    "5174": {"label": "Admin (管理端)", "visibility": "public"},
+    "5175": {"label": "Agent (代理端)", "visibility": "public"},
+    "5176": {"label": "Support (客服端)", "visibility": "public"}
   }
 }
