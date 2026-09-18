@@ -1,11 +1,18 @@
 /**
  * JWT 签发与校验 (Hono 原生 jwt 中间件封装)
+ * 安全：密钥必须从环境变量读取，生产环境禁止使用默认值
  */
 import { sign, verify } from "hono/jwt";
 import type { JWTPayload } from "hono/utils/jwt/types";
 
+// 生产环境必须通过 JWT_SECRET 环境变量注入强随机密钥
+// 开发环境用默认值方便调试，但启动时会打印警告
 const JWT_SECRET = process.env.JWT_SECRET || "poker-platform-dev-secret-2024";
 const EXPIRE_SECONDS = 7 * 24 * 3600; // 7天
+
+if (process.env.NODE_ENV === "production" && JWT_SECRET === "poker-platform-dev-secret-2024") {
+  console.warn("⚠️  [SECURITY WARNING] Using default JWT_SECRET in production! Set JWT_SECRET environment variable.");
+}
 
 export interface UserRolePayload extends JWTPayload {
   sub: string;          // user_id

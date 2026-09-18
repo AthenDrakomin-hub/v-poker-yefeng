@@ -87,8 +87,8 @@ agentRouter.get("/commission", async (c) => {
     const txRes = await fetch(`${WALLET_SERVICE}/api/wallet/transactions/${agentId}?limit=100`).then((r) => r.json());
     const allTxs = txRes?.data || [];
 
-    // 过滤出返佣类型的流水
-    const commissionTxs = allTxs.filter((tx: any) => tx.type === "game_settle");
+    // 过滤出返佣类型的流水（type: commission）
+    const commissionTxs = allTxs.filter((tx: any) => tx.type === "commission");
 
     return c.json({
       code: 0,

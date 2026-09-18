@@ -3,9 +3,11 @@
  * - JWT 签发/校验
  * - 角色权限控制
  * - 登录接口
+ * - 密码哈希 (bcrypt)
  */
 import { Context, Next } from "hono";
 import { generateToken, verifyToken } from "./jwt.js";
+import bcrypt from "bcryptjs";
 
 export interface UserSession {
   userId: string;
@@ -47,6 +49,25 @@ export const authMiddleware = (allowedRoles: string[]) => {
 };
 
 /**
+ * 密码哈希工具
+ * 生产环境应从用户表读取哈希值校验，这里用内存中的测试用户表
+ */
+interface TestUser {
+  username: string;
+  password_hash: string;
+  role: "admin" | "support" | "agent" | "player";
+}
+
+// 初始化测试用户表（内存存储，生产环境应从数据库读取）
+const testUsers: TestUser[] = [
+  { username: "admin_root", password_hash: bcrypt.hashSync("test", 10), role: "admin" },
+  { username: "player_alice", password_hash: bcrypt.hashSync("test", 10), role: "player" },
+  { username: "player_bob", password_hash: bcrypt.hashSync("test", 10), role: "player" },
+  { username: "agent_root", password_hash: bcrypt.hashSync("test", 10), role: "agent" },
+  { username: "support_01", password_hash: bcrypt.hashSync("test", 10), role: "support" },
+];
+
+/**
  * 登录接口：账号密码换 JWT Token
  * POST /api/auth/login
  */
@@ -58,14 +79,19 @@ export const loginHandler = async (c: Context) => {
     return c.json({ code: 400, message: "Username and password required", data: null }, 400);
   }
 
-  // 开发模式：根据用户名前缀分配角色
-  // TODO: 生产环境对接用户表校验密码
-  const role = username.startsWith("admin") ? "admin"
-    : username.startsWith("agent") ? "agent"
-    : username.startsWith("support") ? "support"
-    : "player";
+  // 从测试用户表查找用户
+  const user = testUsers.find((u) => u.username === username);
+  if (!user) {
+    return c.json({ code: 401, message: "Invalid username or password", data: null }, 401);
+  }
 
-  const token = await generateToken(username, role);
+  // 校验密码哈希
+  const passwordValid = bcrypt.compareSync(password, user.password_hash);
+  if (!passwordValid) {
+    return c.json({ code: 401, message: "Invalid username or password", data: null }, 401);
+  }
+
+  const token = await generateToken(user.username, user.role);
 
   return c.json({
     code: 0,
@@ -73,7 +99,40 @@ export const loginHandler = async (c: Context) => {
     data: {
       access_token: token,
       token_type: "Bearer",
-      user: { user_id: username, role }
+      user: { user_id: user.username, role: user.role }
     }
+  });
+};
+
+/**
+ * 注册接口：创建新用户
+ * POST /api/auth/register
+ */
+export const registerHandler = async (c: Context) => {
+  const body = await c.req.json();
+  const { username, password, role = "player" } = body;
+
+  if (!username || !password) {
+    return c.json({ code: 400, message: "Username and password required", data: null }, 400);
+  }
+
+  // 检查用户是否已存在
+  const existing = testUsers.find((u) => u.username === username);
+  if (existing) {
+    return c.json({ code: 409, message: "Username already exists", data: null }, 409);
+  }
+
+  // 创建新用户（密码哈希存储）
+  const passwordHash = bcrypt.hashSync(password, 10);
+  testUsers.push({
+    username,
+    password_hash: passwordHash,
+    role: role as "admin" | "support" | "agent" | "player"
+  });
+
+  return c.json({
+    code: 0,
+    message: "User registered successfully",
+    data: { user_id: username, role }
   });
 };

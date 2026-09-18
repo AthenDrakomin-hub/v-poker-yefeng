@@ -97,7 +97,8 @@ export function evaluateZhaJinHua(cards: Card[]): HandEvaluation {
     };
   }
 
-  // 6. 特殊 235 (不同花)
+  // 6. 特殊 235 (不同花) —— 单张最小牌型
+  // 注意：235 反转豹子的规则在 compare 层处理（可配置）
   if (!isFlush && v1 === 5 && v2 === 3 && v3 === 2) {
     return {
       rank_name: "特殊235",
@@ -116,4 +117,50 @@ export function evaluateZhaJinHua(cards: Card[]): HandEvaluation {
     multiplier: 1,
     best_cards: sorted
   };
+}
+
+/**
+ * 判断是否为特殊 235 牌型（不同花色的 2、3、5）
+ */
+export function isSpecial235(cards: Card[]): boolean {
+  if (!cards || cards.length !== 3) return false;
+  const ranks = cards.map((c) => c.rank).sort((a, b) => a - b);
+  const is235 = ranks[0] === 2 && ranks[1] === 3 && ranks[2] === 5;
+  const isNotFlush = cards[0].suit !== cards[1].suit || cards[1].suit !== cards[2].suit;
+  return is235 && isNotFlush;
+}
+
+/**
+ * 判断是否为豹子（三张同点）
+ */
+export function isBaoZi(cards: Card[]): boolean {
+  if (!cards || cards.length !== 3) return false;
+  return cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
+}
+
+/**
+ * 比较两副炸金花花牌，支持 235 反转豹子规则
+ * @param enable235Reversal 是否启用 235 反转豹子（默认 false）
+ * @returns >0: evalA 赢, <0: evalB 赢, 0: 平局
+ */
+export function compareZhaJinHua(
+  evalA: HandEvaluation,
+  evalB: HandEvaluation,
+  cardsA: Card[],
+  cardsB: Card[],
+  enable235Reversal: boolean = false
+): number {
+  // 235 反转规则：235 对豹子，235 赢（仅在启用配置时）
+  if (enable235Reversal) {
+    const aIs235 = isSpecial235(cardsA);
+    const bIsBaozi = isBaoZi(cardsB);
+    if (aIs235 && bIsBaozi) return 1; // A是235，B是豹子，A赢
+
+    const bIs235 = isSpecial235(cardsB);
+    const aIsBaozi = isBaoZi(cardsA);
+    if (bIs235 && aIsBaozi) return -1; // B是235，A是豹子，B赢
+  }
+
+  // 正常牌型比较
+  return evalA.score - evalB.score;
 }

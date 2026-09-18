@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import FeePool, Agent, Wallet
-from app.routers import wallet, audit
+from app.routers import wallet, audit, room
 
 
 async def verify_internal_key(request: Request):
@@ -109,6 +109,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # 挂载路由（mint 路由叠加内部鉴权）
 app.include_router(wallet.router)
 app.include_router(audit.router)
+app.include_router(room.router)
 
 # 给 mint 路由单独加鉴权依赖
 for route in wallet.router.routes:

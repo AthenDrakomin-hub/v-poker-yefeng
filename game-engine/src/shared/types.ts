@@ -27,13 +27,15 @@ export interface Seat {
   user_id: string | null;
   chips: number;
   current_bet: number;
-  status: "empty" | "ready" | "playing" | "folded" | "all_in" | "out";
+  status: "empty" | "waiting" | "ready" | "playing" | "folded" | "all_in" | "out";
   cards: Card[];
   is_banker: boolean;
   banker_multiplier: number;
   bet_multiplier: number;
   has_acted: boolean;
   has_viewed_cards: boolean;
+  is_disconnected?: boolean;
+  disconnect_time?: number;
   hand_result?: {
     rank_name: string;
     rank_level: number;

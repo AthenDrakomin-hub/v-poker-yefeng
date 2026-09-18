@@ -14,10 +14,12 @@
     "@hono/node-server": "^1.13.8",
     "@hono/node-ws": "^1.0.5",
     "hono": "^4.7.4",
+    "pg": "^8.13.1",
     "ws": "^8.18.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/pg": "^8.11.10",
     "@types/ws": "^8.5.14",
     "tsx": "^4.21.0",
     "typescript": "^5.8.2",

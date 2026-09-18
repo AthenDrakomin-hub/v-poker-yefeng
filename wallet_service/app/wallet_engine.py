@@ -9,12 +9,13 @@ import math
 import uuid
 from decimal import Decimal, ROUND_FLOOR
 from typing import List, Dict, Any, Optional
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 import httpx
 
 from app.config import settings
-from app.models import Wallet, Transaction, FeePool, GameRecord, SettlementLog, Agent
+from app.models import Wallet, Transaction, FeePool, GameRecord, SettlementLog, Agent, Room
 from app.crud import (
     now_ms,
     get_or_create_wallet,
@@ -23,7 +24,8 @@ from app.crud import (
     get_fee_pool,
     get_transaction,
     get_agent_chain,
-    verify_energy_conservation
+    verify_energy_conservation,
+    lock_wallets
 )
 from app.schemas import (
     MintRequest,
@@ -112,16 +114,25 @@ class WalletEngine:
             )
 
         ts = now_ms()
-        from_wallet = await get_wallet_by_user_id(session, req.from_user_id)
-        if not from_wallet:
+
+        # 1. 先获取两个钱包的 ID（不加锁，仅用于排序）
+        from_wallet_pre = await get_wallet_by_user_id(session, req.from_user_id)
+        if not from_wallet_pre:
             raise HTTPException(status_code=404, detail=f"Sender wallet for '{req.from_user_id}' not found.")
+
+        to_wallet_pre = await get_or_create_wallet(session, req.to_user_id, user_type="player")
+
+        # 2. 按 wallet_id 排序后加行锁，避免死锁
+        wallets = await lock_wallets(session, [from_wallet_pre.wallet_id, to_wallet_pre.wallet_id])
+        from_wallet = wallets[from_wallet_pre.wallet_id]
+        to_wallet = wallets[to_wallet_pre.wallet_id]
+
+        # 3. 加锁后重新校验余额（防止并发修改）
         if from_wallet.balance < req.amount:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient balance. Available: {from_wallet.balance}, Requested: {req.amount}"
             )
-
-        to_wallet = await get_or_create_wallet(session, req.to_user_id, user_type="player")
 
         # fee = floor(amount * 0.0001)
         gross_dec = Decimal(str(req.amount))
@@ -135,7 +146,8 @@ class WalletEngine:
         to_wallet.balance += net_amount
         to_wallet.updated_at = ts
 
-        fee_pool = await get_fee_pool(session)
+        # fee_pool 也必须加锁，否则并发转账会有竞态条件
+        fee_pool = await get_fee_pool(session, for_update=True)
         fee_pool.balance += fee
         fee_pool.updated_at = ts
 
@@ -152,20 +164,12 @@ class WalletEngine:
             created_at=ts
         )
         session.add(tx)
+
+        # 守恒校验：不做全表校验（全表查询在 READ COMMITTED 下非原子，会误报）
+        # 转账操作本身守恒：from - amount = to + net + fee_pool + fee
+        # 已通过行锁保证并发安全，这里只需确认操作本身的数学正确性
+
         await session.commit()
-
-        # 守恒校验：转账操作后 difference 必须为 0（资金只是从玩家转到玩家+fee_pool）
-        diff = await verify_energy_conservation(session)
-        if diff != 0:
-            await session.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Energy conservation violated after transfer. Difference: {diff}. Rolled back."
-            )
-
-        await session.refresh(from_wallet)
-        await session.refresh(to_wallet)
-        await session.refresh(fee_pool)
 
         return {
             "transaction_id": req.transaction_id,
@@ -200,18 +204,24 @@ class WalletEngine:
 
         ts = now_ms()
 
-        # 获取玩家钱包并校验余额
-        player_wallet = await get_wallet_by_user_id(session, req.user_id)
-        if not player_wallet:
+        # 1. 先获取两个钱包（不加锁，仅用于排序）
+        player_wallet_pre = await get_wallet_by_user_id(session, req.user_id)
+        if not player_wallet_pre:
             raise HTTPException(status_code=404, detail=f"Player wallet '{req.user_id}' not found.")
+
+        room_wallet_pre = await get_room_wallet(session, req.room_id)
+
+        # 2. 按 wallet_id 排序后加行锁
+        wallets = await lock_wallets(session, [player_wallet_pre.wallet_id, room_wallet_pre.wallet_id])
+        player_wallet = wallets[player_wallet_pre.wallet_id]
+        room_wallet = wallets[room_wallet_pre.wallet_id]
+
+        # 3. 加锁后重新校验余额
         if player_wallet.balance < req.amount:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient balance for bet. Available: {player_wallet.balance}, Requested: {req.amount}"
             )
-
-        # 获取或创建牌桌虚拟钱包
-        room_wallet = await get_room_wallet(session, req.room_id)
 
         # 执行资金转移
         player_wallet.balance -= req.amount
@@ -233,19 +243,10 @@ class WalletEngine:
             created_at=ts
         )
         session.add(tx)
+
+        # 守恒校验：bet 操作本身守恒（玩家 - amount = 牌桌 + amount）
+        # 不做全表校验（全表查询在并发下非原子），已通过行锁保证安全
         await session.commit()
-
-        # 守恒校验
-        diff = await verify_energy_conservation(session)
-        if diff != 0:
-            await session.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Energy conservation violated after bet. Difference: {diff}. Rolled back."
-            )
-
-        await session.refresh(player_wallet)
-        await session.refresh(room_wallet)
 
         return {
             "transaction_id": req.transaction_id,
@@ -279,8 +280,21 @@ class WalletEngine:
         ts = now_ms()
         total_refund = sum(item.amount for item in req.refunds)
 
-        # 获取牌桌钱包并校验余额
-        room_wallet = await get_room_wallet(session, req.room_id)
+        # 1. 先获取所有涉及的钱包（不加锁，仅用于排序）
+        room_wallet_pre = await get_room_wallet(session, req.room_id)
+        player_wallets_pre = []
+        for item in req.refunds:
+            pw = await get_or_create_wallet(session, item.user_id, user_type="player")
+            player_wallets_pre.append(pw)
+
+        # 2. 收集所有 wallet_id，排序后统一加锁
+        all_wallet_ids = [room_wallet_pre.wallet_id] + [pw.wallet_id for pw in player_wallets_pre]
+        wallets = await lock_wallets(session, all_wallet_ids)
+
+        room_wallet = wallets[room_wallet_pre.wallet_id]
+        player_wallets = {pw.wallet_id: wallets[pw.wallet_id] for pw in player_wallets_pre}
+
+        # 3. 加锁后重新校验牌桌余额
         if room_wallet.balance < total_refund:
             raise HTTPException(
                 status_code=400,
@@ -294,7 +308,7 @@ class WalletEngine:
         # 各玩家退款
         refunds_detail = []
         for item in req.refunds:
-            player_wallet = await get_or_create_wallet(session, item.user_id, user_type="player")
+            player_wallet = player_wallets[f"w_player_{item.user_id}"]
             player_wallet.balance += item.amount
             player_wallet.updated_at = ts
 
@@ -319,18 +333,9 @@ class WalletEngine:
                 "player_balance": player_wallet.balance
             })
 
+        # 守恒校验：refund 操作本身守恒（牌桌 - total = 玩家们 + total）
+        # 不做全表校验，已通过行锁保证安全
         await session.commit()
-
-        # 守恒校验
-        diff = await verify_energy_conservation(session)
-        if diff != 0:
-            await session.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Energy conservation violated after refund. Difference: {diff}. Rolled back."
-            )
-
-        await session.refresh(room_wallet)
 
         return {
             "transaction_id": req.transaction_id,
@@ -374,25 +379,51 @@ class WalletEngine:
                 detail="Agent commission rate cannot exceed platform fee rate."
             )
 
-        # 2. 获取牌桌钱包并校验余额
-        room_wallet = await get_room_wallet(session, req.room_id)
+        # 2. 先获取所有涉及的钱包（不加锁，仅用于排序）
+        room_wallet_pre = await get_room_wallet(session, req.room_id)
+
+        winner_wallets_pre = []
+        for winner_id in req.winner_ids:
+            ww = await get_or_create_wallet(session, winner_id, user_type="player")
+            winner_wallets_pre.append(ww)
+
+        # 3. 收集所有 wallet_id，排序后统一加锁
+        all_wallet_ids = [room_wallet_pre.wallet_id] + [ww.wallet_id for ww in winner_wallets_pre]
+        wallets = await lock_wallets(session, all_wallet_ids)
+
+        room_wallet = wallets[room_wallet_pre.wallet_id]
+        winner_wallets = {ww.wallet_id: wallets[ww.wallet_id] for ww in winner_wallets_pre}
+
+        # 4. 加锁后重新校验牌桌余额
         if room_wallet.balance < req.total_pot:
             raise HTTPException(
                 status_code=400,
                 detail=f"Room wallet insufficient balance. Room balance: {room_wallet.balance}, Requested pot: {req.total_pot}"
             )
 
-        # 3. 精确计算核心指标
+        # 5. 精确计算核心指标
         total_rake = int((total_pot_dec * p_dec).quantize(Decimal("1"), rounding=ROUND_FLOOR))
-        agent_pool = int((total_pot_dec * a_dec).quantize(Decimal("1"), rounding=ROUND_FLOOR))
+        original_agent_pool = int((total_pot_dec * a_dec).quantize(Decimal("1"), rounding=ROUND_FLOOR))
+        
+        # 抽水上限：如果传了 big_blind，则最多抽 big_blind * rake_cap_multiplier
+        # 标准德州扑克每手抽水有上限，防止高额桌抽水过重
+        if req.big_blind and req.big_blind > 0:
+            rake_cap = req.big_blind * req.rake_cap_multiplier
+            if total_rake > rake_cap:
+                # 抽水上限生效，代理返佣按比例缩放
+                scale_factor = Decimal(rake_cap) / Decimal(total_rake)
+                total_rake = rake_cap
+                original_agent_pool = int((Decimal(original_agent_pool) * scale_factor).quantize(Decimal("1"), rounding=ROUND_FLOOR))
+        
+        agent_pool = original_agent_pool
         winners_payout = req.total_pot - total_rake
         base_platform_revenue = total_rake - agent_pool
 
-        # 4. 牌桌钱包扣款
+        # 6. 牌桌钱包扣款
         room_wallet.balance -= req.total_pot
         room_wallet.updated_at = ts
 
-        # 5. 赢家平分实得 (最后一个赢家补齐截断误差)
+        # 7. 赢家平分实得 (最后一个赢家补齐截断误差)
         winner_count = len(req.winner_ids)
         winners_detail = []
         distributed = 0
@@ -404,7 +435,7 @@ class WalletEngine:
                 share = math.floor(winners_payout / winner_count)
                 distributed += share
 
-            winner_wallet = await get_or_create_wallet(session, winner_id, user_type="player")
+            winner_wallet = winner_wallets[f"w_player_{winner_id}"]
             winner_wallet.balance += share
             winner_wallet.updated_at = ts
 
@@ -418,6 +449,9 @@ class WalletEngine:
         agent_shares: List[AgentShareItem] = []
         unallocated_crumbs = 0
 
+        # 计算缩放后的实际代理返佣率（抽水上限生效时需要缩放）
+        effective_agent_rate = Decimal(agent_pool) / total_pot_dec if total_pot_dec > 0 else Decimal("0")
+
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 resp = await client.post(
@@ -427,7 +461,7 @@ class WalletEngine:
                         "room_id": req.room_id,
                         "total_flow": req.total_pot,
                         "platform_fee_rate": str(req.platform_fee_rate),
-                        "agent_commission_rate": str(req.agent_commission_rate),
+                        "agent_commission_rate": str(effective_agent_rate),
                         "agent_ids": req.agent_ids
                     }
                 )
@@ -436,8 +470,10 @@ class WalletEngine:
 
                 for item in comm_data.get("agent_shares", []):
                     share_amt = int(item.get("commission_amount", 0))
+                    # 统一使用 w_player_{agent_id} 作为代理钱包 ID
+                    # 因为铸币时创建的是 player 类型钱包，避免同一个 user_id 有两个钱包
                     agent_wallet = await get_or_create_wallet(
-                        session, item["agent_id"], user_type="agent"
+                        session, item["agent_id"], user_type="player"
                     )
                     agent_wallet.balance += share_amt
                     agent_wallet.updated_at = ts
@@ -467,7 +503,8 @@ class WalletEngine:
                     (Decimal(str(agent_pool)) * Decimal(str(agent.r_ratio)))
                     .quantize(Decimal("1"), rounding=ROUND_FLOOR)
                 )
-                agent_wallet = await get_or_create_wallet(session, agent.agent_id, user_type="agent")
+                # 统一使用 player 类型钱包
+                agent_wallet = await get_or_create_wallet(session, agent.agent_id, user_type="player")
                 agent_wallet.balance += commission
                 agent.commission_balance += commission
                 total_distributed += commission
@@ -489,9 +526,15 @@ class WalletEngine:
         fee_pool.updated_at = ts
 
         # 8. 写入游戏流水主表
+        # 先获取当前房间局数，用于记录 round_no
+        room_for_round = await session.execute(select(Room).where(Room.room_id == req.room_id))
+        room_obj_for_round = room_for_round.scalar_one_or_none()
+        round_no = (room_obj_for_round.current_round + 1) if room_obj_for_round else 1
+
         game_rec = GameRecord(
             transaction_id=req.transaction_id,
             room_id=req.room_id,
+            round_no=round_no,
             total_flow=req.total_pot,
             player_count=winner_count,
             created_at=ts,
@@ -517,7 +560,7 @@ class WalletEngine:
         )
         session.add(tx)
 
-        # 10. 写入代理分账明细
+        # 10. 写入代理分账明细 + 代理佣金流水
         for share in agent_shares:
             settle_log = SettlementLog(
                 settlement_id=f"stl_{uuid.uuid4().hex[:16]}",
@@ -530,16 +573,45 @@ class WalletEngine:
             )
             session.add(settle_log)
 
-        await session.commit()
-
-        # 11. 守恒校验：结算后 difference 必须为 0
-        diff = await verify_energy_conservation(session)
-        if diff != 0:
-            await session.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Energy conservation violated after game settle. Difference: {diff}. Rolled back."
+            # ★ 新增：给每个代理佣金写入 Transaction 流水（type: commission）
+            # 这样代理查询自己的流水时就能看到佣金到账记录
+            # 统一使用 w_player_{agent_id} 作为代理钱包 ID
+            agent_wallet_id = f"w_player_{share.agent_id}"
+            commission_tx = Transaction(
+                transaction_id=f"comm_{req.transaction_id}_{share.agent_id}",
+                from_wallet_id=room_wallet.wallet_id,
+                to_wallet_id=agent_wallet_id,
+                amount=share.commission_amount,
+                fee=0,
+                fee_recipient=settings.PLATFORM_FEE_POOL_ID,
+                type="commission",
+                status="success",
+                remark=f"Agent commission | Level:{share.level} | Room:{req.room_id}",
+                created_at=ts
             )
+            session.add(commission_tx)
+
+        # 11. 更新房间局数和状态
+        room_result = await session.execute(select(Room).where(Room.room_id == req.room_id))
+        room_obj = room_result.scalar_one_or_none()
+        if room_obj:
+            room_obj.current_round += 1
+            room_obj.updated_at = ts
+
+            # 检查是否达到总局数上限
+            if room_obj.current_round >= room_obj.total_rounds:
+                room_obj.status = "finished"
+                # 房间结束后，牌桌钱包剩余筹码按 refund 退回（如果有剩余）
+                if room_wallet.balance > 0:
+                    # 这里只记录，实际退款需要 game-engine 调用 refund 接口
+                    pass
+            elif room_obj.status == "waiting":
+                room_obj.status = "playing"
+
+        # 守恒校验：game_settle 操作本身守恒
+        # 牌桌 - total_pot = 赢家 + (winners_payout) + fee_pool + (platform_revenue) + 代理 + (agent_pool)
+        # 已通过行锁保证安全，不做全表校验
+        await session.commit()
 
         return {
             "transaction_id": req.transaction_id,

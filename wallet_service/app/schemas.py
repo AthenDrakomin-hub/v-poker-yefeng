@@ -123,6 +123,17 @@ class GameSettleRequest(BaseModel):
     agent_ids: List[str] = Field(
         default_factory=list, description="代理分账名单 [room_agent, sub_agent, top_agent]"
     )
+    big_blind: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description="大盲注金额，用于抽水上限计算（每手最多抽 5 个大盲注），不传则无上限"
+    )
+    rake_cap_multiplier: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="抽水上限倍数：最多抽 big_blind * 倍数，默认 5"
+    )
 
 
 class AgentShareItem(BaseModel):
@@ -187,3 +198,57 @@ class AuditResponseData(BaseModel):
     wallets_count: int = Field(description="已注册钱包总数")
     breakdown: AuditBreakdown = Field(description="分项明细")
     audit_time: int = Field(description="审计完成毫秒时间戳")
+
+
+# --- 房间相关 Schemas ---
+
+class CreateRoomRequest(BaseModel):
+    """创建房间请求"""
+    room_name: Optional[str] = Field(default=None, max_length=64, description="房间名称")
+    room_password: Optional[str] = Field(default="", max_length=4, pattern=r"^\d{0,4}$", description="0-4 位数字密码，空为公开房")
+    game_type: str = Field(..., description="游戏类型：texas_holdem / zha_jin_hua / niu_niu / san_gong")
+    mode: str = Field(default="cash", description="游戏模式：cash / sng / qiang_zhuang / tong_bi")
+    total_rounds: int = Field(default=10, ge=1, le=32, description="总局数")
+    base_score: int = Field(default=100, gt=0, description="底分")
+    platform_fee_rate: Decimal = Field(default=Decimal("0.0500"), description="平台抽水率")
+    agent_commission_rate: Decimal = Field(default=Decimal("0.0300"), description="代理返佣率")
+    min_players: int = Field(default=2, ge=2, le=6, description="最低开局人数")
+    max_players: int = Field(default=6, ge=2, le=9, description="最大人数")
+    big_blind: Optional[int] = Field(default=None, gt=0, description="大盲注（德州专用）")
+    rake_cap_multiplier: int = Field(default=5, ge=1, le=20, description="抽水上限倍数")
+    created_by: str = Field(..., description="创建者 ID（代理/房主）")
+    room_type: str = Field(default="public", description="public / private")
+
+
+class RoomItem(BaseModel):
+    """房间信息项"""
+    room_id: str
+    room_name: Optional[str]
+    game_type: str
+    mode: str
+    total_rounds: int
+    base_score: int
+    platform_fee_rate: Decimal
+    min_players: int
+    max_players: int
+    status: str
+    current_round: int
+    created_by: str
+    room_type: str
+    created_at: int
+
+
+class RoomDetail(RoomItem):
+    """房间详情"""
+    room_password: Optional[str] = None
+    agent_commission_rate: Decimal
+    big_blind: Optional[int] = None
+    rake_cap_multiplier: int
+    updated_at: int
+
+
+class JoinRoomRequest(BaseModel):
+    """加入房间请求"""
+    room_id: str = Field(..., description="6 位房号")
+    room_password: Optional[str] = Field(default=None, description="房间密码（私有房必填）")
+    user_id: str = Field(..., description="玩家 ID")

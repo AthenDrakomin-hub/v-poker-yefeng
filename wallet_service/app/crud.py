@@ -52,9 +52,12 @@ async def get_room_wallet(session: AsyncSession, room_id: str) -> Wallet:
     return await get_or_create_wallet(session, room_user_id, user_type="room")
 
 
-async def get_fee_pool(session: AsyncSession) -> FeePool:
-    """获取平台手续费池单例记录"""
+async def get_fee_pool(session: AsyncSession, for_update: bool = False) -> FeePool:
+    """获取平台手续费池单例记录，可选加行锁"""
     stmt = select(FeePool).where(FeePool.pool_id == "platform_fee")
+    if for_update:
+        # 加锁时强制刷新，避免 SQLAlchemy identity map 旧值问题
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
     result = await session.execute(stmt)
     pool = result.scalar_one_or_none()
 
@@ -75,6 +78,35 @@ async def get_transaction(session: AsyncSession, tx_id: str) -> Optional[Transac
     stmt = select(Transaction).where(Transaction.transaction_id == tx_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def lock_wallets(session: AsyncSession, wallet_ids: List[str]) -> Dict[str, Wallet]:
+    """
+    按 wallet_id 排序后逐个加行锁，避免死锁
+    所有涉及钱包余额变动的操作，必须先调用此函数加锁
+    返回 {wallet_id: Wallet} 字典
+    
+    注意：不能用 IN 子句一次加锁，因为 PostgreSQL 不保证按列表顺序加锁
+    必须逐个按排序后的顺序加锁，才能避免死锁
+    """
+    if not wallet_ids:
+        return {}
+
+    # 去重 + 排序，保证所有请求加锁顺序一致
+    sorted_ids = sorted(set(wallet_ids))
+
+    wallets = {}
+    # 逐个加锁，严格按排序后的顺序
+    # 使用 execution_options(populate_existing=True) 强制刷新对象属性，避免 identity map 旧值问题
+    for wallet_id in sorted_ids:
+        stmt = select(Wallet).where(Wallet.wallet_id == wallet_id).with_for_update().execution_options(populate_existing=True)
+        result = await session.execute(stmt)
+        wallet = result.scalar_one_or_none()
+        if not wallet:
+            raise ValueError(f"Wallet not found: {wallet_id}")
+        wallets[wallet_id] = wallet
+
+    return wallets
 
 
 async def get_user_transactions(

@@ -1,7 +1,7 @@
 """
 数据库模型定义 (遵循全局契约字典)
 """
-from sqlalchemy import Column, String, BigInteger, Integer, Numeric, Text
+from sqlalchemy import Column, String, BigInteger, Integer, Numeric, Text, Boolean
 from app.database import Base
 
 
@@ -31,7 +31,7 @@ class Transaction(Base):
     amount = Column(BigInteger, nullable=False)
     fee = Column(BigInteger, nullable=False, default=0)
     fee_recipient = Column(String(64), nullable=False, default="platform_fee")
-    type = Column(String(32), nullable=False, index=True)  # mint / transfer / game_settle
+    type = Column(String(32), nullable=False, index=True)  # mint / transfer / bet / refund / game_settle
     status = Column(String(20), nullable=False, default="success")  # pending / success / failed
     remark = Column(Text, nullable=True)
     created_at = Column(BigInteger, nullable=False, index=True)
@@ -70,6 +70,7 @@ class GameRecord(Base):
 
     transaction_id = Column(String(64), primary_key=True, index=True)
     room_id = Column(String(64), nullable=False, index=True)
+    round_no = Column(Integer, nullable=False, default=1)  # 第几局
     total_flow = Column(BigInteger, nullable=False)  # 总流水 S
     player_count = Column(Integer, nullable=False)
     created_at = Column(BigInteger, nullable=False)
@@ -89,3 +90,31 @@ class SettlementLog(Base):
     commission_amount = Column(BigInteger, nullable=False)
     platform_revenue = Column(BigInteger, nullable=False)
     created_at = Column(BigInteger, nullable=False)
+
+
+class Room(Base):
+    """
+    房间表 rooms: 持久化房间配置
+    对齐全局契约：6 位房号 + 可选密码 + 游戏参数
+    """
+    __tablename__ = "rooms"
+
+    room_id = Column(String(16), primary_key=True, index=True)  # 6 位数字房号
+    room_name = Column(String(64), nullable=True)  # 房间名称
+    room_password = Column(String(8), nullable=True, default="")  # 0-4 位数字密码，空为公开房
+    game_type = Column(String(32), nullable=False, index=True)  # texas_holdem / zha_jin_hua / niu_niu / san_gong
+    mode = Column(String(32), nullable=False, default="cash")  # cash / sng /抢庄/通比
+    total_rounds = Column(Integer, nullable=False, default=10)  # 总局数
+    base_score = Column(BigInteger, nullable=False, default=100)  # 底分
+    platform_fee_rate = Column(Numeric(6, 4), nullable=False, default=0.0500)  # 平台抽水率
+    agent_commission_rate = Column(Numeric(6, 4), nullable=False, default=0.0300)  # 代理返佣率
+    min_players = Column(Integer, nullable=False, default=2)  # 最低开局人数
+    max_players = Column(Integer, nullable=False, default=6)  # 最大人数
+    big_blind = Column(BigInteger, nullable=True)  # 大盲注（德州专用）
+    rake_cap_multiplier = Column(Integer, nullable=False, default=5)  # 抽水上限倍数
+    created_by = Column(String(64), nullable=False, index=True)  # 创建者 ID（代理/房主）
+    room_type = Column(String(16), nullable=False, default="public")  # public / private
+    status = Column(String(16), nullable=False, default="waiting", index=True)  # waiting / playing / finished
+    current_round = Column(Integer, nullable=False, default=0)  # 当前第几局
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)

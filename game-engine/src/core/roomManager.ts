@@ -1,6 +1,7 @@
 /**
  * 平台核心房间管理器 (RoomManager)
  * 职责：房间生命周期管理、规则插件动态路由、多桌并发管理
+ * v2 新增：PostgreSQL 持久化，服务器重启后恢复房间和玩家
  */
 
 import { GamePlugin } from "../games/plugin.interface.js";
@@ -11,10 +12,12 @@ import { ZhaJinHuaPlugin } from "../games/zha_jin_hua/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
 import { SeatManager } from "./seatManager.js";
 import { GameStateMachine } from "./stateMachine.js";
+import pool, { getRoomPlayers, clearRoomPlayers } from "./db.js";
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
   private stateMachines: Map<string, GameStateMachine> = new Map();
+  private seatManagers: Map<string, SeatManager> = new Map();
   private plugins: Map<GameType, GamePlugin> = new Map();
 
   constructor() {
@@ -22,6 +25,9 @@ export class RoomManager {
     this.registerPlugin(new SanGongPlugin());
     this.registerPlugin(new ZhaJinHuaPlugin());
     this.registerPlugin(new TexasHoldemPlugin());
+
+    // 启动时从数据库恢复房间
+    this.restoreRoomsFromDB();
   }
 
   public registerPlugin(plugin: GamePlugin): void {
@@ -72,11 +78,12 @@ export class RoomManager {
       updated_at: Date.now()
     };
 
-    const seatManager = new SeatManager(room.max_seats);
+    const seatManager = new SeatManager(room.max_seats, room.room_id);
     const stateMachine = new GameStateMachine(room, plugin, seatManager);
 
     this.rooms.set(room.room_id, room);
     this.stateMachines.set(room.room_id, stateMachine);
+    this.seatManagers.set(room.room_id, seatManager);
 
     return { room, stateMachine };
   }
@@ -89,13 +96,126 @@ export class RoomManager {
     return this.stateMachines.get(roomId);
   }
 
-  public removeRoom(roomId: string): boolean {
+  public getSeatManager(roomId: string): SeatManager | undefined {
+    return this.seatManagers.get(roomId);
+  }
+
+  /**
+   * v2.1: 解散房间，同时退还所有玩家未结算的筹码
+   * 先调用 refundOnAbort 退款，再清理内存和数据库
+   */
+  public async removeRoom(roomId: string): Promise<{ success: boolean; refundResult?: any }> {
+    const stateMachine = this.stateMachines.get(roomId);
+
+    // 如果游戏进行中，先退款
+    if (stateMachine && stateMachine.getPhase() !== "WAITING") {
+      try {
+        const refundResult = await stateMachine.refundOnAbort("room_closed");
+        console.log(`[RoomManager] Room ${roomId} closed, refunded ${refundResult.refunds.length} players`);
+      } catch (error) {
+        console.error(`[RoomManager] Refund failed for room ${roomId}:`, error);
+      }
+    }
+
+    // 清理数据库中的玩家记录
+    await clearRoomPlayers(roomId);
+
     this.stateMachines.delete(roomId);
-    return this.rooms.delete(roomId);
+    this.seatManagers.delete(roomId);
+    const deleted = this.rooms.delete(roomId);
+
+    return { success: deleted, refundResult: null };
   }
 
   public getAllRooms(): GameRoom[] {
     return Array.from(this.rooms.values());
+  }
+
+  /**
+   * 从数据库恢复所有进行中的房间（服务器重启后调用）
+   */
+  private async restoreRoomsFromDB(): Promise<void> {
+    try {
+      // 查询所有 playing 状态的房间
+      const result = await pool.query(
+        `SELECT * FROM rooms WHERE status IN ('waiting', 'playing')`
+      );
+
+      for (const row of result.rows) {
+        const roomId = row.room_id;
+
+        // 检查是否已经在内存中
+        if (this.rooms.has(roomId)) continue;
+
+        // 创建房间对象
+        const room: GameRoom = {
+          room_id: roomId,
+          game_type: row.game_type,
+          mode: row.mode,
+          base_score: row.base_score,
+          max_seats: row.max_players,
+          min_players_to_start: row.min_players,
+          platform_fee_rate: parseFloat(row.platform_fee_rate),
+          agent_commission_rate: parseFloat(row.agent_commission_rate),
+          agent_ids: [], // 从其他地方恢复
+          status: row.status,
+          current_round_id: null,
+          created_at: Number(row.created_at),
+          updated_at: Number(row.updated_at)
+        };
+
+        const plugin = this.getPlugin(room.game_type);
+        if (!plugin) continue;
+
+        const seatManager = new SeatManager(room.max_seats, room.room_id);
+        const stateMachine = new GameStateMachine(room, plugin, seatManager);
+
+        this.rooms.set(room.room_id, room);
+        this.stateMachines.set(room.room_id, stateMachine);
+        this.seatManagers.set(room.room_id, seatManager);
+
+        // 恢复玩家
+        await seatManager.restoreFromDB();
+
+        console.log(`[RoomManager] Restored room ${roomId} (${room.game_type})`);
+      }
+
+      console.log(`[RoomManager] Restored ${this.rooms.size} rooms from DB`);
+    } catch (error) {
+      console.error("[RoomManager] restoreRoomsFromDB error:", error);
+    }
+  }
+
+  /**
+   * 玩家断线重连检查
+   */
+  async checkReconnection(
+    roomId: string,
+    userId: string
+  ): Promise<{
+    canReconnect: boolean;
+    seatIndex: number;
+    message: string;
+  }> {
+    const seatManager = this.seatManagers.get(roomId);
+    if (!seatManager) {
+      return { canReconnect: false, seatIndex: -1, message: "Room not found" };
+    }
+
+    const result = await seatManager.checkPlayerStatus(userId);
+    if (result.isInRoom) {
+      return {
+        canReconnect: true,
+        seatIndex: result.seatIndex,
+        message: result.status === "reconnected" ? "Reconnected to seat" : "Already in seat"
+      };
+    }
+
+    return {
+      canReconnect: false,
+      seatIndex: -1,
+      message: `Player status: ${result.status}`
+    };
   }
 }
 

@@ -288,6 +288,52 @@ export class GameStateMachine {
     });
   }
 
+  /**
+   * v2.1: 检查断线超时并自动弃牌
+   * 应该在每局开始前或定期调用
+   * @param timeoutMs 超时时间，默认 5 分钟
+   * @returns 自动弃牌的玩家列表
+   */
+  public checkDisconnectTimeout(timeoutMs: number = 5 * 60 * 1000): Array<{ userId: string; seatIndex: number }> {
+    // 只在游戏进行中检查
+    if (this.roundState.phase === "WAITING" || this.roundState.phase === "FINISHED") {
+      return [];
+    }
+
+    const folded = this.seatManager.checkDisconnectTimeout(timeoutMs);
+
+    if (folded.length > 0) {
+      coreEventBus.emit("auto_fold", {
+        roomId: this.roundState.room.room_id,
+        foldedPlayers: folded
+      });
+    }
+
+    return folded;
+  }
+
+  /**
+   * v2.1: 玩家断线时调用
+   */
+  public onPlayerDisconnect(userId: string): void {
+    this.seatManager.markDisconnected(userId);
+    coreEventBus.emit("player_disconnected", {
+      roomId: this.roundState.room.room_id,
+      userId
+    });
+  }
+
+  /**
+   * v2.1: 玩家重连时调用
+   */
+  public onPlayerReconnect(userId: string): void {
+    this.seatManager.markReconnected(userId);
+    coreEventBus.emit("player_reconnected", {
+      roomId: this.roundState.room.room_id,
+      userId
+    });
+  }
+
   private transitionTo(newPhase: RoundPhase): void {
     const prevPhase = this.roundState.phase;
     this.roundState.phase = newPhase;

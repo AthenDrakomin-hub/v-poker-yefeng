@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  /* V-POKER 品牌色 */
+  --color-vp-gold: #d4af37;
+  --color-vp-gold-light: #e6c85a;
+  --color-vp-gold-dark: #b8962e;
+  --color-vp-black: #0a0a0a;
+  --color-vp-dark: #1a1a1a;
+  --color-vp-darker: #0f0f0f;
+  --color-vp-card: #1e1e1e;
+  --color-vp-border: #2a2a2a;
+  --color-vp-text: #e5e5e5;
+  --color-vp-text-muted: #9ca3af;
+  --color-vp-success: #10b981;
+  --color-vp-warning: #f59e0b;
+  --color-vp-danger: #ef4444;
+
+  /* 字体 */
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Playfair Display", serif;
+
+  /* 圆角 */
+  --radius: 0.5rem;
+
+  /* 阴影 */
+  --shadow-glow-gold: 0 0 20px rgba(212, 175, 55, 0.3);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 全局样式 */
+body {
+  @apply bg-vp-black text-vp-text font-sans;
+  min-height: 100vh;
+}
+
+/* 玻璃拟态卡片 */
+.glass-card {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl shadow-card;
+}
+
+/* 金色按钮 */
+.btn-gold {
+  @apply bg-gradient-to-r from-vp-gold-dark to-vp-gold text-vp-black font-semibold px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-glow-gold hover:scale-105;
+}
+
+/* 金色边框 */
+.border-gold {
+  @apply border border-vp-gold/50;
+}

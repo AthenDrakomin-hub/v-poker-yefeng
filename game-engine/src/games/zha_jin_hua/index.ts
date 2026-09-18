@@ -5,12 +5,15 @@
 
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, Suit } from "../../shared/types.js";
 import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
-import { evaluateZhaJinHua } from "./evaluator.js";
+import { evaluateZhaJinHua, compareZhaJinHua } from "./evaluator.js";
 
 export class ZhaJinHuaPlugin implements GamePlugin {
   readonly game_type: GameType = "zha_jin_hua";
   readonly name = "炸金花";
   readonly supported_modes: GameMode[] = ["normal"];
+
+  /** 是否启用 235 反转豹子规则（默认关闭） */
+  private enable235Reversal: boolean = false;
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];
@@ -89,21 +92,38 @@ export class ZhaJinHuaPlugin implements GamePlugin {
 
     if (action.action_type === "compare") {
       // 比牌：指定对手比牌，输者 fold
+      // 规则：必须第二轮下注后才能比牌
+      if (state.betting_round_count < 2) {
+        return { success: false, error: "比牌必须从第二轮下注开始" };
+      }
+
       const targetUserId = action.target_user_id;
       const targetSeat = state.seats.find((s) => s.user_id === targetUserId && s.status === "playing");
       if (!targetSeat) return { success: false, error: "Valid target seat not found for compare." };
 
-      // 比牌同样需要花费本轮下注筹码 (双倍或普通)
-      const cost = seat.has_viewed_cards ? state.min_call_amount * 2 : state.min_call_amount;
+      // 比牌成本：看牌玩家双倍，闷牌玩家半价
+      const cost = seat.has_viewed_cards ? state.min_call_amount * 2 : Math.floor(state.min_call_amount / 2);
       seat.current_bet += cost;
       state.total_pot += cost;
 
       const myEval = seat.hand_result || this.evaluateHand(seat.cards);
       const targetEval = targetSeat.hand_result || this.evaluateHand(targetSeat.cards);
 
-      if (myEval.score > targetEval.score) {
+      // 使用支持 235 反转的比较函数
+      const compareResult = compareZhaJinHua(
+        myEval,
+        targetEval,
+        seat.cards,
+        targetSeat.cards,
+        this.enable235Reversal
+      );
+
+      if (compareResult > 0) {
         targetSeat.status = "folded";
+      } else if (compareResult < 0) {
+        seat.status = "folded";
       } else {
+        // 平局：主动比牌方输
         seat.status = "folded";
       }
 
@@ -127,7 +147,18 @@ export class ZhaJinHuaPlugin implements GamePlugin {
       evaluation: s.hand_result || this.evaluateHand(s.cards)
     }));
 
-    rankings.sort((a, b) => b.evaluation.score - a.evaluation.score);
+    // 使用支持 235 反转的比较函数排序
+    rankings.sort((a, b) => {
+      const seatA = aliveSeats.find((s) => s.user_id === a.user_id)!;
+      const seatB = aliveSeats.find((s) => s.user_id === b.user_id)!;
+      return compareZhaJinHua(
+        a.evaluation,
+        b.evaluation,
+        seatA.cards,
+        seatB.cards,
+        this.enable235Reversal
+      );
+    });
 
     return {
       winner_user_ids: rankings.length > 0 ? [rankings[0].user_id] : [],
@@ -176,7 +207,10 @@ export class ZhaJinHuaPlugin implements GamePlugin {
     // 若只剩一人活，直接结束
     if (aliveSeats.length <= 1) return true;
     if (state.phase === "BETTING" || state.phase === "ACTION") {
-      return aliveSeats.every((s) => s.has_acted);
+      // 所有存活玩家都完成本轮动作，且下注额一致
+      const allActed = aliveSeats.every((s) => s.has_acted);
+      const allBetsEqual = aliveSeats.every((s) => s.current_bet === aliveSeats[0].current_bet);
+      return allActed && allBetsEqual;
     }
     return true;
   }
@@ -187,10 +221,20 @@ export class ZhaJinHuaPlugin implements GamePlugin {
 
     if (state.phase === "WAITING") return "DEALING";
     if (state.phase === "DEALING") return "BETTING";
+
     if (state.phase === "BETTING") {
-      // 可多轮下注，演示推进到 SHOWDOWN
+      // 多轮下注：最多 3 轮下注后强制摊牌
+      if (state.betting_round_count < 3) {
+        state.betting_round_count++;
+        // 重置动作标记，开始下一轮
+        aliveSeats.forEach((s) => {
+          s.has_acted = false;
+        });
+        return "BETTING";
+      }
       return "SHOWDOWN";
     }
+
     if (state.phase === "SHOWDOWN") return "SETTLING";
     if (state.phase === "SETTLING") return "FINISHED";
     return "FINISHED";

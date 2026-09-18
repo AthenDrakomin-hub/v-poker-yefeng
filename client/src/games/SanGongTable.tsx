@@ -1,0 +1,313 @@
+import { useState } from 'react';
+
+/**
+ * 三公游戏组件
+ * 特点：抢庄模式 + 通比模式，JQK 算 0 点
+ */
+
+interface SanGongTableProps {
+  roomState: any;
+  userId: string;
+  onAction: (actionType: string, amount?: number) => void;
+  isMyTurn: boolean;
+}
+
+export default function SanGongTable({ roomState, userId, onAction, isMyTurn }: SanGongTableProps) {
+  const [mode] = useState<'banker' | 'all'>('banker'); // 抢庄模式/通比模式
+
+  // 我的座位
+  const mySeat = roomState?.seats?.find((s: any) => s.user_id === userId);
+  const myCards = mySeat?.hole_cards || [];
+
+  // 抢庄动作
+  const handleBecomeBanker = () => {
+    onAction('become_banker');
+  };
+
+  // 获取牌型点数（JQK 算 0 点）
+  const getCardPoints = (cards: string[]) => {
+    if (!cards || cards.length === 0) return 0;
+    let total = 0;
+    cards.forEach((card) => {
+      const v = card[1] || card;
+      const num = parseInt(v);
+      if (isNaN(num)) {
+        // J/Q/K 算 0 点
+        total += 0;
+      } else {
+        total += num;
+      }
+    });
+    return total % 10;
+  };
+
+  // 获取牌型描述
+  const getCardType = (cards: string[]) => {
+    if (!cards || cards.length === 0) return '';
+    const points = getCardPoints(cards);
+
+    // 检查是否三公（三张都是 J/Q/K）
+    const isAllFace = cards.every((card) => {
+      const v = card[1] || card;
+      return ['J', 'Q', 'K'].includes(v);
+    });
+
+    if (isAllFace) return '三公';
+    if (points === 9) return '九点';
+    if (points === 8) return '八点';
+    return `${points}点`;
+  };
+
+  // 获取倍数
+  const getMultiplier = (cardType: string) => {
+    switch (cardType) {
+      case '三公': return 3;
+      case '九点': return 2;
+      case '八点': return 2;
+      default: return 1;
+    }
+  };
+
+  const myCardType = myCards.length === 3 ? getCardType(myCards) : '';
+  const multiplier = myCardType ? getMultiplier(myCardType) : 1;
+
+  return (
+    <div style={styles.container}>
+      {/* 游戏标题 */}
+      <div style={styles.titleBar}>
+        <h3 style={styles.title}>🎴 三公</h3>
+        <div style={styles.modeBadge}>
+          {mode === 'banker' ? '🏦 抢庄模式' : '⚖️ 通比模式'}
+        </div>
+      </div>
+
+      {/* 庄家显示 */}
+      {roomState?.banker_id && (
+        <div style={styles.bankerBadge}>
+          👑 庄家: {roomState.banker_id}
+        </div>
+      )}
+
+      {/* 桌面区域 */}
+      <div style={styles.table}>
+        {/* 底池 */}
+        <div style={styles.pot}>
+          底池: {roomState?.round_state?.total_pot || 0}
+        </div>
+
+        {/* 我的手牌 */}
+        <div style={styles.myCards}>
+          <div style={styles.cardsLabel}>我的手牌</div>
+          <div style={styles.cardsRow}>
+            {myCards.map((card: string, idx: number) => (
+              <div key={idx} style={styles.card}>
+                {card}
+              </div>
+            ))}
+          </div>
+          {myCards.length === 3 && (
+            <div style={styles.cardInfo}>
+              <div style={styles.cardType}>{myCardType}</div>
+              <div style={styles.multiplier}>×{multiplier}</div>
+              <div style={styles.pointsTip}>💡 J/Q/K 算 0 点</div>
+            </div>
+          )}
+        </div>
+
+        {/* 抢庄按钮 */}
+        {isMyTurn && !roomState?.banker_id && (
+          <button style={styles.bankerBtn} onClick={handleBecomeBanker}>
+            🏦 抢庄
+          </button>
+        )}
+
+        {/* 其他玩家座位 */}
+        <div style={styles.otherPlayers}>
+          {roomState?.seats?.filter((s: any) => s.user_id !== userId).map((seat: any, idx: number) => (
+            <div
+              key={idx}
+              style={{
+                ...styles.playerSeat,
+                ...(seat.user_id === roomState?.banker_id ? styles.bankerSeat : {}),
+              }}
+            >
+              {seat.user_id === roomState?.banker_id && (
+                <div style={styles.crown}>👑</div>
+              )}
+              <div style={styles.playerName}>{seat.user_id}</div>
+              <div style={styles.playerChips}>筹码: {seat.chips}</div>
+              {seat.current_bet > 0 && (
+                <div style={styles.playerBet}>下注: {seat.current_bet}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 操作按钮 */}
+      {isMyTurn && !roomState?.banker_id && (
+        <div style={styles.actions}>
+          <button style={styles.betBtn} onClick={() => onAction('bet', 100)}>
+            下注 100
+          </button>
+          <button style={styles.betBtn} onClick={() => onAction('bet', 500)}>
+            下注 500
+          </button>
+          <button style={styles.betBtn} onClick={() => onAction('bet', 1000)}>
+            下注 1000
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    width: '100%',
+  },
+  titleBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+  },
+  title: {
+    color: '#3b82f6',
+    fontSize: '24px',
+    margin: 0,
+  },
+  modeBadge: {
+    background: 'rgba(59, 130, 246, 0.2)',
+    color: '#3b82f6',
+    padding: '4px 12px',
+    borderRadius: '16px',
+    fontSize: '14px',
+  },
+  bankerBadge: {
+    textAlign: 'center',
+    color: '#fbbf24',
+    fontSize: '16px',
+    marginBottom: '10px',
+  },
+  table: {
+    background: 'linear-gradient(135deg, #1e3a8a 0%, #172554 100%)',
+    padding: '30px',
+    borderRadius: '30px',
+    border: '3px solid #3b82f6',
+    position: 'relative',
+  },
+  pot: {
+    textAlign: 'center',
+    color: '#fbbf24',
+    fontSize: '20px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
+  },
+  myCards: {
+    textAlign: 'center',
+    marginBottom: '20px',
+  },
+  cardsLabel: {
+    color: '#fff',
+    fontSize: '14px',
+    marginBottom: '10px',
+  },
+  cardsRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '8px',
+    marginBottom: '10px',
+  },
+  card: {
+    width: '50px',
+    height: '70px',
+    background: '#fff',
+    borderRadius: '6px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: '20px',
+    fontWeight: 'bold',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+  },
+  cardInfo: {
+    marginTop: '10px',
+  },
+  cardType: {
+    color: '#fbbf24',
+    fontSize: '20px',
+    fontWeight: 'bold',
+  },
+  multiplier: {
+    color: '#ef4444',
+    fontSize: '16px',
+  },
+  pointsTip: {
+    color: '#9ca3af',
+    fontSize: '12px',
+    marginTop: '5px',
+  },
+  bankerBtn: {
+    display: 'block',
+    margin: '0 auto 20px',
+    padding: '10px 24px',
+    background: 'rgba(251, 191, 36, 0.2)',
+    color: '#fbbf24',
+    border: '2px solid #fbbf24',
+    borderRadius: '24px',
+    cursor: 'pointer',
+    fontSize: '16px',
+  },
+  otherPlayers: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '20px',
+    marginTop: '20px',
+  },
+  playerSeat: {
+    background: 'rgba(0,0,0,0.4)',
+    padding: '15px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    minWidth: '120px',
+    position: 'relative',
+  },
+  bankerSeat: {
+    border: '2px solid #fbbf24',
+  },
+  crown: {
+    position: 'absolute',
+    top: '-15px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    fontSize: '20px',
+  },
+  playerName: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: '8px',
+  },
+  playerChips: {
+    color: '#fbbf24',
+    fontSize: '14px',
+  },
+  playerBet: {
+    color: '#ef4444',
+    fontSize: '14px',
+  },
+  actions: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '12px',
+    marginTop: '20px',
+  },
+  betBtn: {
+    padding: '10px 20px',
+    background: '#3b82f6',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+};
