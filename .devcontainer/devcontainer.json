@@ -3,17 +3,12 @@
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
   "forwardPorts": [5173],
   "postCreateCommand": "cd client && npm install --legacy-peer-deps",
-  "postAttachCommand": "cd client && npm run dev -- --host 0.0.0.0 --port 5173",
+  "postStartCommand": "cd /workspaces/v-poker-yefeng/client && pkill -f 'vite' 2>/dev/null; nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &",
   "portsAttributes": {
     "5173": {
       "label": "Game Client",
-      "onAutoForward": "openBrowser",
+      "onAutoForward": "silent",
       "visibility": "public"
-    }
-  },
-  "customizations": {
-    "vscode": {
-      "settings": { "terminal.integrated.defaultProfile.linux": "bash" }
     }
   }
 }
