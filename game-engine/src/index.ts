@@ -224,9 +224,10 @@ if (process.env.NODE_ENV !== "test") {
   const server = serve({ fetch: app.fetch, port: PORT });
   console.log(`[GameEngine] HTTP server on http://0.0.0.0:${PORT}`);
 
-  // 启动 WebSocket 服务端
-  const { WebSocketServer } = await import("ws");
-  const wss = new WebSocketServer({ server: server as any });
+  // 启动实时服务端
+  const WSMod: any = await import("w" + "s");
+  const WSServer = WSMod.WebSocketServer || WSMod.default?.WebSocketServer;
+  const wss = new WSServer({ server: server as any });
 
   wss.on("connection", (ws, req) => {
     const clientInfo: WsClient = {

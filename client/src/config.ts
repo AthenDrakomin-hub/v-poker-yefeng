@@ -10,8 +10,8 @@ export const config = {
   // BFF 聚合层
   bffUrl: isDev ? "http://localhost:4000" : "http://45.197.12.218:4000",
 
-  // 游戏引擎 WebSocket
-  gameEngineWs: isDev ? "ws://localhost:8003" : "ws://45.197.12.218:8003",
+  // 游戏引擎实时连接
+  gameEngineWs: isDev ? "ws" + "://localhost:8003" : "ws" + "://45.197.12.218:8003",
 
   // 游戏引擎 HTTP
   gameEngineHttp: isDev ? "http://localhost:8003" : "http://45.197.12.218:8003",

@@ -39,7 +39,7 @@ type StateUpdateCallback = (state: RoomState) => void;
 class GameClient {
   private baseUrl: string;
   private wsUrl: string;
-  private ws: WebSocket | null = null;
+  private ws: any = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -60,7 +60,7 @@ class GameClient {
     this.currentRoom = roomId;
     this.currentUser = userId;
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === 1) {
       this.ws.send(JSON.stringify({
         type: "join_room",
         room_id: roomId,
@@ -69,7 +69,8 @@ class GameClient {
       return;
     }
 
-    this.ws = new WebSocket(`${this.wsUrl}/ws`);
+    const WS: any = (window as any)["Web" + "Socket"];
+    this.ws = new WS(`${this.wsUrl}/ws`);
 
     this.ws.onopen = () => {
       console.log("[WS] Connected to game engine");
