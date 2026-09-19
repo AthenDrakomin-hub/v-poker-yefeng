@@ -21,6 +21,20 @@ import { GameMode, GameType } from "./shared/types.js";
 
 const app = new Hono();
 
+// ========== 生产安全：内部鉴权中间件 ==========
+const INTERNAL_AUTH_KEY = process.env.INTERNAL_AUTH_KEY || "change-me-in-prod";
+
+app.use("/api/*", async (c, next) => {
+  // /health 不需要鉴权（Docker healthcheck 用）
+  if (c.req.path === "/health") return next();
+
+  const key = c.req.header("X-Internal-Auth-Key");
+  if (key !== INTERNAL_AUTH_KEY) {
+    return c.json({ code: 401, message: "Unauthorized: invalid internal key" }, 401);
+  }
+  await next();
+});
+
 // ========== WebSocket 房间订阅管理器 ==========
 
 interface WsClient {
