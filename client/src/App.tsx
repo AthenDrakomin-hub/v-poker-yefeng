@@ -10,6 +10,13 @@ import Achievements from './pages/Achievements';
 import Replay from './pages/Replay';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
+import CheckIn from './pages/CheckIn';
+import Help from './pages/Help';
+import VIP from './pages/VIP';
+import Club from './pages/Club';
 import { getToken } from './api/client';
 import './App.css';
 
@@ -66,6 +73,41 @@ function App() {
         <Route path="/replay" element={
           <PrivateRoute>
             <Replay />
+          </PrivateRoute>
+        } />
+        <Route path="/profile" element={
+          <PrivateRoute>
+            <Profile />
+          </PrivateRoute>
+        } />
+        <Route path="/settings" element={
+          <PrivateRoute>
+            <Settings />
+          </PrivateRoute>
+        } />
+        <Route path="/notifications" element={
+          <PrivateRoute>
+            <Notifications />
+          </PrivateRoute>
+        } />
+        <Route path="/checkin" element={
+          <PrivateRoute>
+            <CheckIn />
+          </PrivateRoute>
+        } />
+        <Route path="/help" element={
+          <PrivateRoute>
+            <Help />
+          </PrivateRoute>
+        } />
+        <Route path="/vip" element={
+          <PrivateRoute>
+            <VIP />
+          </PrivateRoute>
+        } />
+        <Route path="/club" element={
+          <PrivateRoute>
+            <Club />
           </PrivateRoute>
         } />
 
