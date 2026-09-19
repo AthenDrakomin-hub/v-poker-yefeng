@@ -147,3 +147,35 @@ async def get_transactions(
         for t in txs
     ]
     return APIResponse(code=0, message="success", data=items)
+
+
+@router.get("/leaderboard", response_model=APIResponse)
+async def get_leaderboard(
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """财富排行榜：按用户钱包余额降序排列"""
+    from sqlalchemy import text
+
+    result = await db.execute(
+        text("""
+            SELECT user_id, user_type, balance
+            FROM wallets
+            WHERE user_type = 'player' AND balance > 0
+            ORDER BY balance DESC
+            LIMIT :limit
+        """),
+        {"limit": limit}
+    )
+    rows = result.mappings().all()
+
+    leaderboard = [
+        {
+            "rank": idx + 1,
+            "user_id": row["user_id"],
+            "balance": row["balance"],
+        }
+        for idx, row in enumerate(rows)
+    ]
+
+    return APIResponse(code=0, message="success", data=leaderboard)

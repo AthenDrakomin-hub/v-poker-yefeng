@@ -34,25 +34,30 @@ export default function Leaderboard() {
     loadData(activeTab);
   }, [activeTab]);
 
-  const loadData = async (_tab: TabType) => {
+  const loadData = async (tab: TabType) => {
     setLoading(true);
-    // 模拟数据
-    setTimeout(() => {
-      const mockData: RankItem[] = [
-        { rank: 1, user_id: 'player_king', username: '扑克之王', value: 1250000, trend: 'same' },
-        { rank: 2, user_id: 'player_ace', username: 'Ace', value: 980000, trend: 'up' },
-        { rank: 3, user_id: 'player_pro', username: '职业玩家', value: 850000, trend: 'down' },
-        { rank: 4, user_id: 'player_lucky', username: '幸运星', value: 720000, trend: 'up' },
-        { rank: 5, user_id: 'player_winner', username: '常胜将军', value: 650000, trend: 'same' },
-        { rank: 6, user_id: 'player_master', username: '大师', value: 580000, trend: 'down' },
-        { rank: 7, user_id: 'player_champ', username: '冠军', value: 520000, trend: 'up' },
-        { rank: 8, user_id: 'player_expert', username: '专家', value: 450000, trend: 'same' },
-        { rank: 9, user_id: 'player_novice', username: '新手', value: 380000, trend: 'down' },
-        { rank: 10, user_id: 'player_beginner', username: '初学者', value: 320000, trend: 'up' },
-      ];
-      setData(mockData);
+    try {
+      if (tab === 'wealth') {
+        const resp = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/wallet/leaderboard?limit=20`);
+        const data = await resp.json();
+        const rows = data.data || [];
+        setData(rows.map((r: any, i: number) => ({
+          rank: r.rank || i + 1,
+          user_id: r.user_id,
+          username: r.user_id,
+          value: r.balance,
+          trend: 'same' as const,
+        })));
+      } else {
+        // 胜率/连胜/代理榜暂无数据接口，显示空
+        setData([]);
+      }
+    } catch (err) {
+      console.error("加载排行榜失败:", err);
+      setData([]);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const getRankStyle = (rank: number) => {
