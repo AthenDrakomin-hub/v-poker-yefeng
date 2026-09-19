@@ -79,3 +79,34 @@ roomRouter.post("/join", async (c) => {
     return c.json({ code: 500, message: err.message, data: null }, 500);
   }
 });
+
+const GAME_ENGINE = process.env.GAME_ENGINE_URL || "http://game-engine:8003";
+
+// 添加 AI 机器人（转发到 game-engine）
+roomRouter.post("/:room_id/bots", async (c) => {
+  const roomId = c.req.param("room_id");
+  const body = await c.req.json();
+  try {
+    const resp = await fetch(`${GAME_ENGINE}/api/engine/room/${roomId}/bots`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    return c.json(data, resp.status);
+  } catch (err: any) {
+    return c.json({ code: 500, message: err.message, data: null }, 500);
+  }
+});
+
+// 导出牌谱（转发到 game-engine）
+roomRouter.get("/:room_id/hand-history", async (c) => {
+  const roomId = c.req.param("room_id");
+  try {
+    const resp = await fetch(`${GAME_ENGINE}/api/engine/room/${roomId}/hand-history`);
+    const data = await resp.json();
+    return c.json(data, resp.status);
+  } catch (err: any) {
+    return c.json({ code: 500, message: err.message, data: null }, 500);
+  }
+});

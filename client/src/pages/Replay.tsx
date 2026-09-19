@@ -1,211 +1,210 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 /**
- * V-POKER 战绩回放页面
+ * 牌谱回放页面
+ * 接 GET /api/engine/room/:id/hand-history
+ * 时间轴逐步播放发牌/下注/摊牌
  */
 
-interface GameRecord {
-  replay_id: string;
+interface ReplayEvent {
+  type: string;
+  user_id?: string;
+  action_type?: string;
+  amount?: number;
+  cards?: any[];
+  pot?: number;
+  timestamp: number;
+}
+
+interface HandHistory {
   room_id: string;
   game_type: string;
-  round_no: number;
-  players: { user_id: string; username: string; result: number }[];
-  duration_sec: number;
-  created_at: number;
+  base_score: number;
+  exported_at: string;
+  events: ReplayEvent[];
+  final_results: any[];
   total_pot: number;
+  side_pots: any[];
 }
 
 export default function Replay() {
+  const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const [records, setRecords] = useState<GameRecord[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<GameRecord | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  const [history, setHistory] = useState<HandHistory | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    loadRecords();
-  }, []);
+    if (roomId) loadHistory(roomId);
+    return () => stopPlay();
+  }, [roomId]);
 
-  const loadRecords = async () => {
+  const loadHistory = async (rid: string) => {
     setLoading(true);
-    // 模拟数据
-    setTimeout(() => {
-      setRecords([
-        {
-          replay_id: 'replay_001',
-          room_id: '888888',
-          game_type: 'texas_holdem',
-          round_no: 3,
-          players: [
-            { user_id: 'player_alice', username: 'Alice', result: 25000 },
-            { user_id: 'player_bob', username: 'Bob', result: -10000 },
-            { user_id: 'player_charlie', username: 'Charlie', result: -15000 },
-          ],
-          duration_sec: 180,
-          created_at: Date.now() - 3600000,
-          total_pot: 50000,
-        },
-        {
-          replay_id: 'replay_002',
-          room_id: '666666',
-          game_type: 'zha_jin_hua',
-          round_no: 5,
-          players: [
-            { user_id: 'player_alice', username: 'Alice', result: -10000 },
-            { user_id: 'player_bob', username: 'Bob', result: 30000 },
-            { user_id: 'player_charlie', username: 'Charlie', result: -20000 },
-          ],
-          duration_sec: 240,
-          created_at: Date.now() - 7200000,
-          total_pot: 60000,
-        },
-      ]);
+    setError("");
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_GAME_ENGINE_URL || "http://localhost:8003"}/api/engine/room/${rid}/hand-history`
+      );
+      const data = await resp.json();
+      if (data.code === 0) {
+        setHistory(data.data);
+        setCurrentStep(data.data.events.length - 1);
+      } else {
+        setError(data.message || "加载牌谱失败");
+      }
+    } catch (err: any) {
+      setError("无法连接游戏引擎: " + err.message);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const stopPlay = () => {
+    if (playTimerRef.current) {
+      clearInterval(playTimerRef.current);
+      playTimerRef.current = null;
+    }
+    setPlaying(false);
   };
 
-  const getGameName = (type: string) => {
-    const map: Record<string, string> = {
-      texas_holdem: '德州扑克',
-      zha_jin_hua: '炸金花',
-      niu_niu: '牛牛',
-      san_gong: '三公',
-    };
-    return map[type] || type;
+  const togglePlay = () => {
+    if (playing) {
+      stopPlay();
+    } else {
+      setPlaying(true);
+      playTimerRef.current = setInterval(() => {
+        setCurrentStep((prev) => {
+          if (prev >= (history?.events.length || 1) - 1) {
+            stopPlay();
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 800);
+    }
   };
+
+  const events = history?.events || [];
+  const visibleEvents = events.slice(0, currentStep + 1);
 
   return (
-    <div className="min-h-screen bg-vp-black p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* 头部 */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/')}
-            className="text-vp-text-muted hover:text-vp-gold transition-colors mb-4"
-          >
-            ← 返回大厅
-          </button>
-          <h1 className="text-3xl font-bold text-vp-gold">🎬 战绩回放</h1>
-          <p className="text-vp-text-muted mt-2">查看历史对局记录，复盘每局操作</p>
-        </div>
+    <div style={styles.container}>
+      <header style={styles.header}>
+        <button style={styles.backBtn} onClick={() => navigate(-1)}>← 返回</button>
+        <h2 style={styles.title}>📜 牌谱回放</h2>
+        {history && (
+          <span style={styles.meta}>
+            {history.game_type} · 底池 {history.total_pot}
+          </span>
+        )}
+      </header>
 
-        {/* 记录列表 */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-12 text-vp-text-muted">加载中...</div>
-          ) : records.length === 0 ? (
-            <div className="glass-card p-12 text-center">
-              <p className="text-vp-text-muted">暂无对局记录</p>
-            </div>
-          ) : (
-            records.map((record) => (
-              <div
-                key={record.replay_id}
-                className="glass-card p-4 hover:border-vp-gold/30 transition-colors cursor-pointer"
-                onClick={() => setSelectedRecord(record)}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">
-                      {record.game_type === 'texas_holdem' ? '♠️' : record.game_type === 'zha_jin_hua' ? '🃏' : record.game_type === 'niu_niu' ? '🐂' : '🎴'}
-                    </span>
-                    <div>
-                      <h3 className="font-bold">{getGameName(record.game_type)}</h3>
-                      <p className="text-sm text-vp-text-muted">
-                        房间 #{record.room_id} · 第 {record.round_no} 局
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-vp-text-muted">{formatTime(record.created_at)}</p>
-                    <p className="text-sm text-vp-text-muted">时长: {Math.floor(record.duration_sec / 60)}分{record.duration_sec % 60}秒</p>
-                  </div>
-                </div>
+      {loading && <div style={styles.center}>加载中...</div>}
+      {error && <div style={styles.center}>{error}</div>}
 
-                {/* 玩家结果 */}
-                <div className="flex gap-4 flex-wrap">
-                  {record.players.map((player) => (
-                    <div
-                      key={player.user_id}
-                      className={`px-3 py-1 rounded-lg text-sm ${
-                        player.result > 0
-                          ? 'bg-vp-success/20 text-vp-success'
-                          : 'bg-vp-danger/20 text-vp-danger'
-                      }`}
-                    >
-                      {player.username}: {player.result > 0 ? '+' : ''}{player.result.toLocaleString()}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
-                  <span className="text-sm text-vp-text-muted">
-                    底池: {record.total_pot.toLocaleString()}
-                  </span>
-                  <button className="text-vp-gold text-sm hover:underline">
-                    回放 →
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* 回放详情弹窗（简化版） */}
-      {selectedRecord && (
-        <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
-          onClick={() => setSelectedRecord(null)}
-        >
-          <div
-            className="glass-card p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-2xl font-bold text-vp-gold mb-4">
-              {getGameName(selectedRecord.game_type)} - 第 {selectedRecord.round_no} 局
-            </h2>
-
-            <div className="space-y-4">
-              <div className="glass-card p-4">
-                <h3 className="font-bold mb-2">📊 对局信息</h3>
-                <p className="text-sm text-vp-text-muted">房间: #{selectedRecord.room_id}</p>
-                <p className="text-sm text-vp-text-muted">时间: {formatTime(selectedRecord.created_at)}</p>
-                <p className="text-sm text-vp-text-muted">底池: {selectedRecord.total_pot.toLocaleString()}</p>
-              </div>
-
-              <div className="glass-card p-4">
-                <h3 className="font-bold mb-2">👥 玩家结果</h3>
-                {selectedRecord.players.map((player) => (
-                  <div key={player.user_id} className="flex justify-between py-2 border-b border-white/10 last:border-0">
-                    <span>{player.username}</span>
-                    <span className={player.result > 0 ? 'text-vp-success' : 'text-vp-danger'}>
-                      {player.result > 0 ? '+' : ''}{player.result.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setSelectedRecord(null)}
-              className="w-full mt-6 px-4 py-3 bg-white/5 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              关闭
+      {history && (
+        <>
+          {/* 播放控制 */}
+          <div style={styles.controls}>
+            <button onClick={() => setCurrentStep(0)} style={styles.ctrlBtn}>⏮ 开头</button>
+            <button onClick={() => setCurrentStep((s) => Math.max(0, s - 1))} style={styles.ctrlBtn}>◀ 上一步</button>
+            <button onClick={togglePlay} style={{ ...styles.ctrlBtn, ...styles.playBtn }}>
+              {playing ? "⏸ 暂停" : "▶ 播放"}
             </button>
+            <button onClick={() => setCurrentStep((s) => Math.min(events.length - 1, s + 1))} style={styles.ctrlBtn}>下一步 ▶</button>
+            <button onClick={() => setCurrentStep(events.length - 1)} style={styles.ctrlBtn}>结尾 ⏭</button>
           </div>
-        </div>
+
+          {/* 进度条 */}
+          <div style={styles.progressBar}>
+            <div
+              style={{
+                ...styles.progressFill,
+                width: `${((currentStep + 1) / Math.max(events.length, 1)) * 100}%`,
+              }}
+            />
+          </div>
+          <div style={styles.stepInfo}>步骤 {currentStep + 1} / {events.length}</div>
+
+          {/* 事件时间轴 */}
+          <div style={styles.timeline}>
+            {visibleEvents.map((ev, idx) => (
+              <div key={idx} style={{
+                ...styles.eventRow,
+                ...(idx === currentStep ? styles.eventActive : {}),
+              }}>
+                <span style={styles.eventIndex}>#{idx + 1}</span>
+                <span style={styles.eventType}>{formatEventType(ev.type)}</span>
+                {ev.user_id && <span style={styles.eventUser}>{ev.user_id}</span>}
+                {ev.action_type && <span style={styles.eventAction}>{ev.action_type}</span>}
+                {ev.amount ? <span style={styles.eventAmount}>{ev.amount}</span> : null}
+              </div>
+            ))}
+          </div>
+
+          {/* 最终结果 */}
+          {history.final_results?.length > 0 && (
+            <div style={styles.results}>
+              <h3>结算结果</h3>
+              {history.final_results.map((r, i) => (
+                <div key={i} style={{
+                  ...styles.resultRow,
+                  ...(r.net_amount > 0 ? styles.winRow : r.net_amount < 0 ? styles.loseRow : {}),
+                }}>
+                  <span>{r.user_id}</span>
+                  <span>{r.hand_name || ""}</span>
+                  <span>{r.net_amount > 0 ? "+" : ""}{r.net_amount}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
+
+function formatEventType(type: string): string {
+  const map: Record<string, string> = {
+    deal: "发牌",
+    action: "动作",
+    settle: "结算",
+    blind: "盲注",
+    community: "公共牌",
+    fold: "弃牌",
+  };
+  return map[type] || type;
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  container: { minHeight: "100vh", background: "#1a1a2e", color: "#fff", padding: "20px" },
+  header: { display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" },
+  backBtn: { padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  title: { margin: 0, fontSize: "20px" },
+  meta: { marginLeft: "auto", color: "#999", fontSize: "14px" },
+  center: { textAlign: "center", padding: "60px", color: "#999" },
+  controls: { display: "flex", gap: "8px", justifyContent: "center", marginBottom: "15px", flexWrap: "wrap" },
+  ctrlBtn: { padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  playBtn: { background: "#c9a84c", color: "#000", fontWeight: "bold" },
+  progressBar: { height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", marginBottom: "5px" },
+  progressFill: { height: "100%", background: "#c9a84c", borderRadius: "3px", transition: "width 0.3s" },
+  stepInfo: { textAlign: "center", color: "#999", fontSize: "12px", marginBottom: "15px" },
+  timeline: { background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "15px", maxHeight: "400px", overflowY: "auto" },
+  eventRow: { display: "flex", gap: "12px", padding: "6px 10px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "14px" },
+  eventActive: { background: "rgba(201,168,76,0.15)", borderRadius: "4px" },
+  eventIndex: { color: "#666", minWidth: "30px" },
+  eventType: { color: "#c9a84c", minWidth: "60px" },
+  eventUser: { color: "#fff", minWidth: "100px" },
+  eventAction: { color: "#10b981" },
+  eventAmount: { color: "#ef4444", marginLeft: "auto" },
+  results: { marginTop: "20px", background: "rgba(255,255,255,0.05)", borderRadius: "8px", padding: "15px" },
+  resultRow: { display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" },
+  winRow: { color: "#10b981" },
+  loseRow: { color: "#ef4444" },
+};

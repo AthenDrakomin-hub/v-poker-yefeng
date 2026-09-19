@@ -173,6 +173,32 @@ CREATE TABLE IF NOT EXISTS game_replays (
 CREATE INDEX IF NOT EXISTS ix_game_replays_room_id ON game_replays(room_id);
 CREATE INDEX IF NOT EXISTS ix_game_replays_created_at ON game_replays(created_at);
 
+-- 8. Bot 使用统计表 bot_usage
+CREATE TABLE IF NOT EXISTS bot_usage (
+    id             SERIAL PRIMARY KEY,
+    room_id        VARCHAR(64) NOT NULL,
+    bot_count      INT NOT NULL,
+    strategy       VARCHAR(20) NOT NULL DEFAULT 'loose',
+    total_rake     BIGINT NOT NULL DEFAULT 0,
+    created_at     BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_bot_usage_room_id ON bot_usage(room_id);
+
+-- 9. 用户统计表 user_stats
+CREATE TABLE IF NOT EXISTS user_stats (
+    user_id        VARCHAR(64) PRIMARY KEY,
+    total_hands    INT NOT NULL DEFAULT 0,
+    total_wins     INT NOT NULL DEFAULT 0,
+    total_pot      BIGINT NOT NULL DEFAULT 0,
+    biggest_pot    BIGINT NOT NULL DEFAULT 0,
+    win_rate       NUMERIC(5,2) NOT NULL DEFAULT 0,
+    updated_at     BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_user_stats_win_rate ON user_stats(win_rate DESC);
+CREATE INDEX IF NOT EXISTS ix_user_stats_total_pot ON user_stats(total_pot DESC);
+
 -- ============================================================
 -- 初始数据插入
 -- ============================================================
