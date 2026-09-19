@@ -222,6 +222,21 @@ export default function Lobby() {
           <button style={styles.iconBtn} onClick={() => navigate('/wallet')} title="钱包">
             💳
           </button>
+          <button style={styles.iconBtn} onClick={() => navigate('/notifications')} title="通知">
+            🔔
+          </button>
+          <button style={styles.iconBtn} onClick={() => navigate('/vip')} title="会员">
+            👑
+          </button>
+          <button style={styles.iconBtn} onClick={() => navigate('/checkin')} title="签到">
+            🎁
+          </button>
+          <button style={styles.iconBtn} onClick={() => navigate('/profile')} title="个人资料">
+            👤
+          </button>
+          <button style={styles.iconBtn} onClick={() => navigate('/settings')} title="设置">
+            ⚙️
+          </button>
           <button style={styles.logoutBtn} onClick={() => { clearToken(); navigate('/login'); }} title="退出">
             退出
           </button>
