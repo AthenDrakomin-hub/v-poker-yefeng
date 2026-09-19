@@ -34,15 +34,15 @@ describe("【Iteration 1】德州扑克完整一局生命周期验证", () => {
     expect(room).toBeDefined();
     expect(room.base_score).toBe(100);
 
-    // 2. 玩家入座
-    const sitAlice = sm.seatManager.sitDown(0, "p_alice", 5000);
-    const sitBob = sm.seatManager.sitDown(1, "p_bob", 5000);
-    expect(sitAlice).toBe(true);
-    expect(sitBob).toBe(true);
+    // 2. 玩家入座（sitDown 是 async，写库操作）
+    const sitAlice = await sm.seatManager.sitDown(0, "p_alice", 5000);
+    const sitBob = await sm.seatManager.sitDown(1, "p_bob", 5000);
+    expect(sitAlice.success).toBe(true);
+    expect(sitBob.success).toBe(true);
     expect(sm.canStart()).toBe(true);
 
-    // 3. 开始牌局 (Preflop)
-    const started = sm.startRound();
+    // 3. 开始牌局 (Preflop)（startRound 是 async，等待盲注扣款）
+    const started = await sm.startRound();
     expect(started).toBe(true);
     expect(sm.getPhase()).toBe("BETTING");
     expect(sm.roundState.betting_round_count).toBe(1);

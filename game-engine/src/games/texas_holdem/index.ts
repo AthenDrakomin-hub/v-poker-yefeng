@@ -250,15 +250,23 @@ export class TexasHoldemPlugin implements GamePlugin {
     }
 
     // 5. 组装返回结果
+    // 弃牌玩家：下注不拿回，net = -current_bet（钱留在底池分给赢家）
     const results: PlayerNetResult[] = [];
     state.seats.forEach((seat) => {
       if (!seat.user_id || seat.current_bet <= 0) return;
-      const net = netResults[seat.user_id] || 0;
+
+      let net: number;
+      if (seat.status === "folded") {
+        net = -seat.current_bet;
+      } else {
+        net = netResults[seat.user_id] || 0;
+      }
+
       results.push({
         user_id: seat.user_id,
         net_amount: net,
-        bet_total: betTotals[seat.user_id] || 0,
-        gross_win: Math.max(0, net + (betTotals[seat.user_id] || 0)),
+        bet_total: betTotals[seat.user_id] || seat.current_bet,
+        gross_win: Math.max(0, net + (betTotals[seat.user_id] || seat.current_bet)),
         hand_name: handNames[seat.user_id] || (seat.status === "folded" ? "弃牌" : "未评估")
       });
     });

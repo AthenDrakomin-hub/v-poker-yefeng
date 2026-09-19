@@ -18,6 +18,7 @@ export class SeatManager {
 
   constructor(maxSeats: number, roomId?: string) {
     this.roomId = roomId || "";
+    this.disconnectTimeoutMs = DISCONNECT_TIMEOUT_MS;
     this.seats = Array.from({ length: maxSeats }, (_, i) => ({
       seat_index: i,
       user_id: null,

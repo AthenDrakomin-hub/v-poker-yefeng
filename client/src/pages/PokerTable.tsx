@@ -1,156 +1,132 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { gameClient } from "../ws/gameSocket";
-import type { RoomState } from "../ws/gameSocket";
-import { api } from "../api/client";
+import { useAuthStore } from "../store/authStore";
+import { useGameStore } from "../store/gameStore";
 import { soundManager } from "../utils/sound";
+import { useTableAnimations } from "../hooks/useTableAnimations";
 import ZhaJinHuaTable from "../games/ZhaJinHuaTable";
 import NiuNiuTable from "../games/NiuNiuTable";
 import SanGongTable from "../games/SanGongTable";
 
-/** 每轮操作倒计时（秒） */
-const ACTION_TIMEOUT = 15;
-
 export default function PokerTable() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const userId = localStorage.getItem('vp_user_id') || '';
-  const [roomState, setRoomState] = useState<RoomState | null>(null);
-  const [balance, setBalance] = useState(0);
-  const [message, setMessage] = useState("");
-  const [settleResult, setSettleResult] = useState<any>(null);
-  const [countdown, setCountdown] = useState(ACTION_TIMEOUT);
-  const [gameType, setGameType] = useState<string>("texas_holdem"); // 默认德州
-  const timerRef = useRef<number | null>(null);
 
-  // 初始化：创建房间 + 加载余额 + 连接 WebSocket
+  // 从 store 取状态
+  const userId = useAuthStore((s) => s.userId);
+  const balance = useAuthStore((s) => s.balance);
+  const refreshBalance = useAuthStore((s) => s.refreshBalance);
+
+  const roomState = useGameStore((s) => s.roomState);
+  const turnTimer = useGameStore((s) => s.turnTimer);
+  const notifications = useGameStore((s) => s.notifications);
+  const setRoomState = useGameStore((s) => s.setRoomState);
+  const updateTurnTimer = useGameStore((s) => s.updateTurnTimer);
+  const pushNotification = useGameStore((s) => s.pushNotification);
+  const connectRoom = useGameStore((s) => s.connectRoom);
+  const disconnectRoom = useGameStore((s) => s.disconnectRoom);
+
+  const [gameType, setGameType] = useState("texas_holdem");
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 动画 refs
+  const potRef = useRef<HTMLDivElement>(null);
+  const communityRef = useRef<HTMLDivElement>(null);
+  const myCardsRef = useRef<HTMLDivElement>(null);
+
+  // 接入动画 hook
+  useTableAnimations({
+    roomState,
+    userId,
+    potRef,
+    communityRef,
+    myCardsRef,
+    settleResult: null, // 赢家高亮由 round_result 通知触发
+  });
+
+  // 初始化：连接 WS + 订阅事件
   useEffect(() => {
-    if (!roomId) return;
-    initRoom();
-    loadBalance();
+    if (!roomId || !userId) return;
 
-    // 连接 WebSocket 实时推送
-    gameClient.connect(roomId, userId);
+    // HTTP 首次加载
+    (async () => {
+      try {
+        await gameClient.createRoom(roomId, "texas_holdem", "fixed", 100);
+      } catch {}
+      const state = await gameClient.getRoomState(roomId);
+      if (state) {
+        setRoomState(state);
+        if (state.room?.game_type) setGameType(state.room.game_type);
+      }
+    })();
 
-    // 订阅状态更新
-    const unsubscribe = gameClient.onStateUpdate((state) => {
+    refreshBalance();
+
+    // 连接 WS
+    connectRoom(roomId, userId);
+
+    // 订阅房间状态
+    const unsubState = gameClient.onStateUpdate((state) => {
       setRoomState(state);
-      // 检查是否进入结算阶段
       if (state.round_state?.phase === "SETTLING") {
         handleSettle();
       }
     });
 
+    // 订阅服务端回合倒计时
+    const unsubTurn = gameClient.onTurnTimer((info) => {
+      updateTurnTimer({
+        event: info.event,
+        seat_index: info.seat_index,
+        user_id: info.user_id || null,
+        deadline_ms: info.deadline_ms || null,
+        remaining_ms: info.remaining_ms || null,
+      });
+    });
+
+    // 订阅通知（断线/重连/自动弃牌）
+    const unsubNotif = gameClient.onNotification((n) => {
+      pushNotification(n);
+    });
+
     return () => {
-      unsubscribe();
-      gameClient.disconnect();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      unsubState();
+      unsubTurn();
+      unsubNotif();
+      disconnectRoom();
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
     };
   }, [roomId, userId]);
 
-  // 倒计时逻辑：轮到当前玩家行动时启动
-  useEffect(() => {
-    const isMyTurn = roomState?.round_state?.current_turn_seat_index !== undefined
-      && roomState?.seats?.[roomState.round_state.current_turn_seat_index]?.user_id === userId
-      && roomState?.round_state?.phase === "BETTING";
+  // 我的回合判断
+  const isMyTurn = roomState?.round_state?.current_turn_seat_index !== undefined
+    && roomState?.seats?.[roomState.round_state.current_turn_seat_index]?.user_id === userId
+    && roomState?.round_state?.phase === "BETTING";
 
-    if (isMyTurn) {
-      // 开始倒计时
-      setCountdown(ACTION_TIMEOUT);
-      timerRef.current = window.setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            // 倒计时结束，自动执行默认动作
-            clearInterval(timerRef.current!);
-            handleTimeoutAction();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      // 不是我的回合，清除计时器
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [roomState?.round_state?.current_turn_seat_index, roomState?.round_state?.phase]);
-
-  /** 倒计时结束自动执行默认动作 */
-  const handleTimeoutAction = async () => {
-    // 如果当前有人下注，默认弃牌；否则默认过牌
-    const highestBet = roomState?.round_state?.current_highest_bet || 0;
-    const myCurrentBet = roomState?.seats?.find((s) => s.user_id === userId)?.current_bet || 0;
-
-    if (highestBet > myCurrentBet) {
-      await handleAction("fold");
-      setMessage("⏰ 超时自动弃牌");
-    } else {
-      await handleAction("check");
-      setMessage("⏰ 超时自动过牌");
-    }
-  };
-
-  const initRoom = async () => {
-    try {
-      await gameClient.createRoom(roomId!, "texas_holdem", "fixed", 100);
-      console.log("房间创建成功:", roomId);
-    } catch (err) {
-      console.log("房间可能已存在:", err);
-    }
-    // 首次加载用 HTTP
-    const state = await gameClient.getRoomState(roomId!);
-    if (state) {
-      setRoomState(state);
-      // 设置游戏类型
-      if (state.room?.game_type) {
-        setGameType(state.room.game_type);
-      }
-    }
-  };
-
-  const loadBalance = async () => {
-    try {
-      const data = await api.getBalance(userId);
-      setBalance(data.balance);
-    } catch (err) {
-      console.error("Failed to load balance:", err);
-    }
-  };
+  // 服务端推的倒计时（秒）
+  const countdown = turnTimer.remaining_ms
+    ? Math.ceil(turnTimer.remaining_ms / 1000)
+    : (isMyTurn ? 30 : 0);
 
   const handleAction = async (actionType: string, amount?: number) => {
+    soundManager.playClick();
     try {
-      // 播放按钮音效
-      soundManager.playClick();
-
-      const res = await gameClient.performAction(roomId!, userId, {
+      const ack = await gameClient.sendAction({
         action_type: actionType as any,
         user_id: userId,
-        amount
+        amount,
       });
 
-      if (res.code === 0) {
-        // 根据动作类型播放不同音效
-        if (actionType === 'call' || actionType === 'raise' || actionType === 'bet') {
-          soundManager.playChipBet();
-        } else if (actionType === 'check' || actionType === 'fold') {
-          soundManager.playFlipCard();
-        }
-        setMessage(`✅ 动作成功: ${actionType}`);
+      if (ack.success) {
+        if (["call", "raise", "bet"].includes(actionType)) soundManager.playChipBet();
+        else soundManager.playFlipCard();
+        pushNotification({ type: "success", message: `动作: ${actionType}` });
       } else {
-        setMessage(`❌ ${res.message}`);
+        pushNotification({ type: "error", message: ack.message });
       }
     } catch (err: any) {
-      setMessage(`❌ ${err.message}`);
+      pushNotification({ type: "error", message: err.message });
     }
   };
 
@@ -158,26 +134,15 @@ export default function PokerTable() {
     try {
       const res = await gameClient.settleRound(roomId!);
       if (res.code === 0) {
-        setSettleResult(res.data);
-        setMessage("🎉 本局结算完成！");
-
-        // 播放结算音效
         soundManager.playSettle();
-
-        // 检查是否赢牌
         const winners = res.data?.request?.winner_ids || [];
-        if (winners.includes(userId)) {
-          soundManager.playWin();
-        } else {
-          soundManager.playLose();
-        }
+        if (winners.includes(userId)) soundManager.playWin();
+        else soundManager.playLose();
 
-        await loadBalance();
-        setTimeout(() => {
-          setSettleResult(null);
-        }, 5000);
+        pushNotification({ type: "success", message: "本局结算完成" });
+        refreshBalance();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("结算失败:", err);
     }
   };
@@ -186,20 +151,17 @@ export default function PokerTable() {
   const renderSeats = () => {
     if (!roomState) return null;
     return roomState.seats.map((seat, idx) => (
-      <div key={idx} style={{
+      <div key={idx} data-seat-user={seat.user_id || ""} style={{
         ...styles.seat,
         ...(seat.user_id === userId ? styles.mySeat : {}),
+        ...(seat.is_disconnected ? styles.disconnectedSeat : {}),
       }}>
-        <div style={styles.seatUser}>
-          {seat.user_id || "空座位"}
-        </div>
+        <div style={styles.seatUser}>{seat.user_id || "空座位"}</div>
         {seat.user_id && (
           <>
             <div style={styles.seatChips}>筹码: {seat.chips || 0}</div>
-            {seat.current_bet > 0 && (
-              <div style={styles.seatBet}>下注: {seat.current_bet}</div>
-            )}
-            <div style={styles.seatStatus}>{seat.status}</div>
+            {seat.current_bet > 0 && <div style={styles.seatBet}>下注: {seat.current_bet}</div>}
+            <div style={styles.seatStatus}>{seat.is_disconnected ? "断线" : seat.status}</div>
           </>
         )}
       </div>
@@ -208,22 +170,14 @@ export default function PokerTable() {
 
   const totalPot = roomState?.round_state?.total_pot || 0;
   const phase = roomState?.round_state?.phase || "WAITING";
-  const isMyTurn = roomState?.round_state?.current_turn_seat_index !== undefined
-    && roomState?.seats?.[roomState.round_state.current_turn_seat_index]?.user_id === userId
-    && phase === "BETTING";
-
-  // 我的手牌
   const mySeat = roomState?.seats?.find((s) => s.user_id === userId);
-  const myCards = mySeat?.hole_cards || [];
-
-  // 倒计时颜色：最后5秒变红闪烁
+  const myCards = mySeat?.cards || [];
   const countdownColor = countdown <= 5 ? "var(--vp-danger)" : "var(--vp-success)";
-  const countdownAnimation = countdown <= 5 ? "blink 1s infinite" : "none";
 
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <button style={styles.backBtn} onClick={() => navigate('/')}>← 返回大厅</button>
+        <button style={styles.backBtn} onClick={() => navigate("/")}>← 返回大厅</button>
         <h2 style={styles.title}>房间: {roomId}</h2>
         <div style={styles.headerRight}>
           <span style={styles.phase}>阶段: {phase}</span>
@@ -231,121 +185,63 @@ export default function PokerTable() {
         </div>
       </header>
 
-      {/* 结算弹窗 */}
-      {settleResult && (
-        <div style={styles.settleModal}>
-          <div style={styles.settleContent}>
-            <h3>🎉 本局结算</h3>
-            <p>总池: {settleResult.response?.data?.winners_payout || "?"}</p>
-            <p>赢家: {settleResult.request?.winner_ids?.join(", ")}</p>
-            <button onClick={() => setSettleResult(null)} style={styles.settleClose}>
-              继续游戏
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 通知 Toast */}
+      <div style={styles.toastContainer}>
+        {notifications.map((n) => (
+          <div key={n.id} style={{
+            ...styles.toast,
+            ...(n.type === "error" ? styles.toastError :
+              n.type === "auto_fold" ? styles.toastWarning :
+              n.type === "success" ? styles.toastSuccess : {}),
+          }}>{n.message}</div>
+        ))}
+      </div>
 
       <div style={styles.tableArea}>
-        {/* 根据游戏类型渲染不同的牌桌 UI */}
-        {gameType === 'zha_jin_hua' ? (
-          <ZhaJinHuaTable
-            roomState={roomState}
-            userId={userId}
-            onAction={handleAction}
-            isMyTurn={isMyTurn}
-          />
-        ) : gameType === 'niu_niu' ? (
-          <NiuNiuTable
-            roomState={roomState}
-            userId={userId}
-            onAction={handleAction}
-            isMyTurn={isMyTurn}
-          />
-        ) : gameType === 'san_gong' ? (
-          <SanGongTable
-            roomState={roomState}
-            userId={userId}
-            onAction={handleAction}
-            isMyTurn={isMyTurn}
-          />
+        {gameType === "zha_jin_hua" ? (
+          <ZhaJinHuaTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
+        ) : gameType === "niu_niu" ? (
+          <NiuNiuTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
+        ) : gameType === "san_gong" ? (
+          <SanGongTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
         ) : (
-          /* 默认德州扑克 UI */
           <div style={styles.table}>
-            {/* 倒计时显示 */}
             {isMyTurn && (
-              <div style={{
-                ...styles.countdown,
-                color: countdownColor,
-                animation: countdownAnimation,
-              }}>
-                {countdown}s
-              </div>
+              <div style={{ ...styles.countdown, color: countdownColor }}>{countdown}s</div>
             )}
-            <div style={styles.pot}>
-              底池: {totalPot}
-            </div>
+            <div ref={potRef} style={styles.pot}>底池: {totalPot}</div>
 
-            {/* 公共牌展示区域 */}
-            <div style={styles.communityCards}>
-              {((roomState?.community_cards || []) as string[]).map((card: string, idx: number) => (
-                <div
-                  key={idx}
-                  style={{
-                    ...styles.card,
-                    ...styles.communityCard,
-                    animation: `dealCard 0.4s ease-out ${idx * 0.1}s both`,
-                  }}
-                >
-                  {card}
+            <div ref={communityRef} style={styles.communityCards}>
+              {((roomState?.round_state?.community_cards || []) as any[]).map((card, idx) => (
+                <div key={idx} style={{ ...styles.card, ...styles.communityCard }}>
+                  {typeof card === "string" ? card : card.code}
                 </div>
               ))}
             </div>
 
-            {/* 我的手牌 */}
-            {myCards && myCards.length > 0 && (
-              <div style={styles.myCards}>
+            {myCards.length > 0 && (
+              <div ref={myCardsRef} style={styles.myCards}>
                 <span style={styles.cardsLabel}>我的手牌:</span>
-                {(myCards as string[]).map((card: string, idx: number) => (
-                  <div
-                    key={idx}
-                    style={{
-                      ...styles.card,
-                      ...styles.holeCard,
-                      animation: `flipCard 0.5s ease-out ${idx * 0.15}s both`,
-                    }}
-                  >
-                    {card}
+                {myCards.map((card: any, idx: number) => (
+                  <div key={idx} style={{ ...styles.card, ...styles.holeCard }}>
+                    {typeof card === "string" ? card : card.code}
                   </div>
                 ))}
               </div>
             )}
 
-            <div style={styles.seatsGrid}>
-              {renderSeats()}
-            </div>
-            {message && <p style={styles.message}>{message}</p>}
+            <div style={styles.seatsGrid}>{renderSeats()}</div>
           </div>
         )}
       </div>
 
-      {/* 德州扑克操作按钮 */}
-      {gameType === 'texas_holdem' && (
+      {gameType === "texas_holdem" && (
         <div style={styles.actions}>
-          <button style={styles.foldBtn} onClick={() => handleAction("fold")}>
-            弃牌
-          </button>
-          <button style={styles.checkBtn} onClick={() => handleAction("check")}>
-            过牌
-          </button>
-          <button style={styles.callBtn} onClick={() => handleAction("call")}>
-            跟注
-          </button>
-          <button style={styles.raiseBtn} onClick={() => handleAction("raise", 200)}>
-            加注
-          </button>
-          <button style={styles.allInBtn} onClick={() => handleAction("all_in", 1000)}>
-            全下
-          </button>
+          <button style={styles.foldBtn} onClick={() => handleAction("fold")}>弃牌</button>
+          <button style={styles.checkBtn} onClick={() => handleAction("check")}>过牌</button>
+          <button style={styles.callBtn} onClick={() => handleAction("call")}>跟注</button>
+          <button style={styles.raiseBtn} onClick={() => handleAction("raise", 200)}>加注</button>
+          <button style={styles.allInBtn} onClick={() => handleAction("all_in", 1000)}>全下</button>
         </div>
       )}
     </div>
@@ -353,250 +249,49 @@ export default function PokerTable() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, var(--vp-surface) 0%, var(--vp-info) 100%)",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "15px 30px",
-    background: "rgba(0,0,0,0.3)",
-  },
-  backBtn: {
-    padding: "8px 16px",
-    background: "rgba(255,255,255,0.1)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-  title: {
-    color: "#fff",
-    margin: 0,
-  },
-  headerRight: {
-    display: "flex",
-    gap: "20px",
-    alignItems: "center",
-  },
-  phase: {
-    color: "var(--vp-gold)",
-    fontSize: "14px",
-  },
-  balance: {
-    color: "#fff",
-    fontSize: "16px",
-  },
-  tableArea: {
-    display: "flex",
-    justifyContent: "center",
-    padding: "40px 20px",
-  },
+  container: { minHeight: "100vh", background: "linear-gradient(135deg, var(--vp-surface) 0%, var(--vp-info) 100%)" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 30px", background: "rgba(0,0,0,0.3)" },
+  backBtn: { padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  title: { color: "#fff", margin: 0 },
+  headerRight: { display: "flex", gap: "20px", alignItems: "center" },
+  phase: { color: "var(--vp-gold)", fontSize: "14px" },
+  balance: { color: "#fff", fontSize: "16px" },
+  tableArea: { display: "flex", justifyContent: "center", padding: "40px 20px" },
   table: {
-    position: "relative",
-    background: "linear-gradient(135deg, var(--vp-felt) 0%, var(--vp-felt) 100%)",
-    width: "100%",
-    maxWidth: "900px",
-    padding: "40px",
+    background: "linear-gradient(135deg, var(--vp-felt) 0%, var(--vp-felt-dark) 100%)",
     borderRadius: "40px",
     border: "4px solid var(--vp-gold-press)",
-  },
-  countdown: {
-    position: "absolute",
-    top: "20px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    fontSize: "36px",
-    fontWeight: "bold",
-    textShadow: "0 0 20px currentColor",
-    zIndex: 10,
-  },
-  pot: {
-    textAlign: "center",
-    color: "var(--vp-gold)",
-    fontSize: "24px",
-    fontWeight: "bold",
-    marginBottom: "30px",
-  },
-  seatsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-    gap: "15px",
-    marginBottom: "30px",
-  },
-  seat: {
-    background: "rgba(0,0,0,0.4)",
-    padding: "15px",
-    borderRadius: "8px",
-    textAlign: "center",
-  },
-  mySeat: {
-    border: "2px solid var(--vp-gold)",
-  },
-  seatUser: {
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: "8px",
-  },
-  seatChips: {
-    color: "var(--vp-gold)",
-    fontSize: "14px",
-  },
-  seatBet: {
-    color: "var(--vp-gold)",
-    fontSize: "14px",
-  },
-  seatStatus: {
-    color: "#999",
-    fontSize: "12px",
-  },
-  message: {
-    textAlign: "center",
-    color: "var(--vp-gold)",
-    marginTop: "20px",
-  },
-  settleModal: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: "rgba(0,0,0,0.7)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  settleContent: {
-    background: "#fff",
     padding: "40px",
-    borderRadius: "12px",
-    textAlign: "center",
-    minWidth: "300px",
+    position: "relative",
+    maxWidth: "900px",
+    width: "100%",
+    margin: "0 auto",
   },
-  settleClose: {
-    marginTop: "20px",
-    padding: "10px 30px",
-    background: "var(--vp-gold)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  actions: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "15px",
-    padding: "20px",
-  },
-  foldBtn: {
-    padding: "12px 24px",
-    background: "#666",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  checkBtn: {
-    padding: "12px 24px",
-    background: "var(--vp-info)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  callBtn: {
-    padding: "12px 24px",
-    background: "var(--vp-felt)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  raiseBtn: {
-    padding: "12px 24px",
-    background: "var(--vp-gold)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  allInBtn: {
-    padding: "12px 24px",
-    background: "var(--vp-danger)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  communityCards: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    marginBottom: "30px",
-    minHeight: "80px",
-  },
-  card: {
-    width: "60px",
-    height: "80px",
-    background: "#fff",
-    borderRadius: "6px",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontSize: "24px",
-    fontWeight: "bold",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.3)",
-  },
-  communityCard: {
-    border: "2px solid var(--vp-gold-press)",
-  },
-  myCards: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    marginBottom: "30px",
-    alignItems: "center",
-  },
-  cardsLabel: {
-    color: "#fff",
-    fontSize: "14px",
-    marginRight: "10px",
-  },
-  holeCard: {
-    border: "2px solid var(--vp-gold)",
-    transformStyle: "preserve-3d",
-  },
+  countdown: { position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)", fontSize: "36px", fontWeight: "bold", textShadow: "0 0 20px currentColor", zIndex: 10 },
+  pot: { textAlign: "center", color: "var(--vp-gold)", fontSize: "24px", fontWeight: "bold", marginBottom: "30px" },
+  seatsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "15px", marginBottom: "30px" },
+  seat: { background: "rgba(0,0,0,0.4)", padding: "15px", borderRadius: "8px", textAlign: "center" },
+  mySeat: { border: "2px solid var(--vp-gold)" },
+  disconnectedSeat: { opacity: 0.5 },
+  seatUser: { color: "#fff", fontWeight: "bold", marginBottom: "8px" },
+  seatChips: { color: "var(--vp-gold)", fontSize: "14px" },
+  seatBet: { color: "var(--vp-gold)", fontSize: "14px" },
+  seatStatus: { color: "#999", fontSize: "12px" },
+  toastContainer: { position: "fixed", top: "70px", right: "20px", zIndex: 9999, display: "flex", flexDirection: "column", gap: "8px" },
+  toast: { padding: "10px 16px", borderRadius: "8px", color: "#fff", fontSize: "14px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)", animation: "slideIn 0.3s ease-out" },
+  toastSuccess: { background: "var(--vp-success)" },
+  toastError: { background: "var(--vp-danger)" },
+  toastWarning: { background: "var(--vp-warning)" },
+  actions: { display: "flex", justifyContent: "center", gap: "15px", padding: "20px" },
+  foldBtn: { padding: "12px 24px", background: "#666", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
+  checkBtn: { padding: "12px 24px", background: "var(--vp-info)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
+  callBtn: { padding: "12px 24px", background: "var(--vp-felt)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
+  raiseBtn: { padding: "12px 24px", background: "var(--vp-gold)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
+  allInBtn: { padding: "12px 24px", background: "var(--vp-danger)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
+  communityCards: { display: "flex", justifyContent: "center", gap: "10px", marginBottom: "30px", minHeight: "80px" },
+  card: { width: "60px", height: "80px", background: "#fff", borderRadius: "6px", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "24px", fontWeight: "bold", boxShadow: "0 4px 8px rgba(0,0,0,0.3)" },
+  communityCard: { border: "2px solid var(--vp-gold-press)" },
+  myCards: { display: "flex", justifyContent: "center", gap: "10px", marginBottom: "30px", alignItems: "center" },
+  cardsLabel: { color: "#fff", fontSize: "14px", marginRight: "10px" },
+  holeCard: { border: "2px solid var(--vp-gold)" },
 };
-
-// CSS 动画
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes dealCard {
-    from {
-      opacity: 0;
-      transform: translateY(-50px) rotateY(90deg);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) rotateY(0deg);
-    }
-  }
-  @keyframes flipCard {
-    from {
-      opacity: 0;
-      transform: rotateY(180deg);
-    }
-    to {
-      opacity: 1;
-      transform: rotateY(0deg);
-    }
-  }
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-`;
-document.head.appendChild(styleSheet);

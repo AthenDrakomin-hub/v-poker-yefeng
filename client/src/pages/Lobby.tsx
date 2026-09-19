@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearToken } from "../api/client";
+import { clearToken } from "../api/client";
+import { useAuthStore } from "../store/authStore";
+import { useGameStore } from "../store/gameStore";
 
 const gameTypes = [
   { id: "texas_holdem", name: "德州扑克", icon: "♠", players: "2-9人", accent: "var(--vp-gold)" },
@@ -28,8 +30,10 @@ interface RoomItem {
 
 export default function Lobby() {
   const navigate = useNavigate();
-  const userId = localStorage.getItem('vp_user_id') || '';
-  const [balance, setBalance] = useState(0);
+  const userId = useAuthStore((s) => s.userId);
+  const balance = useAuthStore((s) => s.balance);
+  const refreshBalance = useAuthStore((s) => s.refreshBalance);
+  const pushNotification = useGameStore((s) => s.pushNotification);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -57,12 +61,7 @@ export default function Lobby() {
   }, [userId]);
 
   const loadBalance = async () => {
-    try {
-      const data = await api.getBalance(userId);
-      setBalance(data.balance);
-    } catch (err) {
-      console.error("Failed to load balance:", err);
-    }
+    await refreshBalance();
   };
 
   const loadRooms = async (gameType?: string) => {
@@ -96,10 +95,10 @@ export default function Lobby() {
         setShowCreateModal(false);
         navigate(`/room/${data.data.room_id}`);
       } else {
-        alert(data.message || "创建房间失败");
+        pushNotification({ type: "error", message: data.message || "创建房间失败"});
       }
     } catch (err: any) {
-      alert(err.message || "创建房间失败");
+      pushNotification({ type: "error", message: err.message || "创建房间失败"});
     }
   };
 
@@ -123,10 +122,54 @@ export default function Lobby() {
       if (data.code === 0) {
         navigate(`/room/${data.data.room_id}`);
       } else {
-        alert(data.message || "快速匹配失败");
+        pushNotification({ type: "error", message: data.message || "快速匹配失败"});
       }
     } catch (err: any) {
-      alert(err.message || "快速匹配失败");
+      pushNotification({ type: "error", message: err.message || "快速匹配失败"});
+    }
+  };
+
+  // 和 AI 打：创建房间 + 自动加 3 个 bot
+  const handlePlayWithAI = async () => {
+    try {
+      // 1. 创建房间
+      const resp = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/rooms/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          room_name: "AI 练习场",
+          game_type: "texas_holdem",
+          total_rounds: 10,
+          base_score: 100,
+          created_by: userId,
+          room_type: "private",
+        }),
+      });
+      const data = await resp.json();
+      if (data.code !== 0) {
+        pushNotification({ type: "error", message: data.message || "创建房间失败" });
+        return;
+      }
+      const roomId = data.data.room_id;
+
+      // 2. 加入房间
+      await fetch(`${import.meta.env.VITE_API_URL || ""}/api/rooms/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room_id: roomId, user_id: userId }),
+      });
+
+      // 3. 加 3 个 bot
+      await fetch(`${import.meta.env.VITE_GAME_ENGINE_URL || "http://localhost:8003"}/api/engine/room/${roomId}/bots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 3, strategy: "loose", chips: 5000 }),
+      });
+
+      pushNotification({ type: "success", message: "已创建 AI 练习场，3 个 AI 已就位" });
+      navigate(`/room/${roomId}`);
+    } catch (err: any) {
+      pushNotification({ type: "error", message: err.message || "AI 练习场创建失败" });
     }
   };
 
@@ -145,10 +188,10 @@ export default function Lobby() {
         setShowJoinModal(false);
         navigate(`/room/${joinForm.room_id}`);
       } else {
-        alert(data.message || "加入房间失败");
+        pushNotification({ type: "error", message: data.message || "加入房间失败"});
       }
     } catch (err: any) {
-      alert(err.message || "加入房间失败");
+      pushNotification({ type: "error", message: err.message || "加入房间失败"});
     }
   };
 
@@ -241,6 +284,22 @@ export default function Lobby() {
             }}
           >
             快速匹配 →
+          </button>
+          <button
+            onClick={handlePlayWithAI}
+            style={{
+              padding: '12px 32px',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 0 20px rgba(16,185,129,0.3)',
+            }}
+          >
+            🤖 和 AI 打
           </button>
         </div>
 

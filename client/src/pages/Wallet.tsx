@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { useAuthStore } from "../store/authStore";
 
 const txTypeColors: Record<string, string> = {
   mint: "var(--vp-success)",
@@ -12,7 +13,8 @@ const txTypeColors: Record<string, string> = {
 
 export default function Wallet() {
   const navigate = useNavigate();
-  const userId = localStorage.getItem('vp_user_id') || '';
+  const userId = useAuthStore((s) => s.userId);
+  const refreshBalance = useAuthStore((s) => s.refreshBalance);
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transferTo, setTransferTo] = useState("");
@@ -41,8 +43,9 @@ export default function Wallet() {
       setTransferAmount("");
       setShowTransfer(false);
       loadData();
+      refreshBalance();
     } catch (err: any) {
-      alert("转账失败: " + err.message);
+      console.error("转账失败:", err);
     }
   };
 

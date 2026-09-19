@@ -146,4 +146,65 @@ export async function clearRoomPlayers(roomId: string): Promise<boolean> {
   }
 }
 
+/**
+ * 保存游戏记录（game_records 表）
+ */
+export async function saveGameRecord(params: {
+  transaction_id: string;
+  room_id: string;
+  round_no: number;
+  total_flow: number;
+  player_count: number;
+}): Promise<boolean> {
+  try {
+    await pool.query(
+      `INSERT INTO game_records (transaction_id, room_id, round_no, total_flow, player_count, settlement_status, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'settled', $6)
+       ON CONFLICT (transaction_id) DO NOTHING`,
+      [params.transaction_id, params.room_id, params.round_no, params.total_flow, params.player_count, Date.now()]
+    );
+    return true;
+  } catch (error) {
+    console.error("[DB] saveGameRecord error:", error);
+    return false;
+  }
+}
+
+/**
+ * 保存牌谱回放（game_replays 表）
+ */
+export async function saveGameReplay(params: {
+  replay_id: string;
+  room_id: string;
+  game_type: string;
+  round_no: number;
+  players: any;
+  actions: any;
+  result: any;
+  duration_sec: number;
+}): Promise<boolean> {
+  try {
+    await pool.query(
+      `INSERT INTO game_replays (replay_id, room_id, game_type, round_no, players, actions, result, duration_sec, created_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)
+       ON CONFLICT (replay_id) DO NOTHING`,
+      [
+        params.replay_id,
+        params.room_id,
+        params.game_type,
+        params.round_no,
+        JSON.stringify(params.players),
+        JSON.stringify(params.actions),
+        JSON.stringify(params.result),
+        params.duration_sec,
+        Date.now(),
+      ]
+    );
+    return true;
+  } catch (error) {
+    console.error("[DB] saveGameReplay error:", error);
+    return false;
+  }
+}
+
 export default pool;
