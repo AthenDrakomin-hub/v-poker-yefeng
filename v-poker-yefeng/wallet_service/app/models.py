@@ -174,3 +174,25 @@ class Message(Base):
     content = Column(Text, nullable=False)
     is_read = Column(Boolean, nullable=False, default=False)
     created_at = Column(BigInteger, nullable=False)
+
+
+class Ticket(Base):
+    """客服工单表 tickets"""
+    __tablename__ = "tickets"
+    ticket_id = Column(String(64), primary_key=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    subject = Column(String(128), nullable=False)
+    status = Column(String(16), nullable=False, default="open", index=True)
+    created_at = Column(BigInteger, nullable=False)
+    updated_at = Column(BigInteger, nullable=False)
+
+
+class TicketMessage(Base):
+    """工单消息表 ticket_messages"""
+    __tablename__ = "ticket_messages"
+    message_id = Column(String(64), primary_key=True)
+    ticket_id = Column(String(64), nullable=False, index=True)
+    sender_type = Column(String(16), nullable=False)  # player / support
+    sender_id = Column(String(64), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(BigInteger, nullable=False)

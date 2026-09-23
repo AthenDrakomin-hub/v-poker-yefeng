@@ -36,13 +36,6 @@
 			}
 		},
 		{
-			"path": "pages/create-room/create-room",
-			"style": {
-				"navigationStyle": "custom",
-				"backgroundColorContent": "#0a0e14"
-			}
-		},
-		{
 			"path": "pages/my-rooms/my-rooms",
 			"style": {
 				"navigationStyle": "custom",
@@ -90,13 +83,6 @@
 		},
 		{
 			"path": "pages/flow/flow",
-			"style": {
-				"navigationStyle": "custom",
-				"backgroundColorContent": "#0a0e14"
-			}
-		},
-		{
-			"path": "pages/agent/agent",
 			"style": {
 				"navigationStyle": "custom",
 				"backgroundColorContent": "#0a0e14"
