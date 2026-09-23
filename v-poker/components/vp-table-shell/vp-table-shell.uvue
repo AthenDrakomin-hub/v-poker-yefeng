@@ -26,6 +26,7 @@
 
 		<view class="ts-body">
 			<view class="ts-table-wrap" :style="tableWrapStyle">
+				<image :src="tableBg" class="ts-table-bg" mode="aspectFill" />
 				<view class="ts-felt-holder">
 					<vp-poker-table :pot="roomStore.pot" :community_codes="roomStore.communityCodes"
 						:phase="roomStore.phase" />
@@ -154,6 +155,16 @@
 	})
 
 	const gameName = computed((): string => gameTypeName(props.game_type))
+	const tableBg = computed((): string => {
+		const map: Record<string, string> = {
+			texas_holdem: '/static/table/texas-holdem.png',
+			zha_jin_hua: '/static/table/zha-jin-hua.png',
+			niu_niu: '/static/table/niu-niu.png',
+			san_gong: '/static/table/san-gong.png',
+			squid_game: '/static/table/squid-game.png',
+		}
+		return map[props.game_type] || '/static/table/texas-holdem.png'
+	})
 	const phaseText = computed((): string => phaseLabel(roomStore.phase))
 	const balanceText = computed((): string => `筹码 ${formatAmount(wallet.balance)}`)
 	const tableWrapStyle = computed((): string => `width:${tableW.value}px;height:${tableH.value}px;`)
@@ -471,6 +482,16 @@
 
 	.ts-table-wrap {
 		position: relative;
+	}
+
+	.ts-table-bg {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		border-radius: 20px;
+		opacity: 0.9;
 	}
 
 	.ts-felt-holder {
