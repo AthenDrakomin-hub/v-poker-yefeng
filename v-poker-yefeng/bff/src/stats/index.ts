@@ -1,0 +1,32 @@
+/**
+ * BFF - 个人战绩路由 (/api/stats/*)
+ *
+ * 玩家端个人战绩统计。当前返回默认数据，
+ * 待后端统计服务就绪后改为透明转发。
+ */
+import { Hono } from "hono";
+import { authMiddleware } from "../auth/index.js";
+
+export const statsRouter = new Hono();
+
+statsRouter.use("*", authMiddleware(["player", "agent", "admin"]));
+
+// 获取个人战绩
+statsRouter.get("/:user_id", (c) => {
+  const userId = c.req.param("user_id");
+  // TODO: 转发到统计服务，当前返回默认数据
+  return c.json({
+    code: 0,
+    message: "success",
+    data: {
+      user_id: userId,
+      total_games: 0,
+      win_rate: 0,
+      total_profit: 0,
+      best_pot: 0,
+      best_hand: "—",
+      max_streak: 0,
+      game_stats: []
+    }
+  });
+});

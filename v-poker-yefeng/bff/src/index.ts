@@ -15,6 +15,11 @@ import { debugRouter } from "./debug/index.js";
 import { roomRouter } from "./rooms/index.js";
 import { walletRouter } from "./wallet/index.js";
 import { loginHandler, registerHandler } from "./auth/index.js";
+import { statsRouter } from "./stats/index.js";
+import { friendRouter } from "./friends/index.js";
+import { rankRouter } from "./rank/index.js";
+import { achievementRouter } from "./achievements/index.js";
+import { messageRouter } from "./messages/index.js";
 
 const app = new Hono();
 
@@ -110,6 +115,13 @@ app.route("/api/admin", adminRouter);
 app.route("/api/rooms", roomRouter);
 // 契约 3.3：玩家端钱包接口（此前遗漏挂载，导致前端取余额 404）
 app.route("/api/wallet", walletRouter);
+
+// 玩家端新增功能路由
+app.route("/api/stats", statsRouter);
+app.route("/api/friends", friendRouter);
+app.route("/api/rank", rankRouter);
+app.route("/api/achievements", achievementRouter);
+app.route("/api/messages", messageRouter);
 
 // 注册开发期调试专用命名空间（生产环境完全禁用）
 const isProduction = process.env.NODE_ENV === "production";
