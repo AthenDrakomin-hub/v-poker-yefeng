@@ -1,7 +1,7 @@
 """
 数据库模型定义 (遵循全局契约字典)
 """
-from sqlalchemy import Column, String, BigInteger, Integer, Numeric, Text, Boolean
+from sqlalchemy import Column, String, BigInteger, Integer, Numeric, Text, Boolean, JSON
 from app.database import Base
 
 
@@ -114,6 +114,7 @@ class Room(Base):
     rake_cap_multiplier = Column(Integer, nullable=False, default=5)  # 抽水上限倍数
     created_by = Column(String(64), nullable=False, index=True)  # 创建者 ID（代理/房主）
     room_type = Column(String(16), nullable=False, default="public")  # public / private
+    config = Column(JSON, nullable=True)  # 游戏特殊配置（如鱿鱼模式参数）
     status = Column(String(16), nullable=False, default="waiting", index=True)  # waiting / playing / finished
     current_round = Column(Integer, nullable=False, default=0)  # 当前第几局
     created_at = Column(BigInteger, nullable=False)

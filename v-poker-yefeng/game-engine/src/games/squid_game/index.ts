@@ -69,13 +69,19 @@ export class SquidGamePlugin implements GamePlugin {
   }
 
   dealCards(state: any): void {
+    // 从房间配置读取参数（代理创建时设置）
+    const config = state.room?.config || {};
+    const bridgeSurvival = (config.bridgeSurvival ?? 70) / 100; // 默认70%
+    const deathPenalty = (config.deathPenalty ?? 50) / 100;     // 默认50%
+    const luckyBonus = (config.luckyBonus ?? 50) / 100;         // 默认50%
+    const survivorBonus = (config.survivorBonus ?? 50) / 100;   // 默认50%
+
     // 阶段1: 玻璃桥选择
     if (!this.squidState.glass_bridge_passed) {
       this.squidState.bridge_choices = [];
       for (const seat of state.seats) {
         if (seat.status === "empty" || seat.status === "folded") continue;
-        // 简化：随机分配存活/淘汰（真实环境由玩家选择）
-        const survived = Math.random() > 0.3; // 70% 存活率
+        const survived = Math.random() < bridgeSurvival;
         this.squidState.bridge_choices.push({
           player_id: seat.user_id,
           side: survived ? "left" : "right",
@@ -183,14 +189,20 @@ export class SquidGamePlugin implements GamePlugin {
     const result = this.compareHands(state);
     const winner = result.rankings[0];
 
+    // 从房间配置读取参数
+    const config = state.room?.config || {};
+    const deathPenaltyRate = (config.deathPenalty ?? 50) / 100;
+    const luckyBonusRate = (config.luckyBonus ?? 50) / 100;
+    const survivorBonusRate = (config.survivorBonus ?? 50) / 100;
+
     const players = state.seats.filter((s: any) => s.status !== "empty");
     const netResults: PlayerNetResult[] = players.map((seat: any) => {
       const isWinner = seat.user_id === winner.user_id;
       let net = isWinner ? state.total_pot : 0;
 
-      // 幸运牌加成：赢家有 A♥ 底牌，筹码翻倍
+      // 幸运牌加成：赢家有 A♥ 底牌
       if (isWinner && this.squidState.lucky_card_triggered.has(seat.user_id)) {
-        net = Math.floor(net * 1.5); // 50% 加成
+        net = Math.floor(net * (1 + luckyBonusRate));
       }
 
       return {
@@ -205,7 +217,7 @@ export class SquidGamePlugin implements GamePlugin {
       if (this.squidState.death_card_triggered.has(seat.user_id) && seat.user_id !== winner.user_id) {
         const loserNet = netResults.find((n) => n.user_id === seat.user_id);
         if (loserNet && seat.chips > 0) {
-          const penalty = Math.floor(seat.chips * 0.5);
+          const penalty = Math.floor(seat.chips * deathPenaltyRate);
           loserNet.net_amount = -penalty;
           // 惩罚筹码归入底池
           const winnerNet = netResults.find((n) => n.user_id === winner.user_id);
@@ -236,7 +248,7 @@ export class SquidGamePlugin implements GamePlugin {
     // 幸存者奖励：每存活一轮奖励
     for (const net of netResults) {
       if (net.net_amount > 0) {
-        net.net_amount += Math.floor(state.current_highest_bet * 0.5);
+        net.net_amount += Math.floor(state.current_highest_bet * survivorBonusRate);
       }
     }
 

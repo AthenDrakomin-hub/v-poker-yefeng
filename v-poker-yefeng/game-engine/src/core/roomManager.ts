@@ -7,6 +7,7 @@
 import { GamePlugin } from "../games/plugin.interface.js";
 import { NiuNiuPlugin } from "../games/niu_niu/index.js";
 import { SanGongPlugin } from "../games/san_gong/index.js";
+import { SquidGamePlugin } from "../games/squid_game/index.js";
 import { TexasHoldemPlugin } from "../games/texas_holdem/index.js";
 import { ZhaJinHuaPlugin } from "../games/zha_jin_hua/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
@@ -25,6 +26,7 @@ export class RoomManager {
     this.registerPlugin(new SanGongPlugin());
     this.registerPlugin(new ZhaJinHuaPlugin());
     this.registerPlugin(new TexasHoldemPlugin());
+    this.registerPlugin(new SquidGamePlugin());
 
     // 启动时从数据库恢复房间
     this.restoreRoomsFromDB();

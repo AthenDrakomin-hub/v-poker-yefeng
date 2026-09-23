@@ -218,6 +218,7 @@ class CreateRoomRequest(BaseModel):
     rake_cap_multiplier: int = Field(default=5, ge=1, le=20, description="抽水上限倍数")
     created_by: str = Field(..., description="创建者 ID（代理/房主）")
     room_type: str = Field(default="public", description="public / private")
+    config: Optional[dict] = Field(default=None, description="游戏特殊配置（如鱿鱼模式参数）")
 
 
 class RoomItem(BaseModel):

@@ -75,6 +75,14 @@
 			}
 		},
 		{
+			"path": "pages/table-squid/table-squid",
+			"style": {
+				"navigationStyle": "custom",
+				"disableScroll": true,
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
 			"path": "pages/wallet/wallet",
 			"style": {
 				"navigationStyle": "custom",

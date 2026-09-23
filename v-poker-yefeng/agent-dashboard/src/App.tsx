@@ -104,7 +104,11 @@ function App() {
   const handleCreateRoom = async () => {
     try {
       const token = localStorage.getItem('agent_token')
-      await axios.post(`${BFF_URL}/rooms/create`, createForm, {
+      const payload = {
+        ...createForm,
+        config: createForm.game_type === 'squid_game' ? squidConfig : undefined,
+      }
+      await axios.post(`${BFF_URL}/rooms/create`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setShowCreateRoom(false)

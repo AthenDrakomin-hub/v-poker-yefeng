@@ -47,7 +47,7 @@ async def create_room(
     - 校验游戏类型和参数范围
     """
     # 校验游戏类型
-    valid_game_types = ["texas_holdem", "zha_jin_hua", "niu_niu", "san_gong"]
+    valid_game_types = ["texas_holdem", "zha_jin_hua", "niu_niu", "san_gong", "squid_game"]
     if req.game_type not in valid_game_types:
         raise HTTPException(status_code=400, detail=f"Invalid game_type. Must be one of: {valid_game_types}")
 
@@ -85,6 +85,7 @@ async def create_room(
         big_blind=req.big_blind,
         rake_cap_multiplier=req.rake_cap_multiplier,
         created_by=req.created_by,
+        config=req.config,
         # 有密码即视为私有房（契约 3.2：前端只传 room_password，不传 room_type；
         # 若沿用 req.room_type 的默认值 "public"，带密码房间会被误标为公开房）
         room_type="private" if req.room_password else "public",
