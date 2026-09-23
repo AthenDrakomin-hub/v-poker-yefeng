@@ -14,7 +14,7 @@ export const roomRouter = new Hono();
 const WALLET_SERVICE = process.env.WALLET_SERVICE_URL || "http://wallet-service:8001";
 const GAME_ENGINE = process.env.GAME_ENGINE_URL || "http://game-engine:8003";
 
-// 所有房间路由都需要登录（玩家/代理/管理员都可以创建房间）
+// 所有房间路由都需要登录；创建房间/机器人管理在端点内单独校验角色
 roomRouter.use("*", authMiddleware(["player", "agent", "admin"]));
 
 /**
@@ -108,9 +108,15 @@ async function ensureEngineSeat(roomId: string, userId: string): Promise<void> {
   }
 }
 
-// 创建房间
+// 创建房间（仅代理/管理员可创建，玩家只能加入）
 roomRouter.post("/create", async (c) => {
   const user = c.get("user") as { userId: string; userType: string };
+
+  // 权限校验：仅 agent/admin 可创建房间
+  if (user.userType === "player") {
+    return c.json({ code: 403, message: "玩家不能创建房间，请联系代理", data: null }, 403);
+  }
+
   const body = await c.req.json();
 
   // 强制注入创建者为当前登录用户（防止越权）

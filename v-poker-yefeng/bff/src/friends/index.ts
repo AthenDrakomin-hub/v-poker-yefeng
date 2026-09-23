@@ -1,7 +1,7 @@
 /**
  * BFF - 好友路由 (/api/friends/*)
  *
- * 玩家端好友列表与添加好友。当前返回空列表，
+ * 玩家端：好友列表与添加好友。仅玩家可访问。
  * 待好友服务就绪后改为透明转发。
  */
 import { Hono } from "hono";
@@ -9,7 +9,8 @@ import { authMiddleware } from "../auth/index.js";
 
 export const friendRouter = new Hono();
 
-friendRouter.use("*", authMiddleware(["player", "agent", "admin"]));
+// 玩家端：仅 player 可访问
+friendRouter.use("*", authMiddleware(["player"]));
 
 // 获取好友列表
 friendRouter.get("/:user_id", (c) => {

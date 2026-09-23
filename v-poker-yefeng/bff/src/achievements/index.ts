@@ -1,7 +1,7 @@
 /**
  * BFF - 成就路由 (/api/achievements/*)
  *
- * 玩家成就墙。当前返回默认成就列表（全部未解锁），
+ * 玩家端：成就墙。仅玩家可访问。
  * 待成就服务就绪后改为透明转发。
  */
 import { Hono } from "hono";
@@ -9,7 +9,8 @@ import { authMiddleware } from "../auth/index.js";
 
 export const achievementRouter = new Hono();
 
-achievementRouter.use("*", authMiddleware(["player", "agent", "admin"]));
+// 玩家端：仅 player 可访问
+achievementRouter.use("*", authMiddleware(["player"]));
 
 // 默认成就定义
 const DEFAULT_ACHIEVEMENTS = [

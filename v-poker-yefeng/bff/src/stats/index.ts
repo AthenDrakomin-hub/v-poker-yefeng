@@ -1,7 +1,7 @@
 /**
  * BFF - 个人战绩路由 (/api/stats/*)
  *
- * 玩家端个人战绩统计。当前返回默认数据，
+ * 玩家端：个人战绩统计。仅玩家可访问。
  * 待后端统计服务就绪后改为透明转发。
  */
 import { Hono } from "hono";
@@ -9,7 +9,8 @@ import { authMiddleware } from "../auth/index.js";
 
 export const statsRouter = new Hono();
 
-statsRouter.use("*", authMiddleware(["player", "agent", "admin"]));
+// 玩家端：仅 player 可访问
+statsRouter.use("*", authMiddleware(["player"]));
 
 // 获取个人战绩
 statsRouter.get("/:user_id", (c) => {

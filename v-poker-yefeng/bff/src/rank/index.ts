@@ -1,7 +1,7 @@
 /**
  * BFF - 排行榜路由 (/api/rank/*)
  *
- * 排行榜。透明转发 wallet-service 的 leaderboard 端点。
+ * 玩家端：排行榜。透明转发 wallet-service 的 leaderboard 端点。
  */
 import { Hono } from "hono";
 import type { Context } from "hono";
@@ -12,7 +12,8 @@ export const rankRouter = new Hono();
 
 const WALLET_SERVICE = process.env.WALLET_SERVICE_URL || "http://wallet-service:8001";
 
-rankRouter.use("*", authMiddleware(["player", "agent", "admin"]));
+// 玩家端：仅 player 可访问
+rankRouter.use("*", authMiddleware(["player"]));
 
 // 获取排行榜
 rankRouter.get("/", async (c: Context) => {
