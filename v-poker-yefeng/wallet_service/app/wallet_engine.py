@@ -608,6 +608,39 @@ class WalletEngine:
             elif room_obj.status == "waiting":
                 room_obj.status = "playing"
 
+        # 12. 成就自动解锁 + 系统消息推送
+        try:
+            from app.models import Achievement, UserAchievement, Message
+            # 检查赢家成就
+            for winner_id in req.winner_ids:
+                # 第一胜成就
+                first_win = await session.execute(
+                    select(UserAchievement).where(
+                        UserAchievement.user_id == winner_id,
+                        UserAchievement.achievement_id == "ach_first_win"
+                    )
+                )
+                if not first_win.scalar_one_or_none():
+                    ua = UserAchievement(
+                        id=f"ua_{uuid.uuid4().hex[:16]}",
+                        user_id=winner_id,
+                        achievement_id="ach_first_win",
+                        unlocked=True,
+                        unlocked_at=ts
+                    )
+                    session.add(ua)
+                    msg = Message(
+                        message_id=f"msg_{uuid.uuid4().hex[:16]}",
+                        user_id=winner_id,
+                        title="🏆 成就解锁",
+                        content="恭喜！你完成了首次胜利，解锁「初尝胜果」成就！",
+                        is_read=False,
+                        created_at=ts
+                    )
+                    session.add(msg)
+        except Exception:
+            pass  # 成就失败不影响主流程
+
         # 守恒校验：game_settle 操作本身守恒
         # 牌桌 - total_pot = 赢家 + (winners_payout) + fee_pool + (platform_revenue) + 代理 + (agent_pool)
         # 已通过行锁保证安全，不做全表校验

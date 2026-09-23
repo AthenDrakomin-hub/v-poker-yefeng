@@ -487,6 +487,7 @@ export const useRoomStore = defineStore('room', () => {
 				if (data != null) {
 					applyRoundResult(data)
 					playSound('win')
+					uni.vibrateLong({})  // 胜利长振反馈
 				}
 			} else if (type == 'phase_changed') {
 				const data = msg.getJSON('data')

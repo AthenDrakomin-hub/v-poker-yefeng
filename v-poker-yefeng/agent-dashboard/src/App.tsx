@@ -36,6 +36,8 @@ function App() {
     game_type: 'texas_holdem',
     total_rounds: 10,
     base_score: 100,
+    min_players: 2,
+    max_players: 6,
     room_password: '',
   })
   const [transferTo, setTransferTo] = useState('')
@@ -107,6 +109,8 @@ function App() {
         game_type: 'texas_holdem',
         total_rounds: 10,
         base_score: 100,
+        min_players: 2,
+        max_players: 6,
         room_password: '',
       })
     } catch (err: any) {
@@ -508,6 +512,18 @@ function App() {
                   onChange={(e) => setCreateForm({ ...createForm, base_score: parseInt(e.target.value) })}
                 />
               </div>
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>座位数</label>
+              <select
+                style={styles.formInput}
+                value={createForm.max_players}
+                onChange={(e) => setCreateForm({ ...createForm, max_players: parseInt(e.target.value) })}
+              >
+                {[2,3,4,5,6,7,8,9].map(n => (
+                  <option key={n} value={n}>{n} 人桌</option>
+                ))}
+              </select>
             </div>
             <div style={styles.formGroup}>
               <label style={styles.formLabel}>房间密码（可选）</label>
