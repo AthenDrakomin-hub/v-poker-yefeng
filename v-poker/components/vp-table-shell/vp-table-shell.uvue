@@ -162,6 +162,14 @@
 			niu_niu: '/static/table/niu-niu.png',
 			san_gong: '/static/table/san-gong.png',
 			squid_game: '/static/table/squid-game.png',
+			guandan: '/static/table/guandan.png',
+			fight_bomb: '/static/table/fight_bomb.png',
+			omaha: '/static/table/omaha.png',
+			thirteen_water: '/static/table/thirteen_water.png',
+			double_kong: '/static/table/double_kong.png',
+			hong_wu: '/static/table/hong_wu.png',
+			pineapple: '/static/table/pineapple.png',
+			short_deck: '/static/table/short_deck.png',
 		}
 		return map[props.game_type] || '/static/table/texas-holdem.png'
 	})

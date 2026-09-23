@@ -83,6 +83,38 @@
 			}
 		},
 		{
+			"path": "pages/table-guandan/table-guandan",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-fight_bomb/table-fight_bomb",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-omaha/table-omaha",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-thirteen_water/table-thirteen_water",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-double_kong/table-double_kong",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-hong_wu/table-hong_wu",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-pineapple/table-pineapple",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
+			"path": "pages/table-short_deck/table-short_deck",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
 			"path": "pages/wallet/wallet",
 			"style": {
 				"navigationStyle": "custom",
