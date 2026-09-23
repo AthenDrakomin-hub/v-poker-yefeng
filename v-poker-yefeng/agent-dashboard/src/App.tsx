@@ -38,6 +38,9 @@ function App() {
     base_score: 100,
     room_password: '',
   })
+  const [transferTo, setTransferTo] = useState('')
+  const [transferAmount, setTransferAmount] = useState('')
+  const [transferResult, setTransferResult] = useState('')
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -162,6 +165,7 @@ function App() {
   const navItems = [
     { id: 'dashboard', label: '仪表盘', icon: '📊' },
     { id: 'rooms', label: '我的房间', icon: '🎮' },
+    { id: 'transfer', label: '筹码转账', icon: '💸' },
     { id: 'commission', label: '佣金明细', icon: '💰' },
     { id: 'settlements', label: '结算记录', icon: '📋' },
     { id: 'children', label: '下级代理', icon: '👥' },
@@ -282,6 +286,68 @@ function App() {
               {rooms.length === 0 && (
                 <p style={styles.emptyText}>暂无房间，点击右上角创建</p>
               )}
+            </div>
+          )}
+
+          {/* 筹码转账 */}
+          {page === 'transfer' && (
+            <div>
+              <h2 style={styles.pageTitle}>筹码转账</h2>
+              <p style={{color: 'rgba(255,255,255,0.5)', marginBottom: '20px', fontSize: '14px'}}>
+                代理向玩家下发筹码 · 手续费 0.1%
+              </p>
+              <div style={styles.tableCard}>
+                <div style={{padding: '24px', maxWidth: '480px'}}>
+                  <div style={{marginBottom: '16px'}}>
+                    <label style={{display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '6px'}}>玩家 ID</label>
+                    <input
+                      style={{width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '15px', boxSizing: 'border-box'}}
+                      placeholder="如 player_alice"
+                      value={transferTo}
+                      onChange={function(e: any) { setTransferTo(e.target.value) }}
+                    />
+                  </div>
+                  <div style={{marginBottom: '20px'}}>
+                    <label style={{display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '6px'}}>转账金额（筹码）</label>
+                    <input
+                      style={{width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '15px', boxSizing: 'border-box'}}
+                      type="number"
+                      placeholder="如 10000"
+                      value={transferAmount}
+                      onChange={function(e: any) { setTransferAmount(e.target.value) }}
+                    />
+                  </div>
+                  <button
+                    style={{width: '100%', padding: '12px', background: 'linear-gradient(135deg, #d4af37 0%, #b8962e 100%)', color: '#1a1a2e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: '600'}}
+                    onClick={async function() {
+                      if (!transferTo || !transferAmount) {
+                        setTransferResult('请填写玩家ID和金额')
+                        return
+                      }
+                      try {
+                        const token = localStorage.getItem('agent_token')
+                        await axios.post(`${BFF_URL}/wallet/transfer`, {
+                          to_user_id: transferTo,
+                          amount: parseInt(transferAmount),
+                          remark: '代理下发筹码'
+                        }, {
+                          headers: { Authorization: `Bearer ${token}` }
+                        })
+                        setTransferResult(`✅ 成功转账 ${transferAmount} 筹码至 ${transferTo}（含0.1%手续费）`)
+                        setTransferTo('')
+                        setTransferAmount('')
+                      } catch (err: any) {
+                        setTransferResult(`❌ ${err.response?.data?.message || '转账失败'}`)
+                      }
+                    }}
+                  >确认转账</button>
+                  {transferResult && (
+                    <p style={{marginTop: '16px', fontSize: '14px', color: transferResult.startsWith('✅') ? 'var(--vp-success)' : 'var(--vp-danger)'}}>
+                      {transferResult}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
