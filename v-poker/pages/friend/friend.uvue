@@ -45,6 +45,14 @@
 		friendStore.loadFriends()
 	})
 
+	onPullDownRefresh(() => {
+		friendStore.loadFriends().then(() => {
+			uni.stopPullDownRefresh()
+		}).catch(() => {
+			uni.stopPullDownRefresh()
+		})
+	})
+
 	const goBack = () => {
 		uni.navigateBack()
 	}

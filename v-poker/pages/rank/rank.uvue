@@ -50,6 +50,14 @@
 		rankStore.loadRank('week')
 	})
 
+	onPullDownRefresh(() => {
+		rankStore.loadRank(rankStore.period).then(() => {
+			uni.stopPullDownRefresh()
+		}).catch(() => {
+			uni.stopPullDownRefresh()
+		})
+	})
+
 	const rankClass = (i: number): string => {
 		if (i == 0) return 'rk-rank-gold'
 		if (i == 1) return 'rk-rank-silver'

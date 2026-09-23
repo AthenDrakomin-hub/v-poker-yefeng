@@ -113,6 +113,7 @@
 			"path": "pages/friend/friend",
 			"style": {
 				"navigationStyle": "custom",
+				"enablePullDownRefresh": true,
 				"backgroundColorContent": "#0a0e14"
 			}
 		},
@@ -120,6 +121,7 @@
 			"path": "pages/rank/rank",
 			"style": {
 				"navigationStyle": "custom",
+				"enablePullDownRefresh": true,
 				"backgroundColorContent": "#0a0e14"
 			}
 		},
@@ -141,6 +143,7 @@
 			"path": "pages/message/message",
 			"style": {
 				"navigationStyle": "custom",
+				"enablePullDownRefresh": true,
 				"backgroundColorContent": "#0a0e14"
 			}
 		},

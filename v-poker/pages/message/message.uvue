@@ -38,6 +38,14 @@
 		messageStore.loadMessages()
 	})
 
+	onPullDownRefresh(() => {
+		messageStore.loadMessages().then(() => {
+			uni.stopPullDownRefresh()
+		}).catch(() => {
+			uni.stopPullDownRefresh()
+		})
+	})
+
 	const formatTime = (ts: number): string => {
 		if (ts == 0) return ''
 		const d = new Date(ts)
