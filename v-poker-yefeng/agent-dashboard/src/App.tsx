@@ -43,6 +43,12 @@ function App() {
   const [transferTo, setTransferTo] = useState('')
   const [transferAmount, setTransferAmount] = useState('')
   const [transferResult, setTransferResult] = useState('')
+  const [squidConfig, setSquidConfig] = useState({
+    bridgeSurvival: 70,
+    deathPenalty: 50,
+    luckyBonus: 50,
+    survivorBonus: 50,
+  })
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -488,8 +494,49 @@ function App() {
                 <option value="zha_jin_hua">炸金花</option>
                 <option value="niu_niu">牛牛</option>
                 <option value="san_gong">三公</option>
+                <option value="squid_game">鱿鱼模式</option>
               </select>
             </div>
+            {createForm.game_type === 'squid_game' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>玻璃桥存活率</label>
+                    <select style={styles.formInput} value={squidConfig.bridgeSurvival} onChange={(e) => setSquidConfig({ ...squidConfig, bridgeSurvival: parseInt(e.target.value) })}>
+                      <option value="50">50%</option>
+                      <option value="70">70%</option>
+                      <option value="90">90%</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>死亡牌惩罚</label>
+                    <select style={styles.formInput} value={squidConfig.deathPenalty} onChange={(e) => setSquidConfig({ ...squidConfig, deathPenalty: parseInt(e.target.value) })}>
+                      <option value="30">30%</option>
+                      <option value="50">50%</option>
+                      <option value="70">70%</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>幸运牌加成</label>
+                    <select style={styles.formInput} value={squidConfig.luckyBonus} onChange={(e) => setSquidConfig({ ...squidConfig, luckyBonus: parseInt(e.target.value) })}>
+                      <option value="30">30%</option>
+                      <option value="50">50%</option>
+                      <option value="100">100%</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>幸存者奖励</label>
+                    <select style={styles.formInput} value={squidConfig.survivorBonus} onChange={(e) => setSquidConfig({ ...squidConfig, survivorBonus: parseInt(e.target.value) })}>
+                      <option value="25">25%</option>
+                      <option value="50">50%</option>
+                      <option value="100">100%</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={styles.formRow}>
               <div style={styles.formGroup}>
                 <label style={styles.formLabel}>总局数</label>
