@@ -493,14 +493,15 @@ function App() {
             <div style={styles.formRow}>
               <div style={styles.formGroup}>
                 <label style={styles.formLabel}>总局数</label>
-                <input
+                <select
                   style={styles.formInput}
-                  type="number"
-                  min="4"
-                  max="32"
                   value={createForm.total_rounds}
                   onChange={(e) => setCreateForm({ ...createForm, total_rounds: parseInt(e.target.value) })}
-                />
+                >
+                  {[4,6,8,10,12,16,20,30,50].map(n => (
+                    <option key={n} value={n}>{n} 局</option>
+                  ))}
+                </select>
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.formLabel}>底分</label>
