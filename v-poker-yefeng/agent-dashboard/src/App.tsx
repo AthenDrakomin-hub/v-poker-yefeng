@@ -34,11 +34,15 @@ function App() {
   const [createForm, setCreateForm] = useState({
     room_name: '',
     game_type: 'texas_holdem',
-    total_rounds: 10,
-    base_score: 100,
-    min_players: 2,
-    max_players: 6,
+    room_level: 'low',           // low/mid/high 初级/中级/高级
+    blind_small: 5,               // 小盲
+    blind_big: 10,               // 大盲
+    ante: 0,                     // 前注
+    max_players: 6,               // 人数
+    total_rounds: 10,            // 局数
+    action_time: 20,             // 行动时间(秒)
     room_password: '',
+    variant: 'normal',           // normal / aof (德州专用: 常规/全下弃牌)
   })
   const [transferTo, setTransferTo] = useState('')
   const [transferAmount, setTransferAmount] = useState('')
@@ -117,11 +121,15 @@ function App() {
       setCreateForm({
         room_name: '',
         game_type: 'texas_holdem',
-        total_rounds: 10,
-        base_score: 100,
-        min_players: 2,
+        room_level: 'low',
+        blind_small: 5,
+        blind_big: 10,
+        ante: 0,
         max_players: 6,
+        total_rounds: 10,
+        action_time: 20,
         room_password: '',
+        variant: 'normal',
       })
     } catch (err: any) {
       alert(err.response?.data?.message || '创建房间失败')
@@ -487,6 +495,8 @@ function App() {
         <div style={styles.modalOverlay} onClick={() => setShowCreateRoom(false)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h3 style={styles.modalTitle}>创建房间</h3>
+
+            {/* 游戏类型 */}
             <div style={styles.formGroup}>
               <label style={styles.formLabel}>游戏类型</label>
               <select
@@ -501,6 +511,119 @@ function App() {
                 <option value="squid_game">鱿鱼模式</option>
               </select>
             </div>
+
+            {/* 房间等级 */}
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>房间等级</label>
+              <select
+                style={styles.formInput}
+                value={createForm.room_level}
+                onChange={(e) => {
+                  const level = e.target.value;
+                  const presets: Record<string, { blind_small: number; blind_big: number }> = {
+                    low: { blind_small: 5, blind_big: 10 },
+                    mid: { blind_small: 25, blind_big: 50 },
+                    high: { blind_small: 100, blind_big: 200 },
+                  };
+                  setCreateForm({ ...createForm, room_level: level, ...presets[level] });
+                }}
+              >
+                <option value="low">初级场 (5/10)</option>
+                <option value="mid">中级场 (25/50)</option>
+                <option value="high">高级场 (100/200)</option>
+              </select>
+            </div>
+
+            {/* 盲注配置 */}
+            <div style={styles.formRow}>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>小盲</label>
+                <input
+                  style={styles.formInput}
+                  type="number"
+                  min="1"
+                  value={createForm.blind_small}
+                  onChange={(e) => setCreateForm({ ...createForm, blind_small: parseInt(e.target.value) })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>大盲</label>
+                <input
+                  style={styles.formInput}
+                  type="number"
+                  min="1"
+                  value={createForm.blind_big}
+                  onChange={(e) => setCreateForm({ ...createForm, blind_big: parseInt(e.target.value) })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>前注</label>
+                <input
+                  style={styles.formInput}
+                  type="number"
+                  min="0"
+                  value={createForm.ante}
+                  onChange={(e) => setCreateForm({ ...createForm, ante: parseInt(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            {/* 德州扑克特殊变体 */}
+            {createForm.game_type === 'texas_holdem' && (
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>规则变体</label>
+                <select
+                  style={styles.formInput}
+                  value={createForm.variant}
+                  onChange={(e) => setCreateForm({ ...createForm, variant: e.target.value })}
+                >
+                  <option value="normal">常规德州 (No-Limit)</option>
+                  <option value="aof">全下弃牌 (All-in or Fold)</option>
+                </select>
+              </div>
+            )}
+
+            {/* 座位数 + 局数 */}
+            <div style={styles.formRow}>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>座位数</label>
+                <select
+                  style={styles.formInput}
+                  value={createForm.max_players}
+                  onChange={(e) => setCreateForm({ ...createForm, max_players: parseInt(e.target.value) })}
+                >
+                  {[2,4,6,8,9].map(n => (
+                    <option key={n} value={n}>{n} 人桌</option>
+                  ))}
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>总局数</label>
+                <select
+                  style={styles.formInput}
+                  value={createForm.total_rounds}
+                  onChange={(e) => setCreateForm({ ...createForm, total_rounds: parseInt(e.target.value) })}
+                >
+                  {[4,6,8,10,12,16,20,30,50].map(n => (
+                    <option key={n} value={n}>{n} 局</option>
+                  ))}
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>行动时间</label>
+                <select
+                  style={styles.formInput}
+                  value={createForm.action_time}
+                  onChange={(e) => setCreateForm({ ...createForm, action_time: parseInt(e.target.value) })}
+                >
+                  {[10,15,20,30].map(n => (
+                    <option key={n} value={n}>{n} 秒</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 鱿鱼模式特殊配置 */}
             {createForm.game_type === 'squid_game' && (
               <div>
                 <div style={styles.formRow}>
@@ -541,42 +664,7 @@ function App() {
                 </div>
               </div>
             )}
-            <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>总局数</label>
-                <select
-                  style={styles.formInput}
-                  value={createForm.total_rounds}
-                  onChange={(e) => setCreateForm({ ...createForm, total_rounds: parseInt(e.target.value) })}
-                >
-                  {[4,6,8,10,12,16,20,30,50].map(n => (
-                    <option key={n} value={n}>{n} 局</option>
-                  ))}
-                </select>
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>底分</label>
-                <input
-                  style={styles.formInput}
-                  type="number"
-                  min="10"
-                  value={createForm.base_score}
-                  onChange={(e) => setCreateForm({ ...createForm, base_score: parseInt(e.target.value) })}
-                />
-              </div>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.formLabel}>座位数</label>
-              <select
-                style={styles.formInput}
-                value={createForm.max_players}
-                onChange={(e) => setCreateForm({ ...createForm, max_players: parseInt(e.target.value) })}
-              >
-                {[2,3,4,5,6,7,8,9].map(n => (
-                  <option key={n} value={n}>{n} 人桌</option>
-                ))}
-              </select>
-            </div>
+
             <div style={styles.formGroup}>
               <label style={styles.formLabel}>房间密码（可选）</label>
               <input
