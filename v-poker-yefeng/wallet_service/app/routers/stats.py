@@ -1,15 +1,15 @@
 """
 个人战绩统计路由
-从 game_records + user_stats 聚合玩家战绩
+从 user_stats 聚合玩家战绩
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 
 from app.database import get_db
-from app.models import GameRecord, UserStats
+from app.models import UserStats
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -22,7 +22,6 @@ class APIResponse(BaseModel):
 @router.get("/{user_id}", response_model=APIResponse)
 async def get_user_stats(user_id: str, db: AsyncSession = Depends(get_db)):
     """获取个人战绩统计"""
-    # 查询 user_stats
     result = await db.execute(select(UserStats).where(UserStats.user_id == user_id))
     stats = result.scalar_one_or_none()
 

@@ -1,14 +1,16 @@
 """
 好友关系路由
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
+import uuid
 
 from app.database import get_db
+from app.models import Friend
 
 router = APIRouter(prefix="/api/friends", tags=["friends"])
 
@@ -20,20 +22,6 @@ class APIResponse(BaseModel):
 
 class FriendAddRequest(BaseModel):
     friend_id: str
-
-
-# 内联 friends 表定义（避免修改 models.py）
-from sqlalchemy import Column, String, BigInteger
-from app.database import Base
-
-class Friend(Base):
-    __tablename__ = "friends"
-    id = Column(String(64), primary_key=True)
-    user_id = Column(String(64), nullable=False, index=True)
-    friend_id = Column(String(64), nullable=False, index=True)
-    friend_note = Column(String(64), nullable=True)
-    status = Column(String(16), nullable=False, default="active")
-    created_at = Column(BigInteger, nullable=False)
 
 
 @router.get("/{user_id}", response_model=APIResponse)
@@ -48,17 +36,17 @@ async def list_friends(user_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/add", response_model=APIResponse)
-async def add_friend(req: FriendAddRequest, db: AsyncSession = Depends(get_db)):
-    """添加好友"""
-    import uuid
+async def add_friend(req: FriendAddRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    """添加好友（当前用户ID从X-User-Id头获取）"""
+    user_id = request.headers.get("X-User-Id", "")
     now = int(datetime.now().timestamp() * 1000)
     friend = Friend(
         id=f"fr_{uuid.uuid4().hex[:16]}",
-        user_id=req.friend_id,  # 简化：实际需要当前用户ID
+        user_id=user_id,
         friend_id=req.friend_id,
         status="pending",
         created_at=now
     )
     db.add(friend)
     await db.commit()
-    return APIResponse(data={"friend_id": req.friend_id, "status": "pending"})
+    return APIResponse(data={"user_id": user_id, "friend_id": req.friend_id, "status": "pending"})

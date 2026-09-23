@@ -118,3 +118,59 @@ class Room(Base):
     current_round = Column(Integer, nullable=False, default=0)  # 当前第几局
     created_at = Column(BigInteger, nullable=False)
     updated_at = Column(BigInteger, nullable=False)
+
+
+class UserStats(Base):
+    """玩家统计表 user_stats"""
+    __tablename__ = "user_stats"
+    user_id = Column(String(64), primary_key=True)
+    total_hands = Column(Integer, nullable=False, default=0)
+    total_wins = Column(Integer, nullable=False, default=0)
+    total_pot = Column(BigInteger, nullable=False, default=0)
+    biggest_pot = Column(BigInteger, nullable=False, default=0)
+    win_rate = Column(Numeric(5, 2), nullable=False, default=0)
+    updated_at = Column(BigInteger, nullable=False)
+
+
+class Friend(Base):
+    """好友关系表 friends"""
+    __tablename__ = "friends"
+    id = Column(String(64), primary_key=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    friend_id = Column(String(64), nullable=False, index=True)
+    friend_note = Column(String(64), nullable=True)
+    status = Column(String(16), nullable=False, default="active")
+    created_at = Column(BigInteger, nullable=False)
+
+
+class Achievement(Base):
+    """成就定义表 achievements"""
+    __tablename__ = "achievements"
+    id = Column(String(64), primary_key=True)
+    name = Column(String(64), nullable=False)
+    description = Column(String(256), nullable=False)
+    icon = Column(String(8), nullable=False, default="♠")
+    condition_type = Column(String(32), nullable=False)
+    condition_value = Column(Integer, nullable=False, default=1)
+    created_at = Column(BigInteger, nullable=False)
+
+
+class UserAchievement(Base):
+    """玩家成就解锁表 user_achievements"""
+    __tablename__ = "user_achievements"
+    id = Column(String(64), primary_key=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    achievement_id = Column(String(64), nullable=False)
+    unlocked = Column(Boolean, nullable=False, default=False)
+    unlocked_at = Column(BigInteger, nullable=True)
+
+
+class Message(Base):
+    """系统消息表 messages"""
+    __tablename__ = "messages"
+    message_id = Column(String(64), primary_key=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    title = Column(String(128), nullable=False)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(BigInteger, nullable=False)

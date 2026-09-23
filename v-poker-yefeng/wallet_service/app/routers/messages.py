@@ -7,8 +7,8 @@ from sqlalchemy import select, desc
 from pydantic import BaseModel
 from typing import Optional
 
-from app.database import Base, get_db
-from sqlalchemy import Column, String, BigInteger, Boolean, Text
+from app.database import get_db
+from app.models import Message
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
@@ -16,16 +16,6 @@ class APIResponse(BaseModel):
     code: int = 0
     message: str = "success"
     data: Optional[any] = None
-
-
-class Message(Base):
-    __tablename__ = "messages"
-    message_id = Column(String(64), primary_key=True)
-    user_id = Column(String(64), nullable=False, index=True)
-    title = Column(String(128), nullable=False)
-    content = Column(Text, nullable=False)
-    is_read = Column(Boolean, nullable=False, default=False)
-    created_at = Column(BigInteger, nullable=False)
 
 
 @router.get("/{user_id}", response_model=APIResponse)
