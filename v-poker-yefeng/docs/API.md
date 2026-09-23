@@ -96,8 +96,25 @@ Authorization: Bearer <token>
 **查询参数：**
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| game_type | string | 可选，筛选游戏类型 |
+| game_type | string | 可选，筛选游戏类型（见下表） |
 | status | string | 可选，筛选状态 |
+
+**game_type 枚举（13 种）：**
+| 值 | 游戏名 | 专属配置 |
+|---|---|---|
+| `texas_holdem` | 德州扑克 | variant: normal/aof |
+| `zha_jin_hua` | 炸金花 | blindPlayMode/compareRatio/tongSha |
+| `niu_niu` | 牛牛 | bankerMode/multiplier |
+| `san_gong` | 三公 | robBanker/multiplier |
+| `squid_game` | 鱿鱼模式 | bridgeSurvival/deathPenalty/luckyBonus/survivorBonus |
+| `guandan` | 掼蛋 | upgradeMode/partnerMode |
+| `fight_bomb` | 斗地主 | callScore/doubleMode |
+| `omaha` | 奥马哈 | hiLo/holeCards |
+| `thirteen_water` | 十三水 | specialMultiplier |
+| `double_kong` | 百变双扣 | bombMode |
+| `hong_wu` | 红五 | upgradeTarget |
+| `pineapple` | 菠萝扑克 | crazyMode |
+| `short_deck` | 短牌德州 | sixPlus |
 
 **响应 data：**
 ```json

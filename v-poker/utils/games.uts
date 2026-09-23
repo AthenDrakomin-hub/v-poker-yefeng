@@ -1,6 +1,8 @@
 /**
  * 玩法与房间展示映射（对齐后端 game_type 枚举）
- * 契约 3.2：texas_holdem / zha_jin_hua / niu_niu / san_gong
+ * 13 款游戏：texas_holdem / zha_jin_hua / niu_niu / san_gong / squid_game
+ *          / guandan / fight_bomb / omaha / thirteen_water / double_kong
+ *          / hong_wu / pineapple / short_deck
  */
 
 export type GameEntry = {
@@ -15,7 +17,16 @@ export const GAME_ENTRIES: GameEntry[] = [
 	{ game_type: 'texas_holdem', name: '德州扑克', icon: '♠️', route: '/pages/table-texas/table-texas' },
 	{ game_type: 'zha_jin_hua', name: '炸金花', icon: '🃏', route: '/pages/table-zhajinhua/table-zhajinhua' },
 	{ game_type: 'niu_niu', name: '牛牛', icon: '🐂', route: '/pages/table-niuniu/table-niuniu' },
-	{ game_type: 'san_gong', name: '三公', icon: '🎴', route: '/pages/table-sangong/table-sangong' }
+	{ game_type: 'san_gong', name: '三公', icon: '🎴', route: '/pages/table-sangong/table-sangong' },
+	{ game_type: 'squid_game', name: '鱿鱼模式', icon: '🦑', route: '/pages/table-squid/table-squid' },
+	{ game_type: 'guandan', name: '掼蛋', icon: '🀄', route: '/pages/table-guandan/table-guandan' },
+	{ game_type: 'fight_bomb', name: '斗地主', icon: '💣', route: '/pages/table-fight_bomb/table-fight_bomb' },
+	{ game_type: 'omaha', name: '奥马哈', icon: '⚡', route: '/pages/table-omaha/table-omaha' },
+	{ game_type: 'thirteen_water', name: '十三水', icon: '💧', route: '/pages/table-thirteen_water/table-thirteen_water' },
+	{ game_type: 'double_kong', name: '百变双扣', icon: '🐉', route: '/pages/table-double_kong/table-double_kong' },
+	{ game_type: 'hong_wu', name: '红五', icon: '⭐', route: '/pages/table-hong_wu/table-hong_wu' },
+	{ game_type: 'pineapple', name: '菠萝扑克', icon: '🍍', route: '/pages/table-pineapple/table-pineapple' },
+	{ game_type: 'short_deck', name: '短牌德州', icon: '⚔️', route: '/pages/table-short_deck/table-short_deck' }
 ]
 
 export function gameTypeName(gt: string): string {

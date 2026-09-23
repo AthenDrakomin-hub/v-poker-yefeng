@@ -95,8 +95,6 @@
 						<vp-button type="gold" text="我的房间" @click="goMyRooms" />
 						<view class="hall-gap"></view>
 						<vp-button type="ghost" text="房间列表" @click="goRoomList" />
-						<view class="hall-gap"></view>
-						<vp-button v-if="auth.isAgent" type="ghost" text="代理中心" @click="goAgent" />
 					</view>
 				</view>
 			</view>
@@ -198,7 +196,9 @@
 		try {
 			const data = await lobby.joinRoom(id, joinPassword.value)
 			if (data != null) {
-				uni.navigateTo({ url: `/pages/table-texas/table-texas?room_id=${id}` })
+				const gameType = (data as any).game_type || 'texas_holdem'
+				const route = gameTypeRoute(gameType)
+				uni.navigateTo({ url: `${route}?room_id=${id}` })
 			}
 		} catch (e) {
 			console.error('joinRoom failed', e)
@@ -221,10 +221,6 @@
 
 	const goProfile = () => {
 		uni.navigateTo({ url: '/pages/profile/profile' })
-	}
-
-	const goAgent = () => {
-		uni.navigateTo({ url: '/pages/agent/agent' })
 	}
 </script>
 

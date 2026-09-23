@@ -92,15 +92,22 @@ CREATE TABLE IF NOT EXISTS rooms (
     room_name             VARCHAR(64),
     room_password         VARCHAR(8) DEFAULT '',
     game_type             VARCHAR(32) NOT NULL,
+    room_level            VARCHAR(16) NOT NULL DEFAULT 'low',
+    blind_small           BIGINT NOT NULL DEFAULT 5,
+    blind_big             BIGINT NOT NULL DEFAULT 10,
+    ante                  BIGINT NOT NULL DEFAULT 0,
+    variant               VARCHAR(16) NOT NULL DEFAULT 'normal',
     mode                  VARCHAR(32) NOT NULL DEFAULT 'cash',
     total_rounds          INT NOT NULL DEFAULT 10,
     base_score            BIGINT NOT NULL DEFAULT 100,
+    action_time           INT NOT NULL DEFAULT 20,
     platform_fee_rate     NUMERIC(6,4) NOT NULL DEFAULT 0.0500,
     agent_commission_rate NUMERIC(6,4) NOT NULL DEFAULT 0.0300,
     min_players           INT NOT NULL DEFAULT 2,
     max_players           INT NOT NULL DEFAULT 6,
     big_blind             BIGINT,
     rake_cap_multiplier   INT NOT NULL DEFAULT 5,
+    config                JSON,
     created_by            VARCHAR(64) NOT NULL,
     room_type             VARCHAR(16) NOT NULL DEFAULT 'public',
     status                VARCHAR(16) NOT NULL DEFAULT 'waiting',
@@ -245,11 +252,20 @@ ON CONFLICT (agent_id) DO NOTHING;
 --   playing   游戏中
 --   finished  已结束
 
--- rooms.game_type 枚举值：
---   texas_holdem  德州扑克
---   zha_jin_hua   炸金花
---   niu_niu       牛牛
---   san_gong      三公
+-- rooms.game_type 枚举值（13 种）：
+--   texas_holdem   德州扑克
+--   zha_jin_hua    炸金花
+--   niu_niu        牛牛
+--   san_gong       三公
+--   squid_game     鱿鱼模式
+--   guandan        掼蛋
+--   fight_bomb     斗地主
+--   omaha          奥马哈
+--   thirteen_water 十三水
+--   double_kong    百变双扣
+--   hong_wu        红五
+--   pineapple      菠萝扑克
+--   short_deck     短牌德州
 
 -- agents.status 枚举值：
 --   active    正常
