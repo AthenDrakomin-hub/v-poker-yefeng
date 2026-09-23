@@ -528,6 +528,14 @@ function App() {
                 <option value="niu_niu">牛牛</option>
                 <option value="san_gong">三公</option>
                 <option value="squid_game">鱿鱼模式</option>
+                <option value="guandan">掼蛋</option>
+                <option value="fight_bomb">斗地主</option>
+                <option value="omaha">奥马哈</option>
+                <option value="thirteen_water">十三水</option>
+                <option value="double_kong">百变双扣</option>
+                <option value="hong_wu">红五</option>
+                <option value="pineapple">菠萝扑克</option>
+                <option value="short_deck">短牌德州</option>
               </select>
             </div>
 

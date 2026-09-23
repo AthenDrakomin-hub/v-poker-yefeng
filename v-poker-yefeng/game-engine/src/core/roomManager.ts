@@ -10,6 +10,14 @@ import { SanGongPlugin } from "../games/san_gong/index.js";
 import { SquidGamePlugin } from "../games/squid_game/index.js";
 import { TexasHoldemPlugin } from "../games/texas_holdem/index.js";
 import { ZhaJinHuaPlugin } from "../games/zha_jin_hua/index.js";
+import { GuandanPlugin } from "../games/guandan/index.js";
+import { FightBombPlugin } from "../games/fight_bomb/index.js";
+import { OmahaPlugin } from "../games/omaha/index.js";
+import { ThirteenWaterPlugin } from "../games/thirteen_water/index.js";
+import { DoubleKongPlugin } from "../games/double_kong/index.js";
+import { HongWuPlugin } from "../games/hong_wu/index.js";
+import { PineapplePlugin } from "../games/pineapple/index.js";
+import { ShortDeckPlugin } from "../games/short_deck/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
 import { SeatManager } from "./seatManager.js";
 import { GameStateMachine } from "./stateMachine.js";
@@ -27,6 +35,14 @@ export class RoomManager {
     this.registerPlugin(new ZhaJinHuaPlugin());
     this.registerPlugin(new TexasHoldemPlugin());
     this.registerPlugin(new SquidGamePlugin());
+    this.registerPlugin(new GuandanPlugin());
+    this.registerPlugin(new FightBombPlugin());
+    this.registerPlugin(new OmahaPlugin());
+    this.registerPlugin(new ThirteenWaterPlugin());
+    this.registerPlugin(new DoubleKongPlugin());
+    this.registerPlugin(new HongWuPlugin());
+    this.registerPlugin(new PineapplePlugin());
+    this.registerPlugin(new ShortDeckPlugin());
 
     // 启动时从数据库恢复房间
     this.restoreRoomsFromDB();

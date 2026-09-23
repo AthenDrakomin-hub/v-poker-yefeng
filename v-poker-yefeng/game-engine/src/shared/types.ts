@@ -12,7 +12,11 @@ export interface Card {
   code: CardCode;
 }
 
-export type GameType = "texas_holdem" | "zha_jin_hua" | "niu_niu" | "san_gong" | "squid_game";
+export type GameType =
+  | "texas_holdem" | "zha_jin_hua" | "niu_niu" | "san_gong" | "squid_game"
+  | "guandan" | "fight_bomb" | "omaha"
+  | "thirteen_water" | "double_kong" | "hong_wu"
+  | "pineapple" | "short_deck";
 
 export type GameMode = "fixed" | "normal" | "qiang_zhuang" | "tong_bi";
 

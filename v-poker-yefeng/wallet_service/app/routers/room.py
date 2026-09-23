@@ -47,7 +47,12 @@ async def create_room(
     - 校验游戏类型和参数范围
     """
     # 校验游戏类型
-    valid_game_types = ["texas_holdem", "zha_jin_hua", "niu_niu", "san_gong", "squid_game"]
+    valid_game_types = [
+        "texas_holdem", "zha_jin_hua", "niu_niu", "san_gong", "squid_game",
+        "guandan", "fight_bomb", "omaha",
+        "thirteen_water", "double_kong", "hong_wu",
+        "pineapple", "short_deck",
+    ]
     if req.game_type not in valid_game_types:
         raise HTTPException(status_code=400, detail=f"Invalid game_type. Must be one of: {valid_game_types}")
 
