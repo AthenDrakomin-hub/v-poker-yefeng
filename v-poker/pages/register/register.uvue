@@ -1,6 +1,6 @@
 <template>
 	<view class="vp-page rg-page">
-		<image class="rg-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<image class="rg-bg" src="/static/hall-bg.png" mode="aspectFill" />
 		<view class="rg-bg-mask" />
 		<view class="rg-statusbar" :style="statusBarStyle"></view>
 

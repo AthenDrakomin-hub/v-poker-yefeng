@@ -548,6 +548,12 @@ export const useRoomStore = defineStore('room', () => {
 		const action = buildAction(actionType, auth.userId, amount, targetUserId)
 		try {
 			await wsSendAction(action)
+			// 振动反馈：短振=操作，长振=关键动作
+			if (actionType == 'all_in' || actionType == 'fold') {
+				uni.vibrateLong({})
+			} else {
+				uni.vibrateShort({})
+			}
 			if (actionType == 'fold') {
 				playSound('lose')
 			} else if (actionType == 'check' || actionType == 'ready') {
