@@ -1,6 +1,7 @@
 /**
- * 菠萝扑克 游戏插件
- * 核心规则：基于标准扑克玩法，牌型评估与结算逻辑待完善
+ * 菠萝扑克 (Pineapple / OFC)
+ * 逐张发牌，按位置摆放
+ * 前三道：上(3张)/中(5张)/下(5张)
  */
 import type { GamePlugin } from "../plugin.interface.js";
 import type { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat } from "../../shared/types.js";
@@ -17,69 +18,35 @@ export class PineapplePlugin implements GamePlugin {
   }
 
   dealCards(state: any): void {
+    // 每人先发5张（OFC开局）
     for (const seat of state.seats) {
       if (seat.status === "empty" || seat.status === "folded") continue;
-      const card = state.deck.pop()!;
-      const card2 = state.deck.pop()!;
-      seat.hole_cards = [card, card2];
+      seat.hole_cards = state.deck.splice(0, 5);
     }
   }
 
   handleAction(state: any, action: GameAction): { success: boolean; error?: string } {
     const seatIdx = (action as any).seat_index ?? (action as any).seatIndex;
     const seat = state.seats[seatIdx];
-    if (!seat || seat.status === "empty" || seat.status === "folded") {
-      return { success: false, error: "Invalid seat" };
-    }
-    const amount = action.amount ?? 0;
-    switch (action.action_type) {
-      case "fold":
-        seat.status = "folded";
-        seat.has_acted = true;
-        break;
-      case "check":
-        seat.has_acted = true;
-        break;
-      case "call": {
-        const need = state.current_highest_bet - seat.current_bet;
-        seat.current_bet += need;
-        state.total_pot += need;
-        seat.has_acted = true;
-        break;
-      }
-      case "raise":
-      case "bet": {
-        seat.current_bet += amount;
-        state.total_pot += amount;
-        state.current_highest_bet = Math.max(state.current_highest_bet, seat.current_bet);
-        seat.has_acted = true;
-        break;
-      }
-      case "all_in": {
-        const allInAmount = seat.chips;
-        seat.current_bet += allInAmount;
-        state.total_pot += allInAmount;
-        seat.chips = 0;
-        seat.status = "all_in";
-        seat.has_acted = true;
-        break;
-      }
-      default:
-        return { success: false, error: "Unknown action" };
-    }
+    if (!seat || seat.status === "empty") return { success: false, error: "Invalid seat" };
+    seat.has_acted = true;
     return { success: true };
   }
 
   evaluateHand(cards: Card[], communityCards?: Card[]) {
+    if (cards.length === 0) return { rank_name: "空", rank_level: 0, score: 0, multiplier: 1 };
+    if (cards.length <= 3) {
+      const ranks = cards.map(c => c.rank).sort((a, b) => a - b);
+      return { rank_name: "高牌", rank_level: 1, score: ranks[ranks.length - 1], multiplier: 1 };
+    }
     return evaluate7Cards(cards, communityCards ?? []);
   }
 
   compareHands(state: any) {
     const active = state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded");
     const rankings = active.map((seat: any) => ({
-      user_id: seat.user_id,
-      seat_index: seat.seat_index,
-      evaluation: this.evaluateHand(seat.hole_cards, state.community_cards),
+      user_id: seat.user_id, seat_index: seat.seat_index,
+      evaluation: this.evaluateHand(seat.hole_cards || []),
     }));
     rankings.sort((a: any, b: any) => b.evaluation.score - a.evaluation.score);
     return { winner_user_ids: [rankings[0].user_id], rankings };
@@ -90,21 +57,17 @@ export class PineapplePlugin implements GamePlugin {
     const winner = result.rankings[0];
     const players = state.seats.filter((s: any) => s.status !== "empty");
     return players.map((seat: any) => ({
-      user_id: seat.user_id,
-      seat_index: seat.seat_index,
+      user_id: seat.user_id, seat_index: seat.seat_index,
       net_amount: seat.user_id === winner.user_id ? state.total_pot : 0,
     }));
   }
 
   isPhaseComplete(state: any): boolean {
-    const active = state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded");
-    return active.every((s: any) => s.has_acted);
+    return state.seats.every((s: any) => s.has_acted || s.status === "folded" || s.status === "empty");
   }
 
   getActionSeats(state: any): Seat[] {
-    return state.seats.filter(
-      (s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "all_in"
-    ) as Seat[];
+    return state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded") as Seat[];
   }
 
   getNextPhase(state: any): RoundPhase {

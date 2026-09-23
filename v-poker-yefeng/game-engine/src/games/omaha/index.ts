@@ -1,6 +1,7 @@
 /**
- * 奥马哈 游戏插件
- * 核心规则：基于标准扑克玩法，牌型评估与结算逻辑待完善
+ * 奥马哈插件 (Omaha)
+ * 4张底牌，必选2张 + 3张公共牌组合
+ * 与德州扑克区别：必须用2张底牌，不能只用1张
  */
 import type { GamePlugin } from "../plugin.interface.js";
 import type { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat } from "../../shared/types.js";
@@ -17,61 +18,64 @@ export class OmahaPlugin implements GamePlugin {
   }
 
   dealCards(state: any): void {
+    // 每人发4张底牌（德州是2张）
     for (const seat of state.seats) {
       if (seat.status === "empty" || seat.status === "folded") continue;
-      const card = state.deck.pop()!;
-      const card2 = state.deck.pop()!;
-      seat.hole_cards = [card, card2];
+      seat.hole_cards = [state.deck.pop()!, state.deck.pop()!, state.deck.pop()!, state.deck.pop()!];
     }
   }
 
   handleAction(state: any, action: GameAction): { success: boolean; error?: string } {
     const seatIdx = (action as any).seat_index ?? (action as any).seatIndex;
     const seat = state.seats[seatIdx];
-    if (!seat || seat.status === "empty" || seat.status === "folded") {
-      return { success: false, error: "Invalid seat" };
-    }
+    if (!seat || seat.status === "empty" || seat.status === "folded") return { success: false, error: "Invalid seat" };
     const amount = action.amount ?? 0;
     switch (action.action_type) {
-      case "fold":
-        seat.status = "folded";
-        seat.has_acted = true;
-        break;
-      case "check":
-        seat.has_acted = true;
-        break;
+      case "fold": seat.status = "folded"; seat.has_acted = true; break;
+      case "check": seat.has_acted = true; break;
       case "call": {
         const need = state.current_highest_bet - seat.current_bet;
-        seat.current_bet += need;
-        state.total_pot += need;
-        seat.has_acted = true;
-        break;
+        seat.current_bet += need; state.total_pot += need; seat.has_acted = true; break;
       }
       case "raise":
       case "bet": {
-        seat.current_bet += amount;
-        state.total_pot += amount;
+        seat.current_bet += amount; state.total_pot += amount;
         state.current_highest_bet = Math.max(state.current_highest_bet, seat.current_bet);
-        seat.has_acted = true;
-        break;
+        seat.has_acted = true; break;
       }
       case "all_in": {
         const allInAmount = seat.chips;
-        seat.current_bet += allInAmount;
-        state.total_pot += allInAmount;
-        seat.chips = 0;
-        seat.status = "all_in";
-        seat.has_acted = true;
-        break;
+        seat.current_bet += allInAmount; state.total_pot += allInAmount;
+        seat.chips = 0; seat.status = "all_in"; seat.has_acted = true; break;
       }
-      default:
-        return { success: false, error: "Unknown action" };
+      default: return { success: false, error: "Unknown action" };
     }
     return { success: true };
   }
 
+  /** 奥马哈特殊评估：必须从4张底牌中选2张 + 3张公共牌 */
   evaluateHand(cards: Card[], communityCards?: Card[]) {
-    return evaluate7Cards(cards, communityCards ?? []);
+    const comm = communityCards ?? [];
+    if (cards.length < 4 || comm.length < 3) {
+      return evaluate7Cards(cards, comm);
+    }
+    // 枚举所有 C(4,2) * C(5,3) = 6*10 = 60 种组合
+    let best = { rank_name: "", rank_level: 0, score: 0, multiplier: 1 };
+    for (let i = 0; i < 4; i++) {
+      for (let j = i + 1; j < 4; j++) {
+        const hole2 = [cards[i], cards[j]];
+        for (let a = 0; a < comm.length; a++) {
+          for (let b = a + 1; b < comm.length; b++) {
+            for (let c = b + 1; c < comm.length; c++) {
+              const comm3 = [comm[a], comm[b], comm[c]];
+              const evalResult = evaluate7Cards(hole2, comm3);
+              if (evalResult.score > best.score) best = evalResult;
+            }
+          }
+        }
+      }
+    }
+    return best;
   }
 
   compareHands(state: any) {
@@ -79,7 +83,7 @@ export class OmahaPlugin implements GamePlugin {
     const rankings = active.map((seat: any) => ({
       user_id: seat.user_id,
       seat_index: seat.seat_index,
-      evaluation: this.evaluateHand(seat.hole_cards, state.community_cards),
+      evaluation: this.evaluateHand(seat.hole_cards || [], state.community_cards),
     }));
     rankings.sort((a: any, b: any) => b.evaluation.score - a.evaluation.score);
     return { winner_user_ids: [rankings[0].user_id], rankings };
@@ -102,9 +106,7 @@ export class OmahaPlugin implements GamePlugin {
   }
 
   getActionSeats(state: any): Seat[] {
-    return state.seats.filter(
-      (s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "all_in"
-    ) as Seat[];
+    return state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "all_in") as Seat[];
   }
 
   getNextPhase(state: any): RoundPhase {
