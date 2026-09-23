@@ -66,6 +66,33 @@ function App() {
     robBanker: true,        // 抢庄模式
     multiplier: 4,          // 三公倍数
   })
+  const [guandanConfig, setGuandanConfig] = useState({
+    upgradeMode: 'classic',  // classic/quick 经典升级/快速升级
+    partnerMode: 'fixed',    // fixed/random 固定搭档/随机搭档
+  })
+  const [fightBombConfig, setFightBombConfig] = useState({
+    callScore: 1,            // 叫分底分
+    doubleMode: true,        // 翻倍机制（春天/反春/炸）
+  })
+  const [omahaConfig, setOmahaConfig] = useState({
+    hiLo: false,             // 高低牌分池模式
+    holeCards: 4,            // 底牌数
+  })
+  const [thirteenWaterConfig, setThirteenWaterConfig] = useState({
+    specialMultiplier: 2,    // 特殊牌型倍数
+  })
+  const [doubleKongConfig, setDoubleKongConfig] = useState({
+    bombMode: true,          // 炸弹模式
+  })
+  const [hongWuConfig, setHongWuConfig] = useState({
+    upgradeTarget: 2,        // 升级目标（2/3/5/10）
+  })
+  const [pineappleConfig, setPineappleConfig] = useState({
+    crazyMode: false,        // 疯狂菠萝模式
+  })
+  const [shortDeckConfig, setShortDeckConfig] = useState({
+    sixPlus: true,           // 6+ 短牌模式（去2-5）
+  })
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -126,6 +153,14 @@ function App() {
         zha_jin_hua: zhaJinHuaConfig,
         niu_niu: niuNiuConfig,
         san_gong: sanGongConfig,
+        guandan: guandanConfig,
+        fight_bomb: fightBombConfig,
+        omaha: omahaConfig,
+        thirteen_water: thirteenWaterConfig,
+        double_kong: doubleKongConfig,
+        hong_wu: hongWuConfig,
+        pineapple: pineappleConfig,
+        short_deck: shortDeckConfig,
       }
       const payload = {
         ...createForm,
@@ -765,6 +800,151 @@ function App() {
                       <option value="2">2倍</option>
                       <option value="3">3倍</option>
                       <option value="4">4倍</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 掼蛋特殊配置 */}
+            {createForm.game_type === 'guandan' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>升级模式</label>
+                    <select style={styles.formInput} value={guandanConfig.upgradeMode} onChange={(e) => setGuandanConfig({ ...guandanConfig, upgradeMode: e.target.value })}>
+                      <option value="classic">经典升级（2→A）</option>
+                      <option value="quick">快速升级（直接A）</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>搭档模式</label>
+                    <select style={styles.formInput} value={guandanConfig.partnerMode} onChange={(e) => setGuandanConfig({ ...guandanConfig, partnerMode: e.target.value })}>
+                      <option value="fixed">固定搭档</option>
+                      <option value="random">随机搭档</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 斗地主特殊配置 */}
+            {createForm.game_type === 'fight_bomb' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>底分</label>
+                    <select style={styles.formInput} value={fightBombConfig.callScore} onChange={(e) => setFightBombConfig({ ...fightBombConfig, callScore: parseInt(e.target.value) })}>
+                      <option value="1">1分</option>
+                      <option value="2">2分</option>
+                      <option value="3">3分（最高）</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>翻倍机制</label>
+                    <select style={styles.formInput} value={fightBombConfig.doubleMode ? '1' : '0'} onChange={(e) => setFightBombConfig({ ...fightBombConfig, doubleMode: e.target.value === '1' })}>
+                      <option value="1">开启（春天/炸弹翻倍）</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 奥马哈特殊配置 */}
+            {createForm.game_type === 'omaha' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>底牌数</label>
+                    <select style={styles.formInput} value={omahaConfig.holeCards} onChange={(e) => setOmahaConfig({ ...omahaConfig, holeCards: parseInt(e.target.value) })}>
+                      <option value="4">4张底牌（标准奥马哈）</option>
+                      <option value="5">5张底牌（奥马哈5）</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>高低牌分池</label>
+                    <select style={styles.formInput} value={omahaConfig.hiLo ? '1' : '0'} onChange={(e) => setOmahaConfig({ ...omahaConfig, hiLo: e.target.value === '1' })}>
+                      <option value="0">关闭（只分高牌池）</option>
+                      <option value="1">开启（高/低牌分池）</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 十三水特殊配置 */}
+            {createForm.game_type === 'thirteen_water' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>特殊牌型倍数</label>
+                    <select style={styles.formInput} value={thirteenWaterConfig.specialMultiplier} onChange={(e) => setThirteenWaterConfig({ ...thirteenWaterConfig, specialMultiplier: parseInt(e.target.value) })}>
+                      <option value="1">1倍</option>
+                      <option value="2">2倍</option>
+                      <option value="3">3倍</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 百变双扣特殊配置 */}
+            {createForm.game_type === 'double_kong' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>炸弹模式</label>
+                    <select style={styles.formInput} value={doubleKongConfig.bombMode ? '1' : '0'} onChange={(e) => setDoubleKongConfig({ ...doubleKongConfig, bombMode: e.target.value === '1' })}>
+                      <option value="1">开启（炸弹翻倍）</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 红五特殊配置 */}
+            {createForm.game_type === 'hong_wu' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>升级目标</label>
+                    <select style={styles.formInput} value={hongWuConfig.upgradeTarget} onChange={(e) => setHongWuConfig({ ...hongWuConfig, upgradeTarget: parseInt(e.target.value) })}>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 菠萝扑克特殊配置 */}
+            {createForm.game_type === 'pineapple' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>模式</label>
+                    <select style={styles.formInput} value={pineappleConfig.crazyMode ? '1' : '0'} onChange={(e) => setPineappleConfig({ ...pineappleConfig, crazyMode: e.target.value === '1' })}>
+                      <option value="0">标准菠萝</option>
+                      <option value="1">疯狂菠萝（Crazy Pineapple）</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 短牌德州特殊配置 */}
+            {createForm.game_type === 'short_deck' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>牌组</label>
+                    <select style={styles.formInput} value={shortDeckConfig.sixPlus ? '1' : '0'} onChange={(e) => setShortDeckConfig({ ...shortDeckConfig, sixPlus: e.target.value === '1' })}>
+                      <option value="1">6+ 短牌（去2-5）</option>
+                      <option value="0">9人短牌（去2-3）</option>
                     </select>
                   </div>
                 </div>
