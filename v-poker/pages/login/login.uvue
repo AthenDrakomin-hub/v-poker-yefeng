@@ -1,49 +1,74 @@
 <template>
 	<view class="vp-page lg-page">
-		<!-- 背景图 + 暗化叠加 -->
+		<!-- 背景图 -->
 		<image class="lg-bg" src="/static/hall-bg.png" mode="aspectFill" />
 		<view class="lg-bg-mask" />
 
+		<!-- 顶部装饰光效 -->
+		<view class="lg-glow-top" />
+		<view class="lg-glow-bottom" />
+
 		<view class="lg-statusbar" :style="statusBarStyle"></view>
 
-		<view class="lg-body">
+		<view class="lg-container">
+			<!-- 顶部品牌区 -->
 			<view class="lg-hero">
-				<!-- 盾牌徽章 Logo -->
-				<view class="lg-badge">
-					<text class="lg-badge-spade">♠</text>
-				</view>
-				<text class="lg-logo">V-POKER</text>
-				<text class="lg-club">金 樽 俱 乐 部</text>
-				<text class="lg-slogan">一手牌 · 一世界</text>
-				<view class="lg-hero-tags">
-					<view class="lg-tag"><text class="lg-tag-text">私密对局</text></view>
-					<view class="lg-tag"><text class="lg-tag-text">安全结算</text></view>
-					<view class="lg-tag"><text class="lg-tag-text">即来即玩</text></view>
+				<view class="lg-logo-wrap">
+					<view class="lg-logo-ring">
+						<view class="lg-logo-shield">
+							<text class="lg-logo-spade">♠</text>
+						</view>
+					</view>
+					<text class="lg-brand">V-POKER</text>
+					<text class="lg-club">金樽俱乐部</text>
+					<view class="lg-divider" />
+					<text class="lg-slogan">一手牌 · 一世界</text>
 				</view>
 			</view>
 
-			<view class="lg-form vp-card">
-				<text class="lg-form-title">账号登录</text>
+			<!-- 底部玻璃拟态表单 -->
+			<view class="lg-card">
+				<view class="lg-card-inner">
+					<text class="lg-title">欢迎回来</text>
+					<text class="lg-subtitle">登录你的金樽俱乐部账号</text>
 
-				<view class="lg-field">
-					<text class="lg-field-label">用户名</text>
-					<input class="lg-input" type="text" placeholder="请输入用户名" :value="username"
-						@input="onUsernameInput" />
-				</view>
+					<!-- 用户名输入 -->
+					<view class="lg-input-group">
+						<view class="lg-input-icon-wrap">
+							<text class="lg-input-icon">👤</text>
+						</view>
+						<input class="lg-input" type="text" placeholder="请输入用户名" placeholder-class="lg-input-ph"
+							:value="username" @input="onUsernameInput" />
+					</view>
 
-				<view class="lg-field">
-					<text class="lg-field-label">密码</text>
-					<input class="lg-input" type="text" :password="true" placeholder="请输入密码" :value="password"
-						@input="onPasswordInput" />
-				</view>
+					<!-- 密码输入 -->
+					<view class="lg-input-group">
+						<view class="lg-input-icon-wrap">
+							<text class="lg-input-icon">🔒</text>
+						</view>
+						<input class="lg-input" type="text" :password="true" placeholder="请输入密码" placeholder-class="lg-input-ph"
+							:value="password" @input="onPasswordInput" />
+					</view>
 
-				<view class="lg-submit">
-					<vp-button type="gold" size="lg" block :loading="submitting" text="登 录" @click="onLogin" />
-				</view>
+					<!-- 登录按钮 -->
+					<view class="lg-btn-wrap">
+						<view class="lg-login-btn" :class="{ 'lg-btn-loading': submitting }" @click="onLogin">
+							<text class="lg-login-text">{{ submitting ? '登录中...' : '登 录' }}</text>
+						</view>
+					</view>
 
-				<view class="lg-register" hover-class="lg-pressed" @click="goRegister">
-					<text class="lg-register-text">还没有账号？去注册</text>
+					<!-- 注册链接 -->
+					<view class="lg-footer">
+						<text class="lg-footer-text">还没有账号？</text>
+						<text class="lg-footer-link" @click="goRegister">立即注册</text>
+					</view>
 				</view>
+			</view>
+
+			<!-- 底部版权 -->
+			<view class="lg-copyright">
+				<text class="lg-copyright-text">V-POKER 金樽俱乐部 · v1.0.0</text>
+				<text class="lg-copyright-sub">仅供娱乐 · 不涉及真实货币</text>
 			</view>
 		</view>
 	</view>
@@ -120,7 +145,7 @@
 <style lang="scss">
 	.lg-page {
 		flex: 1;
-		background-color: $vp-ink;
+		background-color: #0a0e14;
 	}
 
 	/* 背景图 */
@@ -134,148 +159,239 @@
 		position: absolute;
 		width: 100%;
 		height: 100%;
-		background: linear-gradient(135deg, rgba(10, 14, 20, 0.75) 0%, rgba(10, 14, 20, 0.55) 50%, rgba(10, 14, 20, 0.8) 100%);
+		background: linear-gradient(
+			180deg,
+			rgba(10, 14, 20, 0.85) 0%,
+			rgba(10, 14, 20, 0.6) 40%,
+			rgba(10, 14, 20, 0.9) 100%
+		);
+	}
+
+	/* 顶部光效 */
+	.lg-glow-top {
+		position: absolute;
+		top: -100px;
+		left: 50%;
+		width: 400px;
+		height: 300px;
+		background: radial-gradient(ellipse, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+		transform: translateX(-50%);
+	}
+
+	.lg-glow-bottom {
+		position: absolute;
+		bottom: -100px;
+		left: 50%;
+		width: 300px;
+		height: 200px;
+		background: radial-gradient(ellipse, rgba(212, 175, 55, 0.08) 0%, transparent 70%);
+		transform: translateX(-50%);
 	}
 
 	.lg-statusbar {
 		width: 100%;
 	}
 
-	.lg-body {
-		flex: 1;
-		flex-direction: row;
-		align-items: center;
-		justify-content: center;
-		padding: 0 48px;
-	}
-
-	.lg-hero {
+	.lg-container {
 		flex: 1;
 		flex-direction: column;
-		align-items: flex-start;
-		margin-right: 48px;
+		justify-content: space-between;
+		padding: 0 32px;
 	}
 
-	/* 盾牌徽章 */
-	.lg-badge {
-		width: 64px;
-		height: 72px;
+	/* 顶部品牌区 */
+	.lg-hero {
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+		padding-top: 60px;
+	}
+
+	.lg-logo-wrap {
+		align-items: center;
+	}
+
+	.lg-logo-ring {
+		width: 100px;
+		height: 100px;
+		border-radius: 50px;
+		border-width: 2px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.4);
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 20px;
+	}
+
+	.lg-logo-shield {
+		width: 72px;
+		height: 80px;
 		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
 		border-width: 2px;
 		border-style: solid;
-		border-color: $vp-gold;
-		border-radius: 8px 8px 32px 32px;
+		border-color: #d4af37;
+		border-radius: 8px 8px 36px 36px;
 		align-items: center;
 		justify-content: center;
-		margin-bottom: 16px;
 	}
 
-	.lg-badge-spade {
-		color: $vp-gold;
-		font-size: 32px;
+	.lg-logo-spade {
+		color: #d4af37;
+		font-size: 36px;
 		font-weight: bold;
 	}
 
-	.lg-logo {
-		color: $vp-gold;
-		font-size: 44px;
+	.lg-brand {
+		color: #d4af37;
+		font-size: 36px;
 		font-weight: bold;
-		letter-spacing: 6px;
+		letter-spacing: 8px;
 	}
 
 	.lg-club {
-		color: $vp-text;
-		font-size: 16px;
-		letter-spacing: 6px;
-		margin-top: 4px;
-	}
-
-	.lg-slogan {
-		color: $vp-muted;
-		font-size: 14px;
-		margin-top: 14px;
-		letter-spacing: 2px;
-	}
-
-	.lg-hero-tags {
-		flex-direction: row;
-		margin-top: 20px;
-	}
-
-	.lg-tag {
-		background-color: rgba(212, 175, 55, 0.1);
-		border-width: 1px;
-		border-style: solid;
-		border-color: rgba(212, 175, 55, 0.28);
-		border-radius: 999px;
-		padding: 4px 12px;
-		margin-right: 10px;
-	}
-
-	.lg-tag-text {
-		color: $vp-gold;
-		font-size: 11px;
-	}
-
-	.lg-form {
-		width: 340px;
-		flex-direction: column;
-		padding: 24px;
-		background-color: rgba(20, 25, 34, 0.92);
-		backdrop-filter: blur(10px);
-	}
-
-	.lg-form-title {
-		color: $vp-text;
+		color: #e8e8e8;
 		font-size: 18px;
-		font-weight: bold;
-		margin-bottom: 18px;
-	}
-
-	.lg-field {
-		flex-direction: column;
-		margin-bottom: 14px;
-	}
-
-	.lg-field-label {
-		color: $vp-muted;
-		font-size: 12px;
-		margin-bottom: 6px;
-	}
-
-	.lg-input {
-		width: 100%;
-		height: 46px;
-		background-color: $vp-surface-2;
-		border-radius: $vp-radius-sm;
-		border-width: 1px;
-		border-style: solid;
-		border-color: $vp-border;
-		color: $vp-text;
-		font-size: 15px;
-		padding-left: 14px;
-		padding-right: 14px;
-	}
-
-	.lg-submit {
-		flex-direction: row;
+		letter-spacing: 8px;
 		margin-top: 6px;
 	}
 
-	.lg-register {
-		height: 34px;
+	.lg-divider {
+		width: 60px;
+		height: 2px;
+		background: linear-gradient(90deg, transparent, #d4af37, transparent);
+		margin-top: 16px;
+		margin-bottom: 16px;
+	}
+
+	.lg-slogan {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 14px;
+		letter-spacing: 4px;
+	}
+
+	/* 玻璃拟态卡片 */
+	.lg-card {
+		background: rgba(20, 25, 34, 0.7);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.15);
+		border-radius: 20px;
+		backdrop-filter: blur(20px);
+		margin-bottom: 20px;
+	}
+
+	.lg-card-inner {
+		padding: 28px 24px;
+	}
+
+	.lg-title {
+		color: #ffffff;
+		font-size: 24px;
+		font-weight: bold;
+		margin-bottom: 6px;
+	}
+
+	.lg-subtitle {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 14px;
+		margin-bottom: 24px;
+	}
+
+	/* 输入框 */
+	.lg-input-group {
+		flex-direction: row;
+		align-items: center;
+		background: rgba(255, 255, 255, 0.06);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(255, 255, 255, 0.1);
+		border-radius: 12px;
+		margin-bottom: 14px;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.lg-input-icon-wrap {
+		width: 24px;
+		align-items: center;
+		margin-right: 12px;
+	}
+
+	.lg-input-icon {
+		font-size: 18px;
+	}
+
+	.lg-input {
+		flex: 1;
+		color: #ffffff;
+		font-size: 15px;
+	}
+
+	.lg-input-ph {
+		color: rgba(255, 255, 255, 0.3);
+		font-size: 15px;
+	}
+
+	/* 登录按钮 */
+	.lg-btn-wrap {
+		margin-top: 8px;
+		margin-bottom: 8px;
+	}
+
+	.lg-login-btn {
+		height: 52px;
+		border-radius: 12px;
+		background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
+		align-items: center;
+		justify-content: center;
+		shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+	}
+
+	.lg-btn-loading {
+		opacity: 0.7;
+	}
+
+	.lg-login-text {
+		color: #0a0e14;
+		font-size: 17px;
+		font-weight: bold;
+		letter-spacing: 4px;
+	}
+
+	/* 底部链接 */
+	.lg-footer {
 		flex-direction: row;
 		align-items: center;
 		justify-content: center;
-		margin-top: 12px;
+		margin-top: 16px;
 	}
 
-	.lg-pressed {
-		opacity: 0.75;
+	.lg-footer-text {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 14px;
 	}
 
-	.lg-register-text {
-		color: $vp-gold;
-		font-size: 13px;
+	.lg-footer-link {
+		color: #d4af37;
+		font-size: 14px;
+		margin-left: 4px;
+	}
+
+	/* 版权 */
+	.lg-copyright {
+		align-items: center;
+		padding-bottom: 20px;
+	}
+
+	.lg-copyright-text {
+		color: rgba(255, 255, 255, 0.3);
+		font-size: 12px;
+	}
+
+	.lg-copyright-sub {
+		color: rgba(255, 255, 255, 0.2);
+		font-size: 11px;
+		margin-top: 4px;
 	}
 </style>
