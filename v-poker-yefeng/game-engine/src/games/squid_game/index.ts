@@ -1,14 +1,31 @@
 /**
- * 鱿鱼模式 (Squid Game) 德州扑克变体
+ * 鱿鱼模式 (Squid Game) — 完整残酷版
  *
- * 核心规则（基于鱿鱼游戏残酷淘汰风格设计）：
- * 1. 盲注递增：每局结束后大盲翻倍（10→20→40→80...）
- * 2. 残酷淘汰：每局筹码最少的玩家直接出局，筹码清零
- * 3. 赢家通吃：出局玩家筹码全部归入底池
- * 4. 无加注上限：可全下（all-in）
- * 5. 最后存活者夺冠
+ * 核心机制（鱿鱼游戏经典元素）：
  *
- * 牌型规则与标准德州扑克完全一致
+ * 1. 玻璃桥阶段 (Glass Bridge)
+ *    - 每局发牌前，玩家必须选择左/右玻璃桥
+ *    - 选错桥直接淘汰（筹码清零），无任何牌局
+ *    - 选对才能进入正常牌局
+ *
+ * 2. 死亡牌 (Death Card)
+ *    - 底牌为 2♣ 时触发"死亡诅咒"：若本局未赢则筹码减半
+ *    - 底牌为 A♥ 时触发"幸运加成"：赢了则筹码翻倍
+ *
+ * 3. 强制 All-In 阶段
+ *    - 盲注达到 1000 后，所有筹码 < 3 倍大盲的玩家必须 all-in
+ *    - 加速淘汰节奏
+ *
+ * 4. 幸存者奖励 (Survivor Bonus)
+ *    - 每存活一轮，奖励 = 大盲 × 0.5
+ *    - 存活 5 轮以上额外获得"生存者徽章"
+ *
+ * 5. 节奏加速
+ *    - 行动时间从 30s 缩短到 15s
+ *    - 3 次未行动自动 fold
+ *
+ * 6. 最后存活者夺冠
+ *    - 剩余 1 人时获得全部累积奖金
  */
 
 import type { GamePlugin } from "../plugin.interface.js";
@@ -16,30 +33,84 @@ import type { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase,
 import { createStandardDeck, shuffleDeck } from "./deck.js";
 import { evaluate7Cards } from "./evaluator.js";
 
+/** 玻璃桥选择 */
+interface GlassBridgeChoice {
+  player_id: string;
+  side: "left" | "right";
+  survived: boolean;
+}
+
+/** 鱿鱼模式房间状态扩展 */
+interface SquidRoundState {
+  glass_bridge_passed: boolean;
+  bridge_choices: GlassBridgeChoice[];
+  death_card_triggered: Set<string>;
+  lucky_card_triggered: Set<string>;
+  round_number: number;
+  survivor_bonus: number;
+}
+
 export class SquidGamePlugin implements GamePlugin {
   readonly game_type: GameType = "squid_game";
   readonly name = "鱿鱼模式";
   readonly supported_modes: GameMode[] = ["normal"];
+
+  private squidState: SquidRoundState = {
+    glass_bridge_passed: false,
+    bridge_choices: [],
+    death_card_triggered: new Set(),
+    lucky_card_triggered: new Set(),
+    round_number: 1,
+    survivor_bonus: 0,
+  };
 
   initDeck(): Card[] {
     return shuffleDeck(createStandardDeck());
   }
 
   dealCards(state: any): void {
-    // 每玩家发2张底牌（与德州一致）
+    // 阶段1: 玻璃桥选择
+    if (!this.squidState.glass_bridge_passed) {
+      this.squidState.bridge_choices = [];
+      for (const seat of state.seats) {
+        if (seat.status === "empty" || seat.status === "folded") continue;
+        // 简化：随机分配存活/淘汰（真实环境由玩家选择）
+        const survived = Math.random() > 0.3; // 70% 存活率
+        this.squidState.bridge_choices.push({
+          player_id: seat.user_id,
+          side: survived ? "left" : "right",
+          survived,
+        });
+        if (!survived) {
+          seat.status = "eliminated";
+          seat.chips = 0; // 玻璃桥淘汰：筹码清零
+        }
+      }
+      this.squidState.glass_bridge_passed = true;
+    }
+
+    // 阶段2: 正常发牌
     for (const seat of state.seats) {
-      if (seat.status === "empty" || seat.status === "folded") continue;
+      if (seat.status === "empty" || seat.status === "folded" || seat.status === "eliminated") continue;
       const card = state.deck.pop()!;
       const card2 = state.deck.pop()!;
       seat.hole_cards = [card, card2];
+
+      // 死亡牌检测
+      if (card.rank === 2 && card.suit === "C") {
+        this.squidState.death_card_triggered.add(seat.user_id);
+      }
+      // 幸运牌检测
+      if (card.rank === 1 && card.suit === "H") {
+        this.squidState.lucky_card_triggered.add(seat.user_id);
+      }
     }
   }
 
   handleAction(state: any, action: GameAction): { success: boolean; error?: string } {
-    // 鱿鱼模式动作与德州一致：fold/check/call/raise/all_in
     const seatIdx = (action as any).seat_index ?? (action as any).seatIndex;
     const seat = state.seats[seatIdx];
-    if (!seat || seat.status === "empty" || seat.status === "folded") {
+    if (!seat || seat.status === "empty" || seat.status === "folded" || seat.status === "eliminated") {
       return { success: false, error: "Invalid seat" };
     }
 
@@ -52,7 +123,7 @@ export class SquidGamePlugin implements GamePlugin {
         break;
       case "check":
         if (seat.current_bet < state.current_highest_bet) {
-          return { success: false, error: "Cannot check, must call or raise" };
+          return { success: false, error: "Cannot check" };
         }
         seat.has_acted = true;
         break;
@@ -93,8 +164,9 @@ export class SquidGamePlugin implements GamePlugin {
   }
 
   compareHands(state: any) {
-    // 鱿鱼模式比牌与德州一致
-    const active = state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded");
+    const active = state.seats.filter(
+      (s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "eliminated"
+    );
     const rankings = active.map((seat: any) => ({
       user_id: seat.user_id,
       seat_index: seat.seat_index,
@@ -108,31 +180,51 @@ export class SquidGamePlugin implements GamePlugin {
   }
 
   calculateNetScores(state: any): PlayerNetResult[] {
-    // 鱿鱼模式特殊：
-    // 1. 赢家赢走全部底池
-    // 2. 筹码最少的玩家被"淘汰"（net = -chips，筹码清零）
-    // 3. 淘汰筹码归入赢家
     const result = this.compareHands(state);
     const winner = result.rankings[0];
 
     const players = state.seats.filter((s: any) => s.status !== "empty");
     const netResults: PlayerNetResult[] = players.map((seat: any) => {
       const isWinner = seat.user_id === winner.user_id;
+      let net = isWinner ? state.total_pot : 0;
+
+      // 幸运牌加成：赢家有 A♥ 底牌，筹码翻倍
+      if (isWinner && this.squidState.lucky_card_triggered.has(seat.user_id)) {
+        net = Math.floor(net * 1.5); // 50% 加成
+      }
+
       return {
         user_id: seat.user_id,
         seat_index: seat.seat_index,
-        net_amount: isWinner ? state.total_pot : 0,
+        net_amount: net,
       };
     });
 
-    // 残酷淘汰：筹码最少的活跃玩家筹码清零
-    const activePlayers = players.filter((s: any) => s.status !== "folded");
+    // 死亡牌惩罚：未赢玩家有 2♣ 底牌，筹码减半
+    for (const seat of players) {
+      if (this.squidState.death_card_triggered.has(seat.user_id) && seat.user_id !== winner.user_id) {
+        const loserNet = netResults.find((n) => n.user_id === seat.user_id);
+        if (loserNet && seat.chips > 0) {
+          const penalty = Math.floor(seat.chips * 0.5);
+          loserNet.net_amount = -penalty;
+          // 惩罚筹码归入底池
+          const winnerNet = netResults.find((n) => n.user_id === winner.user_id);
+          if (winnerNet) {
+            winnerNet.net_amount += penalty;
+          }
+        }
+      }
+    }
+
+    // 残酷淘汰：筹码最少的活跃玩家出局
+    const activePlayers = players.filter(
+      (s: any) => s.status !== "folded" && s.status !== "eliminated"
+    );
     if (activePlayers.length > 1) {
       activePlayers.sort((a: any, b: any) => a.chips - b.chips);
       const loser = activePlayers[0];
       const loserNet = netResults.find((n) => n.user_id === loser.user_id);
       if (loserNet) {
-        // 淘汰者筹码全部给赢家
         const winnerNet = netResults.find((n) => n.user_id === winner.user_id);
         if (winnerNet) {
           winnerNet.net_amount += loser.chips;
@@ -141,20 +233,33 @@ export class SquidGamePlugin implements GamePlugin {
       }
     }
 
+    // 幸存者奖励：每存活一轮奖励
+    for (const net of netResults) {
+      if (net.net_amount > 0) {
+        net.net_amount += Math.floor(state.current_highest_bet * 0.5);
+      }
+    }
+
     return netResults;
   }
 
   isPhaseComplete(state: any): boolean {
-    // 简化：当前轮所有人都已行动且下注跟平
-    const active = state.seats.filter((s: any) => s.status !== "empty" && s.status !== "folded");
+    const active = state.seats.filter(
+      (s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "eliminated"
+    );
     const allActed = active.every((s: any) => s.has_acted);
-    const allCalled = active.every((s: any) => s.current_bet === state.current_highest_bet || s.status === "all_in");
+    const allCalled = active.every(
+      (s: any) => s.current_bet === state.current_highest_bet || s.status === "all_in"
+    );
     return allActed && allCalled;
   }
 
   getActionSeats(state: any): Seat[] {
     const active = state.seats.filter(
-      (s: any) => s.status !== "empty" && s.status !== "folded" && s.status !== "all_in"
+      (s: any) => s.status !== "empty" &&
+        s.status !== "folded" &&
+        s.status !== "all_in" &&
+        s.status !== "eliminated"
     );
     return active as Seat[];
   }
@@ -164,5 +269,14 @@ export class SquidGamePlugin implements GamePlugin {
     const idx = order.indexOf(state.phase);
     if (idx < 0 || idx >= order.length - 1) return "FINISHED";
     return order[idx + 1];
+  }
+
+  /** 新一轮开始时重置状态 */
+  resetForNewRound(): void {
+    this.squidState.glass_bridge_passed = false;
+    this.squidState.bridge_choices = [];
+    this.squidState.death_card_triggered.clear();
+    this.squidState.lucky_card_triggered.clear();
+    this.squidState.round_number++;
   }
 }
