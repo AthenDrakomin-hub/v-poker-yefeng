@@ -330,7 +330,26 @@ function App() {
 
           {page === 'agents' && (
             <div>
-              <h2 style={styles.pageTitle}>代理管理</h2>
+              <div style={{...styles.pageHeader, marginBottom: '20px'}}>
+                <h2 style={styles.pageTitle}>代理管理</h2>
+                <button
+                  style={{...styles.createBtn, background: 'linear-gradient(135deg, #d4af37 0%, #b8962e 100%)', color: '#1a1a2e'}}
+                  onClick={function() {
+                    const username = prompt('新代理用户名：')
+                    if (!username) return
+                    const password = prompt('新代理密码：')
+                    if (!password) return
+                    axios.post(`${BFF_URL}/admin/agents`, { username, password }, {
+                      headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }
+                    }).then(function() {
+                      alert(`代理 ${username} 创建成功`)
+                      fetchData('/admin/agents')
+                    }).catch(function(err: any) {
+                      alert(err.response?.data?.message || '创建失败')
+                    })
+                  }}
+                >＋ 新增代理</button>
+              </div>
               <div style={styles.tableCard}>
                 <table style={styles.table}>
                   <thead>

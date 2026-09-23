@@ -115,6 +115,7 @@ function App() {
     if (loggedIn) {
       if (page === 'dashboard') fetchData('/agent/dashboard')
       else if (page === 'commission') fetchData('/agent/commission')
+      else if (page === 'settlements') fetchData('/agent/settlements')
       else if (page === 'children') fetchData('/agent/children')
       else if (page === 'rooms') fetchRooms()
     }
@@ -162,6 +163,7 @@ function App() {
     { id: 'dashboard', label: '仪表盘', icon: '📊' },
     { id: 'rooms', label: '我的房间', icon: '🎮' },
     { id: 'commission', label: '佣金明细', icon: '💰' },
+    { id: 'settlements', label: '结算记录', icon: '📋' },
     { id: 'children', label: '下级代理', icon: '👥' },
   ]
 
@@ -310,6 +312,51 @@ function App() {
                 </table>
                 {commissionRecords.length === 0 && (
                   <p style={styles.emptyText}>暂无佣金记录</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 结算记录 */}
+          {page === 'settlements' && (
+            <div>
+              <h2 style={styles.pageTitle}>结算记录</h2>
+              <div style={styles.tableCard}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>结算时间</th>
+                      <th style={styles.th}>周期</th>
+                      <th style={styles.th}>总流水</th>
+                      <th style={styles.th}>佣金</th>
+                      <th style={styles.th}>状态</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.settlements || data?.records || []).map(function(record: any, idx: number) {
+                      return (
+                        <tr key={idx} style={styles.tr}>
+                          <td style={styles.td}>{new Date(record.settled_at || record.created_at || 0).toLocaleString()}</td>
+                          <td style={styles.td}>{record.period || record.cycle || '-'}</td>
+                          <td style={styles.td}>{(record.total_flow || 0).toLocaleString()}</td>
+                          <td style={{...styles.td, color: 'var(--vp-success)', fontWeight: '600'}}>
+                            +{(record.commission_amount || 0).toLocaleString()}
+                          </td>
+                          <td style={styles.td}>
+                            <span style={{...styles.badge,
+                              background: record.status === 'paid' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                              color: record.status === 'paid' ? 'var(--vp-success)' : 'var(--vp-warning)'
+                            }}>
+                              {record.status === 'paid' ? '已结算' : record.status === 'pending' ? '待结算' : (record.status || '-')}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {(data?.settlements || data?.records || []).length === 0 && (
+                  <p style={styles.emptyText}>暂无结算记录</p>
                 )}
               </div>
             </div>

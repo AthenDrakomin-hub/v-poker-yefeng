@@ -9,6 +9,7 @@ function App() {
   const [page, setPage] = useState('dashboard')
   const [data, setData] = useState<any>(null)
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const [replyText, setReplyText] = useState('')
   const [searchPlayer, setSearchPlayer] = useState('')
   const [playerData, setPlayerData] = useState<any>(null)
   const [username, setUsername] = useState('')
@@ -261,6 +262,42 @@ function App() {
               </div>
 
               <h3 style={styles.sectionTitle}>工单操作</h3>
+              <div style={{...styles.searchBox, marginBottom: '12px'}}>
+                <input
+                  style={styles.searchInput}
+                  placeholder="输入回复内容..."
+                  value={replyText}
+                  onChange={function(e: any) { setReplyText(e.target.value) }}
+                  onKeyDown={function(e: any) {
+                    if (e.key === 'Enter' && replyText.trim()) {
+                      axios.patch(`${BFF_URL}/support/tickets/${selectedTicket.ticket_id}`,
+                        { reply: replyText.trim() },
+                        { headers: { Authorization: `Bearer ${localStorage.getItem('support_token')}` } }
+                      ).then(function() {
+                        setReplyText('')
+                        alert('回复已发送')
+                      }).catch(function(err: any) {
+                        alert(err.response?.data?.message || '回复失败')
+                      })
+                    }
+                  }}
+                />
+                <button
+                  style={styles.searchBtn}
+                  onClick={function() {
+                    if (!replyText.trim()) return
+                    axios.patch(`${BFF_URL}/support/tickets/${selectedTicket.ticket_id}`,
+                      { reply: replyText.trim() },
+                      { headers: { Authorization: `Bearer ${localStorage.getItem('support_token')}` } }
+                    ).then(function() {
+                      setReplyText('')
+                      alert('回复已发送')
+                    }).catch(function(err: any) {
+                      alert(err.response?.data?.message || '回复失败')
+                    })
+                  }}
+                >发送</button>
+              </div>
               <div style={styles.actionRow}>
                 <button
                   style={{...styles.actionBtn, background: 'rgba(16,185,129,0.15)', color: 'var(--vp-success)', border: '1px solid rgba(16,185,129,0.3)'}}
