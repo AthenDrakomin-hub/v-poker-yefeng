@@ -269,3 +269,82 @@ ON CONFLICT (agent_id) DO NOTHING;
 -- 能量守恒公式（系统硬约束）：
 --   SUM(wallets.balance) + SUM(fee_pool.balance) = SUM(transactions.amount WHERE type='mint')
 -- ============================================================
+
+-- 12. 客服工单表 tickets 🆕 v3.0
+CREATE TABLE IF NOT EXISTS tickets (
+    ticket_id    VARCHAR(64) PRIMARY KEY,
+    user_id      VARCHAR(64) NOT NULL,
+    category     VARCHAR(32) NOT NULL DEFAULT 'other',
+    status       VARCHAR(20) NOT NULL DEFAULT 'open',
+    description  TEXT NOT NULL,
+    handler_id   VARCHAR(64),
+    created_at   BIGINT NOT NULL,
+    resolved_at  BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS ix_tickets_user_id ON tickets(user_id);
+CREATE INDEX IF NOT EXISTS ix_tickets_status ON tickets(status);
+CREATE INDEX IF NOT EXISTS ix_tickets_created_at ON tickets(created_at);
+
+-- 工单消息表 ticket_messages
+CREATE TABLE IF NOT EXISTS ticket_messages (
+    message_id   VARCHAR(64) PRIMARY KEY,
+    ticket_id    VARCHAR(64) NOT NULL,
+    sender_id    VARCHAR(64) NOT NULL,
+    sender_role  VARCHAR(20) NOT NULL,
+    content      TEXT NOT NULL,
+    created_at   BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_ticket_messages_ticket_id ON ticket_messages(ticket_id);
+
+-- 13. 成就定义表 achievements 🆕 v3.0
+CREATE TABLE IF NOT EXISTS achievements (
+    id           VARCHAR(64) PRIMARY KEY,
+    name         VARCHAR(64) NOT NULL,
+    description  VARCHAR(256) NOT NULL,
+    icon         VARCHAR(8) NOT NULL DEFAULT '♠',
+    condition_type VARCHAR(32) NOT NULL,
+    condition_value INT NOT NULL DEFAULT 1,
+    created_at   BIGINT NOT NULL
+);
+
+-- 玩家成就解锁表 user_achievements
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id            SERIAL PRIMARY KEY,
+    user_id       VARCHAR(64) NOT NULL,
+    achievement_id VARCHAR(64) NOT NULL,
+    unlocked      BOOLEAN NOT NULL DEFAULT FALSE,
+    unlocked_at   BIGINT,
+    UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_user_achievements_user_id ON user_achievements(user_id);
+
+-- 14. 系统消息表 messages 🆕 v3.0
+CREATE TABLE IF NOT EXISTS messages (
+    message_id   VARCHAR(64) PRIMARY KEY,
+    user_id      VARCHAR(64) NOT NULL,
+    title        VARCHAR(128) NOT NULL,
+    content      TEXT NOT NULL,
+    is_read      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at   BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_messages_user_id ON messages(user_id);
+CREATE INDEX IF NOT EXISTS ix_messages_is_read ON messages(is_read);
+CREATE INDEX IF NOT EXISTS ix_messages_created_at ON messages(created_at DESC);
+
+-- ============================================================
+-- v3.0 初始数据：成就定义
+-- ============================================================
+INSERT INTO achievements (id, name, description, icon, condition_type, condition_value, created_at) VALUES
+('first_game',     '初出茅庐', '完成第一局对局',   '♠', 'total_games',     1,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('straight_flush', '同花顺',   '拿到一次同花顺',   '♠', 'best_hand',       1,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('four_of_kind',    '四条',     '拿到一次四条',     '♠', 'best_hand',       2,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('full_house',      '葫芦',     '拿到一次葫芦',     '♠', 'best_hand',       3,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('win_streak_5',    '连胜达人', '连续赢下5局',      '♠', 'max_streak',      5,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('big_win',         '大额赢家', '单局赢10000筹码',  '♠', 'biggest_pot',     10000, EXTRACT(EPOCH FROM NOW()) * 1000),
+('all_in_win',      '全下勇士', '全下并获胜一次',   '♠', 'all_in_wins',     1,    EXTRACT(EPOCH FROM NOW()) * 1000),
+('games_100',       '百局大师', '累计完成100局',    '♠', 'total_games',     100,  EXTRACT(EPOCH FROM NOW()) * 1000)
+ON CONFLICT (id) DO NOTHING;
