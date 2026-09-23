@@ -45,7 +45,7 @@
 
 ```
 启动页 → 登录/注册 → 大厅
-  ├─ 房间列表 → 选房加入 → 牌桌(德州/炸金花/牛牛/三公)
+  ├─ 房间列表 → 选房加入 → 牌桌(13款游戏)
   ├─ 我的房间 → 进行中/已结束
   ├─ 钱包 → 余额 + 转赠筹码(0.1%手续费) + 流水
   ├─ 个人中心
@@ -58,8 +58,8 @@
   └─ 设置
 ```
 
-**24 个页面：**
-splash / login / register / hall / room-list / create-room / my-rooms / wallet / profile / setting / stats / friend / rank / achievement / rules / message / table-texas / table-zhajinhua / table-niuniu / table-sangong / agent / error / dev / flow
+**30+ 个页面：**
+splash / login / register / hall / room-list / my-rooms / wallet / profile / setting / stats / friend / rank / achievement / rules / message / 13个牌桌页 / error / dev / flow
 
 ---
 
@@ -70,7 +70,7 @@ splash / login / register / hall / room-list / create-room / my-rooms / wallet /
 ```
 登录(角色校验agent) → 侧边栏导航
   ├─ 仪表盘 → 累计佣金/下级数/总流水/房间数
-  ├─ 我的房间 → 房间列表 + 创建房间弹窗(4种游戏)
+  ├─ 我的房间 → 房间列表 + 创建房间弹窗(13种游戏)
   ├─ 筹码转账 → 代理→玩家(收0.1%手续费)
   ├─ 佣金明细 → 佣金记录表
   ├─ 结算记录 → 结算周期表
