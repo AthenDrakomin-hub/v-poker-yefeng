@@ -118,6 +118,7 @@
 	import { gameTypeName } from '@/utils/games.uts'
 	import { formatAmount } from '@/utils/format.uts'
 	import { releaseAudio } from '@/utils/audio.uts'
+	import { vibrateLight, vibrateMedium, vibrateHeavy } from '@/utils/haptic.uts'
 
 	type VpTableShellProps = {
 		game_type: string
@@ -331,6 +332,14 @@
 	}
 
 	const onSimple = (action: string) => {
+		// 原生振动反馈
+		if (action == 'all_in') {
+			vibrateHeavy()
+		} else if (action == 'raise' || action == 'bet') {
+			vibrateMedium()
+		} else {
+			vibrateLight()
+		}
 		roomStore.sendAction(action)
 	}
 
@@ -399,6 +408,7 @@
 			}
 			if (won) {
 				showWinFx.value = true
+				vibrateHeavy()
 				playSound(getWinSoundByGameType(props.game_type))
 				showToast('你赢啦！', 'success')
 				setTimeout(() => {

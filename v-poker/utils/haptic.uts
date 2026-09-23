@@ -1,0 +1,34 @@
+/**
+ * 原生振动反馈工具
+ * 利用 uni-app-x 蒸汽模式 uni.vibrateShort 原生 API
+ */
+
+/** 短振动（按钮点击） */
+export function vibrateLight(): void {
+	uni.vibrateShort({
+		type: 'light',
+		fail: () => {
+			// 静默失败，不影响主流程
+		}
+	})
+}
+
+/** 中等振动（重要操作） */
+export function vibrateMedium(): void {
+	uni.vibrateShort({
+		type: 'medium',
+		fail: () => {
+			// 静默失败
+		}
+	})
+}
+
+/** 重振动（胜利/失败） */
+export function vibrateHeavy(): void {
+	uni.vibrateShort({
+		type: 'heavy',
+		fail: () => {
+			// 静默失败
+		}
+	})
+}
