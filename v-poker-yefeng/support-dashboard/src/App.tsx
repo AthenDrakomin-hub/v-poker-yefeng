@@ -56,10 +56,26 @@ function App() {
     if (!searchPlayer) return
     try {
       const token = localStorage.getItem('support_token')
-      const res = await axios.get(BFF_URL + '/support/player_profile?user_id=' + searchPlayer, {
-        headers: { Authorization: 'Bearer ' + token }
+      // 并行查询：玩家档案 + 余额 + 交易流水
+      const [profileRes, balanceRes, txRes] = await Promise.all([
+        axios.get(BFF_URL + '/support/player_profile?user_id=' + searchPlayer, {
+          headers: { Authorization: 'Bearer ' + token }
+        }),
+        axios.get(BFF_URL + '/support/balance?user_id=' + searchPlayer, {
+          headers: { Authorization: 'Bearer ' + token }
+        }),
+        axios.get(BFF_URL + '/support/transactions?user_id=' + searchPlayer + '&limit=20', {
+          headers: { Authorization: 'Bearer ' + token }
+        })
+      ])
+      const profile = profileRes.data.data
+      const balance = balanceRes.data.data
+      const transactions = txRes.data.data
+      setPlayerData({
+        ...profile,
+        wallet: { balance: balance?.balance || profile?.wallet?.balance || 0 },
+        recent_transactions: transactions || profile?.recent_transactions || []
       })
-      setPlayerData(res.data.data)
     } catch (err: any) {
       setPlayerData(null)
       alert('查询失败: ' + (err.response?.data?.message || err.message))
