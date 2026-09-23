@@ -1,0 +1,259 @@
+<template>
+	<view class="vp-page fl-page">
+		<view class="fl-statusbar" :style="statusBarStyle"></view>
+
+		<view class="fl-topbar">
+			<view class="fl-back" hover-class="fl-pressed" @click="goBack">
+				<text class="fl-back-text">← 返回</text>
+			</view>
+			<view class="fl-brand">
+				<text class="fl-brand-text">资金流水</text>
+				<text class="fl-brand-sub">每页 20 条 · 向下滚动加载</text>
+			</view>
+			<view class="fl-spacer"></view>
+			<view class="fl-balance">
+				<text class="fl-balance-text">筹码 {{ balanceText }}</text>
+			</view>
+		</view>
+
+		<view class="fl-body">
+			<view class="fl-panel vp-card">
+				<scroll-view class="fl-list" direction="vertical" @scrolltolower="onLoadMore">
+					<view v-for="tx in wallet.transactions" :key="tx.transaction_id" class="fl-row">
+						<view class="fl-row-main">
+							<text class="fl-row-title">{{ txTypeText(tx.type) }}</text>
+							<text class="fl-row-sub">{{ formatTime(tx.created_at) }} · {{ tx.type }}</text>
+						</view>
+						<text class="fl-row-amount" :class="txAmountClass(tx)">{{ txAmountText(tx) }}</text>
+					</view>
+
+					<vp-empty v-if="wallet.transactions.length == 0 && !wallet.loading" title="暂无流水记录"
+						description="完成一局对局或转账后即可在此查看" />
+					<view v-if="wallet.loading" class="fl-more">
+						<text class="fl-more-text">加载中…</text>
+					</view>
+					<view v-if="wallet.finished && wallet.transactions.length > 0" class="fl-more">
+						<text class="fl-more-text">没有更多了</text>
+					</view>
+				</scroll-view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useWalletStore, TxItem } from '@/store/wallet.uts'
+	import { formatAmount, formatTime } from '@/utils/format.uts'
+
+	const auth = useAuthStore()
+	const wallet = useWalletStore()
+
+	const statusBarStyle = ref('height: 0px')
+
+	const balanceText = computed((): string => formatAmount(wallet.balance))
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		wallet.refreshBalance()
+		wallet.reset()
+		wallet.loadTransactions(true)
+	})
+
+	const onLoadMore = () => {
+		wallet.loadTransactions(false)
+	}
+
+	const txTypeText = (type: string): string => {
+		if (type == 'mint') {
+			return '铸币'
+		}
+		if (type == 'transfer') {
+			return '转账'
+		}
+		if (type == 'bet') {
+			return '下注'
+		}
+		if (type == 'refund') {
+			return '退款'
+		}
+		if (type == 'game_settle') {
+			return '对局结算'
+		}
+		if (type == 'commission') {
+			return '代理佣金'
+		}
+		return type
+	}
+
+	const isIncome = (tx: TxItem): boolean => {
+		const wid = wallet.walletId
+		return wid.length > 0 && tx.to_wallet_id == wid
+	}
+
+	const txAmountText = (tx: TxItem): string => {
+		return (isIncome(tx) ? '+' : '-') + formatAmount(tx.amount)
+	}
+
+	const txAmountClass = (tx: TxItem): string => {
+		return isIncome(tx) ? 'fl-amount-in' : 'fl-amount-out'
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.fl-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.fl-statusbar {
+		width: 100%;
+	}
+
+	.fl-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.fl-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.fl-pressed {
+		opacity: 0.75;
+	}
+
+	.fl-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.fl-brand {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-left: 16px;
+	}
+
+	.fl-brand-text {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.fl-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.fl-spacer {
+		flex: 1;
+	}
+
+	.fl-balance {
+		height: 30px;
+		background-color: $vp-surface-2;
+		border-radius: 15px;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.fl-balance-text {
+		color: $vp-gold;
+		font-size: 12px;
+	}
+
+	.fl-body {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.fl-panel {
+		flex: 1;
+		flex-direction: column;
+		padding: 6px 14px;
+	}
+
+	.fl-list {
+		flex: 1;
+	}
+
+	.fl-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 11px;
+		padding-bottom: 11px;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.fl-row-main {
+		flex-direction: column;
+	}
+
+	.fl-row-title {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.fl-row-sub {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 2px;
+	}
+
+	.fl-row-amount {
+		font-size: 15px;
+		font-weight: bold;
+	}
+
+	.fl-amount-in {
+		color: $vp-success;
+	}
+
+	.fl-amount-out {
+		color: $vp-danger;
+	}
+
+	.fl-more {
+		flex-direction: row;
+		justify-content: center;
+		padding-top: 16px;
+		padding-bottom: 16px;
+	}
+
+	.fl-more-text {
+		color: $vp-muted;
+		font-size: 13px;
+	}
+</style>

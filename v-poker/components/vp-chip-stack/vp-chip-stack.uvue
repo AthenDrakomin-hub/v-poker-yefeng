@@ -1,0 +1,97 @@
+<template>
+	<view class="cps" :style="boxStyle">
+		<view v-for="idx in layerList" :key="idx" class="cps-chip" :class="'cps-' + color" :style="chipStyle(idx)"></view>
+		<text v-if="amount.length > 0" class="cps-amount">{{ amount }}</text>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+
+	/**
+	 * 筹码叠层（迁移自源 ChipStack）
+	 * vapor 约束：radial-gradient 改纯色；源 `.chip--x .inner` 后代选择器改扁平 class
+	 */
+	type VpChipStackProps = {
+		amount: string
+		/** purple | red | green | blue | gold */
+		color: string
+		/** 宽度，px */
+		size: number
+		layers: number
+	}
+
+	const props = withDefaults(defineProps<VpChipStackProps>(), {
+		amount: '',
+		color: 'purple',
+		size: 40,
+		layers: 3
+	})
+
+	const layerList = computed((): number[] => {
+		const out: number[] = []
+		for (let i = 0; i < props.layers; i++) {
+			out.push(i)
+		}
+		return out
+	})
+
+	const boxStyle = computed((): string => {
+		return `width:${props.size}px;`
+	})
+
+	const chipStyle = (idx: number): string => {
+		return `bottom:${idx * 7}px;`
+	}
+</script>
+
+<style lang="scss">
+	.cps {
+		position: relative;
+		height: 50px;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.cps-chip {
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 14px;
+		border-radius: 50%;
+		border-width: 2px;
+		border-style: dashed;
+		border-color: rgba(255, 255, 255, 0.6);
+	}
+
+	.cps-purple {
+		background-color: #7c5cff;
+	}
+
+	.cps-red {
+		background-color: #e05b4b;
+	}
+
+	.cps-green {
+		background-color: #27ae60;
+	}
+
+	.cps-blue {
+		background-color: #2e6fb8;
+	}
+
+	.cps-gold {
+		background-color: #c9a961;
+	}
+
+	.cps-amount {
+		position: absolute;
+		top: -18px;
+		left: 0;
+		right: 0;
+		text-align: center;
+		font-size: 13px;
+		color: $vp-gold;
+		font-weight: bold;
+	}
+</style>

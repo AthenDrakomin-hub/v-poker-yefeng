@@ -1,0 +1,25 @@
+/**
+ * 认证接口（公开）
+ * 契约 3.1：POST /api/auth/login、POST /api/auth/register
+ */
+
+import { httpPostPublic } from '../client.uts'
+
+/** 登录，返回 { access_token, token_type, user: { user_id, role } } */
+export function login(username: string, password: string): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		username: username,
+		password: password
+	}
+	return httpPostPublic('/api/auth/login', data)
+}
+
+/** 注册 */
+export function register(username: string, password: string, role: string = 'player'): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		username: username,
+		password: password,
+		role: role
+	}
+	return httpPostPublic('/api/auth/register', data)
+}

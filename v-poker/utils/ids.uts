@@ -1,0 +1,23 @@
+/**
+ * ID 生成工具
+ * 契约：ID 为字符串；写操作必须携带全局唯一 transaction_id / req_id
+ */
+
+let seq = 0
+
+/**
+ * 生成动作请求 ID（WS player_action 的 req_id，用于匹配 action_ack）
+ */
+export function genReqId(prefix: string = 'req'): string {
+	seq++
+	return `${prefix}_${Date.now()}_${seq}`
+}
+
+/**
+ * 生成交易流水 ID（POST /api/wallet/transfer 的 transaction_id，全局唯一）
+ */
+export function genTxId(prefix: string = 'tx'): string {
+	seq++
+	return `${prefix}_${Date.now()}_${seq}`
+}
+

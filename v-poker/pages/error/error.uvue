@@ -1,0 +1,108 @@
+<template>
+	<view class="vp-page er-page">
+		<view class="er-body">
+			<view class="er-card vp-card">
+				<view class="er-icon">
+					<text class="er-icon-text">!</text>
+				</view>
+				<text class="er-title">{{ title }}</text>
+				<text class="er-desc">{{ description }}</text>
+				<view class="er-actions">
+					<vp-button type="gold" text="返回大厅" @click="goHall" />
+					<view class="er-gap"></view>
+					<vp-button type="gray" text="重试" @click="goBack" />
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+
+	const title = ref('出错了')
+	const description = ref('房间不存在或已关闭')
+
+	onLoad((options) => {
+		const t = options.getString('title')
+		if (t != null && t.length > 0) {
+			title.value = t
+		}
+		const d = options.getString('description')
+		if (d != null && d.length > 0) {
+			description.value = d
+		}
+	})
+
+	const goHall = () => {
+		uni.reLaunch({ url: '/pages/hall/hall' })
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.er-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.er-body {
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.er-card {
+		width: 320px;
+		flex-direction: column;
+		align-items: center;
+		padding: 28px 24px;
+	}
+
+	.er-icon {
+		width: 56px;
+		height: 56px;
+		border-radius: 28px;
+		background-color: rgba(239, 68, 68, 0.14);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(239, 68, 68, 0.4);
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.er-icon-text {
+		color: $vp-danger;
+		font-size: 26px;
+		font-weight: bold;
+	}
+
+	.er-title {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+		margin-top: 16px;
+	}
+
+	.er-desc {
+		color: $vp-muted;
+		font-size: 13px;
+		margin-top: 8px;
+		text-align: center;
+	}
+
+	.er-actions {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 22px;
+	}
+
+	.er-gap {
+		width: 12px;
+	}
+</style>

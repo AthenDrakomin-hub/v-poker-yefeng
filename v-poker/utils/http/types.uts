@@ -1,0 +1,39 @@
+/**
+ * HTTP 通信层类型定义
+ * 契约：统一响应 { code, message, data }，code === 0 成功
+ * UTS 约束：无 interface（用 type）、无 undefined（用 null）、无 utility types
+ *
+ * 说明：业务实体的归一化类型放在各自 store（如 RoomItem / TxItem），
+ *      避免与 UTSJSONObject 动态字段重复定义。
+ */
+
+/** 用户角色 */
+export const ROLE_ADMIN = 'admin'
+export const ROLE_SUPPORT = 'support'
+export const ROLE_AGENT = 'agent'
+export const ROLE_PLAYER = 'player'
+
+/** 请求可选参数（UTS 无可选属性，统一给默认值） */
+export type RequestOptions = {
+	/** 请求体（POST/PATCH） */
+	data: UTSJSONObject | null
+	/** query 参数 */
+	params: UTSJSONObject | null
+	/** 是否需要鉴权（login/register 传 false） */
+	auth: boolean
+	/** 失败时是否自动 toast */
+	showError: boolean
+}
+
+/** 默认请求参数 */
+export function defaultRequestOptions(): RequestOptions {
+	return {
+		data: null,
+		params: null,
+		auth: true,
+		showError: true
+	}
+}
+
+/** 错误码：能量守恒校验失败（严重，需立即告警） */
+export const ERR_AUDIT_FAILED = 5001

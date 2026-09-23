@@ -1,0 +1,150 @@
+<template>
+	<view v-if="visible" class="vpd">
+		<view class="vpd-mask" @click="onMaskClick"></view>
+		<view class="vpd-panel">
+			<view class="vpd-header">
+				<text class="vpd-title">{{ title }}</text>
+				<view class="vpd-close" @click="onCancel">
+					<text class="vpd-close-icon">✕</text>
+				</view>
+			</view>
+			<view class="vpd-body">
+				<slot />
+			</view>
+			<view v-if="showFooter" class="vpd-footer">
+				<vp-button v-if="showCancel" type="gray" :text="cancelText" @click="onCancel" />
+				<view class="vpd-gap"></view>
+				<vp-button type="gold" :text="confirmText" @click="onConfirm" />
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	/**
+	 * 弹窗（迁移自源 PkDialog）
+	 * vapor 约束：inset:0 拆成 top/right/bottom/left；不用 @click.self（遮罩独立 view）
+	 */
+	type VpDialogProps = {
+		visible: boolean
+		title: string
+		confirmText: string
+		cancelText: string
+		showCancel: boolean
+		showFooter: boolean
+		closeOnClickMask: boolean
+	}
+
+	const props = withDefaults(defineProps<VpDialogProps>(), {
+		visible: false,
+		title: '提示',
+		confirmText: '确定',
+		cancelText: '取消',
+		showCancel: true,
+		showFooter: true,
+		closeOnClickMask: false
+	})
+
+	const emit = defineEmits(['update:visible', 'confirm', 'cancel'])
+
+	const onConfirm = () => {
+		emit('confirm')
+		emit('update:visible', false)
+	}
+
+	const onCancel = () => {
+		emit('cancel')
+		emit('update:visible', false)
+	}
+
+	const onMaskClick = () => {
+		if (props.closeOnClickMask) {
+			onCancel()
+		}
+	}
+</script>
+
+<style lang="scss">
+	.vpd {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		z-index: 999;
+	}
+
+	.vpd-mask {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.6);
+	}
+
+	.vpd-panel {
+		width: 340px;
+		max-width: 90%;
+		background-color: $vp-surface;
+		border-radius: $vp-radius-md;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		flex-direction: column;
+	}
+
+	.vpd-header {
+		position: relative;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding: 16px;
+	}
+
+	.vpd-title {
+		color: $vp-gold;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.vpd-close {
+		position: absolute;
+		right: 12px;
+		top: 14px;
+		width: 28px;
+		height: 28px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vpd-close-icon {
+		color: $vp-muted;
+		font-size: 16px;
+	}
+
+	.vpd-body {
+		flex-direction: column;
+		align-items: center;
+		padding-left: 24px;
+		padding-right: 24px;
+		padding-bottom: 20px;
+	}
+
+	.vpd-footer {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding-left: 24px;
+		padding-right: 24px;
+		padding-bottom: 24px;
+	}
+
+	.vpd-gap {
+		width: 12px;
+	}
+</style>

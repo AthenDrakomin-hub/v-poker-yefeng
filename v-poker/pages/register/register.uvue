@@ -1,0 +1,221 @@
+<template>
+	<view class="vp-page rg-page">
+		<view class="rg-statusbar" :style="statusBarStyle"></view>
+
+		<view class="rg-body">
+			<view class="rg-hero">
+				<text class="rg-logo">V-POKER</text>
+				<text class="rg-slogan">创建你的竞技账号</text>
+				<text class="rg-hero-tip">注册后即可领取体验筹码，进入任意玩法</text>
+			</view>
+
+			<view class="rg-form vp-card">
+				<text class="rg-form-title">注册账号</text>
+
+				<view class="rg-field">
+					<text class="rg-field-label">用户名</text>
+					<input class="rg-input" type="text" placeholder="3–20 位字母或数字" :value="username"
+						@input="onUsernameInput" />
+				</view>
+
+				<view class="rg-field">
+					<text class="rg-field-label">密码</text>
+					<input class="rg-input" type="text" :password="true" placeholder="至少 4 位" :value="password"
+						@input="onPasswordInput" />
+				</view>
+
+				<view class="rg-field">
+					<text class="rg-field-label">确认密码</text>
+					<input class="rg-input" type="text" :password="true" placeholder="再次输入密码" :value="password2"
+						@input="onPassword2Input" />
+				</view>
+
+				<view class="rg-submit">
+					<vp-button type="gold" size="lg" block :loading="submitting" text="注 册" @click="onRegister" />
+				</view>
+
+				<view class="rg-back" hover-class="rg-pressed" @click="goBack">
+					<text class="rg-back-text">已有账号？返回登录</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+
+	const auth = useAuthStore()
+
+	const username = ref('')
+	const password = ref('')
+	const password2 = ref('')
+	const statusBarStyle = ref('height: 0px')
+	const submitting = ref(false)
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	const onUsernameInput = (e: UniInputEvent) => {
+		username.value = e.detail.value
+	}
+
+	const onPasswordInput = (e: UniInputEvent) => {
+		password.value = e.detail.value
+	}
+
+	const onPassword2Input = (e: UniInputEvent) => {
+		password2.value = e.detail.value
+	}
+
+	const onRegister = async () => {
+		const name = username.value.trim()
+		const pwd = password.value
+		if (name.length < 3) {
+			uni.showToast({ title: '用户名至少 3 位', icon: 'none' })
+			return
+		}
+		if (pwd.length < 4) {
+			uni.showToast({ title: '密码至少 4 位', icon: 'none' })
+			return
+		}
+		if (pwd != password2.value) {
+			uni.showToast({ title: '两次密码不一致', icon: 'none' })
+			return
+		}
+		if (submitting.value) {
+			return
+		}
+		submitting.value = true
+		uni.showLoading({ title: '注册中', mask: true })
+		try {
+			const ok = await auth.register(name, pwd)
+			uni.hideLoading()
+			if (ok) {
+				uni.showToast({ title: '注册成功，请登录', icon: 'none' })
+				setTimeout(() => {
+					uni.navigateBack()
+				}, 800)
+			} else {
+				uni.showToast({ title: '注册失败', icon: 'none' })
+			}
+		} catch (err) {
+			uni.hideLoading()
+			console.error('register failed', err)
+		} finally {
+			submitting.value = false
+		}
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.rg-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.rg-statusbar {
+		width: 100%;
+	}
+
+	.rg-body {
+		flex: 1;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding: 0 48px;
+	}
+
+	.rg-hero {
+		flex: 1;
+		flex-direction: column;
+		align-items: flex-start;
+		margin-right: 48px;
+	}
+
+	.rg-logo {
+		color: $vp-gold;
+		font-size: 42px;
+		font-weight: bold;
+		letter-spacing: 6px;
+	}
+
+	.rg-slogan {
+		color: $vp-text;
+		font-size: 16px;
+		margin-top: 12px;
+	}
+
+	.rg-hero-tip {
+		color: $vp-muted;
+		font-size: 13px;
+		margin-top: 10px;
+	}
+
+	.rg-form {
+		width: 340px;
+		flex-direction: column;
+		padding: 24px;
+	}
+
+	.rg-form-title {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+		margin-bottom: 18px;
+	}
+
+	.rg-field {
+		flex-direction: column;
+		margin-bottom: 14px;
+	}
+
+	.rg-field-label {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-bottom: 6px;
+	}
+
+	.rg-input {
+		width: 100%;
+		height: 46px;
+		background-color: $vp-surface-2;
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		color: $vp-text;
+		font-size: 15px;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.rg-submit {
+		flex-direction: row;
+		margin-top: 6px;
+	}
+
+	.rg-back {
+		height: 34px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 12px;
+	}
+
+	.rg-pressed {
+		opacity: 0.75;
+	}
+
+	.rg-back-text {
+		color: $vp-gold;
+		font-size: 13px;
+	}
+</style>

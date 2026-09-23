@@ -1,0 +1,66 @@
+/**
+ * 本地存储封装（token / 用户身份）
+ * 契约：Token 过期（401）时清除本地存储并跳转登录页
+ */
+
+import { TOKEN_KEY, USER_ID_KEY, USER_ROLE_KEY, USER_NAME_KEY } from '@/config/env.uts'
+
+/** 读取字符串，不存在返回 null */
+function readString(key: string): string | null {
+	const v = uni.getStorageSync(key)
+	if (v == null) {
+		return null
+	}
+	const s = `${v}`
+	return s.length > 0 ? s : null
+}
+
+function writeString(key: string, value: string) {
+	uni.setStorageSync(key, value)
+}
+
+/** JWT Token */
+export function getToken(): string | null {
+	return readString(TOKEN_KEY)
+}
+
+export function setToken(token: string) {
+	writeString(TOKEN_KEY, token)
+}
+
+/** 当前登录用户 ID */
+export function getUserId(): string | null {
+	return readString(USER_ID_KEY)
+}
+
+export function setUserId(id: string) {
+	writeString(USER_ID_KEY, id)
+}
+
+/** 当前登录用户角色（player / agent / admin / support） */
+export function getUserRole(): string {
+	const r = readString(USER_ROLE_KEY)
+	return r == null ? 'player' : r
+}
+
+export function setUserRole(role: string) {
+	writeString(USER_ROLE_KEY, role)
+}
+
+/** 当前登录用户昵称（JWT 无昵称时回退为用户 ID） */
+export function getUserName(): string {
+	const n = readString(USER_NAME_KEY)
+	return n == null ? '' : n
+}
+
+export function setUserName(name: string) {
+	writeString(USER_NAME_KEY, name)
+}
+
+/** 清空全部登录态 */
+export function clearAuth() {
+	uni.removeStorageSync(TOKEN_KEY)
+	uni.removeStorageSync(USER_ID_KEY)
+	uni.removeStorageSync(USER_ROLE_KEY)
+	uni.removeStorageSync(USER_NAME_KEY)
+}

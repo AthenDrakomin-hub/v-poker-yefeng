@@ -1,0 +1,225 @@
+/**
+ * HTTP 客户端（uni.request 封装）
+ * 契约：
+ *  - 统一响应 { code, message, data }，code === 0 成功
+ *  - 所有请求经 BFF（baseURL = BFF_BASE_URL）
+ *  - Authorization: Bearer <token>
+ *  - 401 统一清除本地存储并跳登录页
+ *  - 禁止前端硬编码后端地址（地址来自 config/env.uts）
+ */
+
+import { BFF_BASE_URL, REQUEST_TIMEOUT_MS } from '@/config/env.uts'
+import { getToken, clearAuth } from '@/utils/storage.uts'
+import { RequestOptions, defaultRequestOptions } from './types.uts'
+
+let unauthorizedHandling = false
+
+/** 401 统一处理：清本地登录态 + 跳登录页 */
+function handleUnauthorized() {
+	clearAuth()
+	if (unauthorizedHandling) {
+		return
+	}
+	unauthorizedHandling = true
+	uni.showModal({
+		title: '提示',
+		content: '登录状态已失效，请重新登录',
+		showCancel: false,
+		success: () => {
+			unauthorizedHandling = false
+			uni.reLaunch({ url: '/pages/login/login' })
+		}
+	})
+}
+
+/** HTTP 状态码 -> 中文提示 */
+function httpErrorMessage(status: number): string {
+	if (status == 400) {
+		return '请求参数错误'
+	}
+	if (status == 401) {
+		return '登录已过期，请重新登录'
+	}
+	if (status == 403) {
+		return '没有操作权限'
+	}
+	if (status == 404) {
+		return '请求的资源不存在'
+	}
+	if (status == 429) {
+		return '操作过于频繁，请稍后再试'
+	}
+	if (status >= 500) {
+		return '服务器繁忙，请稍后再试'
+	}
+	return `网络异常（${status}）`
+}
+
+/** 网络层错误 -> 中文提示 */
+function networkErrorMessage(errMsg: string): string {
+	if (errMsg.includes('timeout')) {
+		return '请求超时，请检查网络后重试'
+	}
+	if (errMsg.includes('fail')) {
+		return '无法连接服务器，请检查网络或服务器地址'
+	}
+	return '网络异常，请稍后再试'
+}
+
+/** 拼接 query 参数 */
+function buildQuery(params: UTSJSONObject | null): string {
+	if (params == null) {
+		return ''
+	}
+	const keys = UTSJSONObject.keys(params)
+	let query = ''
+	for (let i = 0; i < keys.length; i++) {
+		const k = keys[i]
+		const v = params.getAny(k)
+		if (v == null) {
+			continue
+		}
+		if (query.length > 0) {
+			query += '&'
+		}
+		query += `${encodeURIComponent(k)}=${encodeURIComponent(`${v}`)}`
+	}
+	return query
+}
+
+/**
+ * 发送请求，resolve 统一响应 envelope（{code,message,data}）
+ * 失败（网络层 / 业务层）一律 reject Error
+ */
+export function sendEnvelope(method: string, path: string, options: RequestOptions): Promise<UTSJSONObject> {
+	return new Promise<UTSJSONObject>((resolve, reject) => {
+		let url = path.startsWith('http') ? path : BFF_BASE_URL + path
+		const query = buildQuery(options.params)
+		if (query.length > 0) {
+			url += (url.includes('?') ? '&' : '?') + query
+		}
+
+		const header: UTSJSONObject = { 'Content-Type': 'application/json' }
+		if (options.auth) {
+			const token = getToken()
+			if (token != null) {
+				header.set('Authorization', `Bearer ${token}`)
+			}
+		}
+
+		uni.request({
+			url: url,
+			method: method,
+			data: options.data,
+			header: header,
+			timeout: REQUEST_TIMEOUT_MS,
+			success: (res: RequestSuccess<any>) => {
+				if (res.statusCode == 401) {
+					handleUnauthorized()
+					reject(new Error('登录已过期，请重新登录'))
+					return
+				}
+				// 兜底：默认 dataType=json 会解析对象；若服务端返回文本则手动解析
+				let body: UTSJSONObject | null = null
+				const raw = res.data
+				if (raw != null) {
+					if (typeof raw == 'string') {
+						body = JSON.parseObject(raw as string)
+					} else if (raw instanceof UTSJSONObject) {
+						body = raw as UTSJSONObject
+					}
+				}
+				if (body == null) {
+					if (res.statusCode < 200 || res.statusCode >= 300) {
+						const msg = httpErrorMessage(res.statusCode)
+						if (options.showError) {
+							uni.showToast({ title: msg, icon: 'none' })
+						}
+						reject(new Error(msg))
+						return
+					}
+					const empty = JSON.parseObject('{}')
+					if (empty != null) {
+						resolve(empty)
+					} else {
+						reject(new Error('响应数据为空'))
+					}
+					return
+				}
+				const code = body.getNumber('code')
+				const codeNum = code == null ? 0 : code
+				const rawMsg = body.getString('message')
+				const message = rawMsg == null ? '请求失败' : rawMsg
+				if (codeNum == 401) {
+					handleUnauthorized()
+					reject(new Error(message))
+					return
+				}
+				if (codeNum != 0) {
+					if (options.showError) {
+						uni.showToast({ title: message, icon: 'none' })
+					}
+					reject(new Error(message))
+					return
+				}
+				resolve(body)
+			},
+			fail: (err: RequestFail) => {
+				const msg = networkErrorMessage(err.errMsg)
+				if (options.showError) {
+					uni.showToast({ title: msg, icon: 'none' })
+				}
+				reject(new Error(msg))
+			}
+		})
+	})
+}
+
+/** 请求并返回 data 对象（data 非对象时返回 null） */
+export async function requestObject(method: string, path: string, options: RequestOptions): Promise<UTSJSONObject | null> {
+	const body = await sendEnvelope(method, path, options)
+	return body.getJSON('data')
+}
+
+/** 请求并返回 data 数组（data 非数组时返回空数组） */
+export async function requestList(method: string, path: string, options: RequestOptions): Promise<UTSJSONObject[]> {
+	const body = await sendEnvelope(method, path, options)
+	const arr = body.getArray<UTSJSONObject>('data')
+	return arr == null ? [] : arr
+}
+
+/* ============================================================
+ * 便捷方法
+ * ============================================================ */
+
+export function httpGet(path: string, params: UTSJSONObject | null = null): Promise<UTSJSONObject | null> {
+	const opts = defaultRequestOptions()
+	opts.params = params
+	return requestObject('GET', path, opts)
+}
+
+export function httpGetList(path: string, params: UTSJSONObject | null = null): Promise<UTSJSONObject[]> {
+	const opts = defaultRequestOptions()
+	opts.params = params
+	return requestList('GET', path, opts)
+}
+
+export function httpPost(path: string, data: UTSJSONObject | null = null): Promise<UTSJSONObject | null> {
+	const opts = defaultRequestOptions()
+	opts.data = data
+	return requestObject('POST', path, opts)
+}
+
+export function httpPatch(path: string, data: UTSJSONObject | null = null): Promise<UTSJSONObject | null> {
+	const opts = defaultRequestOptions()
+	opts.data = data
+	return requestObject('PATCH', path, opts)
+}
+
+/** 免鉴权 POST（login / register） */
+export function httpPostPublic(path: string, data: UTSJSONObject | null = null): Promise<UTSJSONObject | null> {
+	const opts = defaultRequestOptions()
+	opts.data = data
+	opts.auth = false
+	return requestObject('POST', path, opts)
+}

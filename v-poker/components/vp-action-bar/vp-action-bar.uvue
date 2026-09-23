@@ -1,0 +1,184 @@
+<template>
+	<view class="vpa">
+		<view class="vpa-btn vpa-fold" :class="fold_class" hover-class="vpa-pressed" @click="onFold">
+			<text class="vpa-btn-text vpa-text-light">弃牌</text>
+		</view>
+
+		<view v-if="can_check" class="vpa-btn vpa-check" :class="check_class" hover-class="vpa-pressed"
+			@click="onCheck">
+			<text class="vpa-btn-text vpa-text-light">过牌</text>
+		</view>
+		<view v-else class="vpa-btn vpa-call" :class="call_class" hover-class="vpa-pressed" @click="onCall">
+			<text class="vpa-btn-text vpa-text-dark">跟注</text>
+			<text class="vpa-btn-sub vpa-text-dark">{{ call_text }}</text>
+		</view>
+
+		<view class="vpa-btn vpa-raise" :class="raise_class" hover-class="vpa-pressed" @click="onRaise">
+			<text class="vpa-btn-text vpa-text-dark">加注</text>
+			<text class="vpa-btn-sub vpa-text-dark">滑动选额</text>
+		</view>
+
+		<view class="vpa-btn vpa-allin" :class="allin_class" hover-class="vpa-pressed" @click="onAllIn">
+			<text class="vpa-btn-text vpa-text-light">全下</text>
+			<text class="vpa-btn-sub vpa-text-light">{{ max_text }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+	import { formatAmount } from '@/utils/format.uts'
+
+	/**
+	 * 操作栏：弃牌 / 过牌 / 跟注 / 加注 / 全下
+	 * 按可用动作渲染并禁用；仅发出字符串动作，交由页面调用 store
+	 */
+	type VpActionBarProps = {
+		is_turn: boolean
+		can_check: boolean
+		call_amount: number
+		min_raise: number
+		max_raise: number
+	}
+
+	const props = defineProps<VpActionBarProps>()
+	const emit = defineEmits(['action'])
+
+	const call_text = computed((): string => {
+		return formatAmount(props.call_amount)
+	})
+
+	const max_text = computed((): string => {
+		return formatAmount(props.max_raise)
+	})
+
+	const enabled = computed((): boolean => {
+		return props.is_turn
+	})
+
+	const can_raise = computed((): boolean => {
+		return props.is_turn && props.max_raise > props.min_raise
+	})
+
+	const fold_class = computed((): string => {
+		return enabled.value ? '' : 'vpa-disabled'
+	})
+
+	const check_class = computed((): string => {
+		return enabled.value ? '' : 'vpa-disabled'
+	})
+
+	const call_class = computed((): string => {
+		return enabled.value ? '' : 'vpa-disabled'
+	})
+
+	const raise_class = computed((): string => {
+		return can_raise.value ? '' : 'vpa-disabled'
+	})
+
+	const allin_class = computed((): string => {
+		return enabled.value ? '' : 'vpa-disabled'
+	})
+
+	const onFold = () => {
+		if (enabled.value) {
+			emit('action', 'fold')
+		}
+	}
+
+	const onCheck = () => {
+		if (enabled.value) {
+			emit('action', 'check')
+		}
+	}
+
+	const onCall = () => {
+		if (enabled.value) {
+			emit('action', 'call')
+		}
+	}
+
+	const onRaise = () => {
+		if (can_raise.value) {
+			emit('action', 'raise')
+		}
+	}
+
+	const onAllIn = () => {
+		if (enabled.value) {
+			emit('action', 'all_in')
+		}
+	}
+</script>
+
+<style lang="scss">
+	.vpa {
+		height: 68px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+
+	.vpa-btn {
+		height: 46px;
+		flex: 1;
+		border-radius: $vp-radius-sm;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		margin-left: 4px;
+		margin-right: 4px;
+	}
+
+	.vpa-pressed {
+		opacity: 0.85;
+	}
+
+	.vpa-btn-text {
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.vpa-btn-sub {
+		font-size: 10px;
+		margin-top: 1px;
+		opacity: 0.85;
+	}
+
+	.vpa-text-light {
+		color: #ffffff;
+	}
+
+	.vpa-text-dark {
+		color: #14100a;
+	}
+
+	.vpa-fold {
+		background-color: $vp-surface-2;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.vpa-check {
+		background-color: $vp-info;
+	}
+
+	.vpa-call {
+		background-color: $vp-success;
+	}
+
+	.vpa-raise {
+		background-color: $vp-gold;
+	}
+
+	.vpa-allin {
+		background-color: $vp-danger;
+	}
+
+	.vpa-disabled {
+		opacity: 0.35;
+	}
+</style>

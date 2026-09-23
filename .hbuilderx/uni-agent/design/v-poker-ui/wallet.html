@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>V-POKER · 钱包</title>
+	<link rel="stylesheet" href="assets/design.css">
+</head>
+
+<body>
+	<div class="app" data-design-id="wallet-page">
+		<header class="topbar" data-design-id="wallet-topbar">
+			<button type="button" class="btn btn-secondary btn-sm" data-design-id="wallet-back">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+				返回
+			</button>
+			<div class="brand" data-design-id="wallet-title">钱包 <small>筹码账本</small></div>
+			<div style="flex:1"></div>
+			<button type="button" class="btn btn-secondary btn-sm" data-design-id="wallet-refresh">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+					<path d="M20 12a8 8 0 1 1-2.3-5.6" />
+					<path d="M20 4v4h-4" />
+				</svg>
+				刷新
+			</button>
+		</header>
+
+		<main class="main" data-design-id="wallet-main">
+			<div style="display:flex; gap:14px; align-items:stretch;">
+				<div class="panel" style="flex:1; display:flex; flex-direction:column; gap:6px;" data-design-id="wallet-balance-panel">
+					<span class="section-title">可用筹码</span>
+					<span class="num" style="font-size:38px; font-weight:700; color:var(--gold); line-height:1.2;" data-design-id="wallet-balance-value">12,340</span>
+					<span class="row-sub" data-design-id="wallet-balance-sub">冻结 <span class="num">0</span> · 钱包 w_player_player_alice</span>
+				</div>
+
+				<div class="panel" style="width:280px; display:flex; flex-direction:column; gap:10px;" data-design-id="wallet-transfer-panel">
+					<div class="panel-head" style="margin-bottom:0;">
+						<h3 class="panel-title" data-design-id="wallet-transfer-title">自由转账</h3>
+						<span class="section-title">手续费 0.01%</span>
+					</div>
+					<div class="field" data-design-id="transfer-to-field">
+						<label for="transfer-to">收款玩家 ID</label>
+						<input id="transfer-to" class="input" placeholder="如 player_bob" data-design-id="transfer-to-input">
+					</div>
+					<div class="field" data-design-id="transfer-amount-field">
+						<label for="transfer-amount">金额（整数筹码）</label>
+						<input id="transfer-amount" class="input num" inputmode="numeric" placeholder="10000" data-design-id="transfer-amount-input">
+					</div>
+					<button type="button" class="btn btn-primary btn-block" data-design-id="transfer-submit">确认转账</button>
+				</div>
+			</div>
+
+			<div class="panel" data-design-id="wallet-flow-panel">
+				<div class="panel-head">
+					<h3 class="panel-title" data-design-id="wallet-flow-title">资金流水</h3>
+					<span class="section-title" data-design-id="wallet-flow-note">每页 20 条 · 向下滚动加载</span>
+				</div>
+
+				<div class="rows" data-design-id="wallet-flow-rows">
+					<div class="row" data-design-id="tx-1">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-1-type">对局结算</span>
+							<span class="row-sub num" data-design-id="tx-1-time">2026-09-23 20:14:32 · game_settle</span>
+						</div>
+						<span class="amount-in num" data-design-id="tx-1-amount">+5,000</span>
+					</div>
+					<div class="row" data-design-id="tx-2">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-2-type">下注</span>
+							<span class="row-sub num" data-design-id="tx-2-time">2026-09-23 20:11:07 · bet</span>
+						</div>
+						<span class="amount-out num" data-design-id="tx-2-amount">-2,000</span>
+					</div>
+					<div class="row" data-design-id="tx-3">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-3-type">转账</span>
+							<span class="row-sub num" data-design-id="tx-3-time">2026-09-23 19:48:55 · transfer</span>
+						</div>
+						<span class="amount-out num" data-design-id="tx-3-amount">-10,000</span>
+					</div>
+					<div class="row" data-design-id="tx-4">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-4-type">代理佣金</span>
+							<span class="row-sub num" data-design-id="tx-4-time">2026-09-23 19:20:11 · commission</span>
+						</div>
+						<span class="amount-in num" data-design-id="tx-4-amount">+360</span>
+					</div>
+					<div class="row" data-design-id="tx-5">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-5-type">退款</span>
+							<span class="row-sub num" data-design-id="tx-5-time">2026-09-23 18:55:40 · refund</span>
+						</div>
+						<span class="amount-in num" data-design-id="tx-5-amount">+1,200</span>
+					</div>
+					<div class="row" data-design-id="tx-6">
+						<div class="row-main">
+							<span class="row-title" data-design-id="tx-6-type">铸币</span>
+							<span class="row-sub num" data-design-id="tx-6-time">2026-09-22 10:00:00 · mint</span>
+						</div>
+						<span class="amount-in num" data-design-id="tx-6-amount">+100,000</span>
+					</div>
+				</div>
+
+				<div style="display:flex; justify-content:center; padding-top:14px;">
+					<span class="row-sub" data-design-id="wallet-flow-end">没有更多了</span>
+				</div>
+			</div>
+		</main>
+	</div>
+</body>
+
+</html>

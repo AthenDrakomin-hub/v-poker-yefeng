@@ -1,0 +1,388 @@
+<template>
+	<view class="vp-page rl-page">
+		<view class="rl-statusbar" :style="statusBarStyle"></view>
+
+		<view class="rl-header">
+			<view class="rl-back" @click="goBack">
+				<text class="rl-back-text">←</text>
+			</view>
+			<text class="rl-title">{{ gameName }}</text>
+			<view class="rl-refresh" @click="onRefresh">
+				<text class="rl-refresh-text">🔄</text>
+			</view>
+		</view>
+
+		<view class="rl-filter">
+			<vp-tab v-model="filterStatus" :tabs="statusTabs" @change="onFilterChange" />
+		</view>
+
+		<scroll-view class="rl-list" direction="vertical" @scrolltolower="noop">
+			<view class="rl-grid">
+				<view v-for="r in rooms" :key="r.room_id" class="rl-card vp-card">
+					<view class="rl-card-top">
+						<text class="rl-no">房号 {{ r.room_id }}</text>
+						<view class="rl-status" :class="statusClass(r.status)">
+							<text class="rl-status-text" :class="statusTextClass(r.status)">{{ statusText(r.status) }}</text>
+						</view>
+					</view>
+					<text class="rl-name">{{ r.room_name }}</text>
+					<view class="rl-card-mid">
+						<view class="rl-meta">
+							<text class="rl-label">底分</text>
+							<text class="rl-value">{{ r.base_score }}</text>
+						</view>
+						<view class="rl-meta">
+							<text class="rl-label">人数上限</text>
+							<text class="rl-value">{{ r.max_players }}</text>
+						</view>
+						<view class="rl-meta">
+							<text class="rl-label">局数</text>
+							<text class="rl-value">{{ r.current_round }}/{{ r.total_rounds }}</text>
+						</view>
+					</view>
+					<view class="rl-enter">
+						<vp-button size="sm" type="gold" text="进入" block @click="enterRoom(r)" />
+					</view>
+				</view>
+			</view>
+
+			<vp-empty v-if="rooms.length == 0 && !lobby.loading" title="暂无房间"
+				description="该筛选下暂无开放房间" action-text="刷新列表" @action="onRefresh" />
+		</scroll-view>
+
+		<view class="rl-fab" hover-class="rl-fab-pressed" @click="openJoin">
+			<text class="rl-fab-text">+</text>
+		</view>
+
+		<vp-dialog :visible="showJoin" title="加入房间" confirm-text="加入"
+			@update:visible="onJoinVisible" @confirm="onJoin">
+			<view class="rl-join">
+				<vp-input v-model="joinId" placeholder="请输入房间号" />
+				<view class="rl-join-gap"></view>
+				<vp-input v-model="joinPassword" type="password" placeholder="请输入房间密码" />
+			</view>
+		</vp-dialog>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useLobbyStore, RoomItem } from '@/store/lobby.uts'
+	import { gameTypeName, gameTypeRoute } from '@/utils/games.uts'
+
+	type TabItem = {
+		label: string
+		value: string
+	}
+
+	const auth = useAuthStore()
+	const lobby = useLobbyStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const gameType = ref('')
+	const gameName = ref('房间列表')
+	const filterStatus = ref('waiting')
+	const showJoin = ref(false)
+	const joinId = ref('')
+	const joinPassword = ref('')
+	const joining = ref(false)
+
+	const statusTabs: TabItem[] = [
+		{ label: '等待中', value: 'waiting' },
+		{ label: '进行中', value: 'playing' },
+		{ label: '全部', value: '' }
+	]
+
+	const rooms = computed((): RoomItem[] => lobby.rooms)
+
+	onLoad((options) => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+		const gt = options.getString('game_type')
+		if (gt != null && gt.length > 0) {
+			gameType.value = gt
+			lobby.filterGameType = gt
+		}
+		const name = options.getString('name')
+		if (name != null && name.length > 0) {
+			gameName.value = name
+		} else if (gameType.value.length > 0) {
+			gameName.value = gameTypeName(gameType.value)
+		}
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		lobby.filterStatus = filterStatus.value
+		lobby.fetchRooms()
+	})
+
+	const statusText = (status: string): string => {
+		if (status == 'waiting') {
+			return '等待中'
+		}
+		if (status == 'playing') {
+			return '进行中'
+		}
+		if (status == 'finished') {
+			return '已结束'
+		}
+		return status
+	}
+
+	const statusClass = (status: string): string => {
+		return status == 'playing' ? 'rl-status-playing' : 'rl-status-waiting'
+	}
+
+	const statusTextClass = (status: string): string => {
+		return status == 'playing' ? 'rl-status-text-playing' : 'rl-status-text-waiting'
+	}
+
+	const onFilterChange = () => {
+		lobby.filterStatus = filterStatus.value
+		lobby.fetchRooms()
+	}
+
+	const onRefresh = () => {
+		lobby.fetchRooms()
+	}
+
+	const enterRoom = (r: RoomItem) => {
+		if (r.room_type == 'private') {
+			joinId.value = r.room_id
+			showJoin.value = true
+			return
+		}
+		doEnter(r.room_id, '', r.game_type)
+	}
+
+	const openJoin = () => {
+		joinId.value = ''
+		joinPassword.value = ''
+		showJoin.value = true
+	}
+
+	const onJoinVisible = (v: boolean) => {
+		showJoin.value = v
+	}
+
+	const onJoin = async () => {
+		const id = joinId.value.trim()
+		if (id.length == 0) {
+			uni.showToast({ title: '请输入房间号', icon: 'none' })
+			return
+		}
+		if (joining.value) {
+			return
+		}
+		joining.value = true
+		try {
+			await doEnter(id, joinPassword.value, gameType.value)
+			showJoin.value = false
+		} finally {
+			joining.value = false
+		}
+	}
+
+	const doEnter = async (id: string, password: string, gt: string) => {
+		try {
+			const data = await lobby.joinRoom(id, password)
+			if (data != null) {
+				const route = gameTypeRoute(gt)
+				uni.navigateTo({ url: `${route}?room_id=${id}` })
+			}
+		} catch (e) {
+			console.error('joinRoom failed', e)
+		}
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+
+	const noop = () => {}
+</script>
+
+<style lang="scss">
+	.rl-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.rl-statusbar {
+		width: 100%;
+	}
+
+	.rl-header {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 8px;
+		padding-right: 16px;
+	}
+
+	.rl-back {
+		width: 32px;
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rl-back-text {
+		color: $vp-text;
+		font-size: 18px;
+	}
+
+	.rl-title {
+		flex: 1;
+		text-align: center;
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.rl-refresh {
+		width: 32px;
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rl-refresh-text {
+		font-size: 16px;
+	}
+
+	.rl-filter {
+		flex-direction: row;
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.rl-list {
+		flex: 1;
+		padding-left: 16px;
+		padding-right: 16px;
+		margin-top: 12px;
+	}
+
+	.rl-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.rl-card {
+		width: 200px;
+		margin-right: 12px;
+		margin-bottom: 12px;
+		padding: 12px;
+		flex-direction: column;
+	}
+
+	.rl-card-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.rl-no {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.rl-status {
+		border-radius: 999px;
+		padding: 2px 8px;
+	}
+
+	.rl-status-waiting {
+		background-color: rgba(16, 185, 129, 0.25);
+	}
+
+	.rl-status-playing {
+		background-color: rgba(239, 68, 68, 0.25);
+	}
+
+	.rl-status-text {
+		font-size: 10px;
+	}
+
+	.rl-status-text-waiting {
+		color: #3ed683;
+	}
+
+	.rl-status-text-playing {
+		color: #ff6b6b;
+	}
+
+	.rl-name {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 6px;
+	}
+
+	.rl-card-mid {
+		flex-direction: row;
+		margin-top: 8px;
+		margin-bottom: 10px;
+	}
+
+	.rl-meta {
+		flex-direction: column;
+		margin-right: 16px;
+	}
+
+	.rl-label {
+		color: $vp-muted;
+		font-size: 10px;
+	}
+
+	.rl-value {
+		color: $vp-text;
+		font-size: 13px;
+		font-weight: bold;
+		margin-top: 2px;
+	}
+
+	.rl-enter {
+		flex-direction: row;
+	}
+
+	.rl-fab {
+		position: fixed;
+		right: 30px;
+		bottom: 30px;
+		width: 50px;
+		height: 50px;
+		background-color: #7c5cff;
+		border-radius: 50%;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rl-fab-pressed {
+		opacity: 0.85;
+	}
+
+	.rl-fab-text {
+		color: #ffffff;
+		font-size: 28px;
+	}
+
+	.rl-join {
+		flex-direction: column;
+		width: 260px;
+	}
+
+	.rl-join-gap {
+		height: 10px;
+	}
+</style>

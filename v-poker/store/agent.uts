@@ -1,0 +1,71 @@
+/**
+ * 代理 Store
+ * 契约 3.4：/api/agent/dashboard、/children、/settlements、/commission
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import {
+	dashboard as apiDashboard,
+	children as apiChildren,
+	settlements as apiSettlements,
+	commission as apiCommission
+} from '@/utils/http/api/agent.uts'
+
+export const useAgentStore = defineStore('agent', () => {
+	const dashboard = ref<UTSJSONObject | null>(null)
+	const children = ref<UTSJSONObject[]>([])
+	const settlements = ref<UTSJSONObject | null>(null)
+	const commission = ref<UTSJSONObject | null>(null)
+	const loading = ref(false)
+	const errorMessage = ref('')
+
+	const loadDashboard = async () => {
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			dashboard.value = await apiDashboard()
+		} catch (e) {
+			errorMessage.value = '代理数据加载失败'
+		} finally {
+			loading.value = false
+		}
+	}
+
+	const loadChildren = async (parentId: string | null = null) => {
+		try {
+			children.value = await apiChildren(parentId)
+		} catch (e) {
+			console.error('loadChildren failed', e)
+		}
+	}
+
+	const loadSettlements = async () => {
+		try {
+			settlements.value = await apiSettlements()
+		} catch (e) {
+			console.error('loadSettlements failed', e)
+		}
+	}
+
+	const loadCommission = async () => {
+		try {
+			commission.value = await apiCommission()
+		} catch (e) {
+			console.error('loadCommission failed', e)
+		}
+	}
+
+	return {
+		dashboard,
+		children,
+		settlements,
+		commission,
+		loading,
+		errorMessage,
+		loadDashboard,
+		loadChildren,
+		loadSettlements,
+		loadCommission
+	}
+})

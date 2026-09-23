@@ -1,0 +1,142 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://doc.dcloud.net.cn/uni-app-x/collocation/pagesjson.html
+		{
+			"path": "pages/splash/splash",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/register/register",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/hall/hall",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/room-list/room-list",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/create-room/create-room",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/my-rooms/my-rooms",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/table-texas/table-texas",
+			"style": {
+				"navigationStyle": "custom",
+				"disableScroll": true,
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/table-zhajinhua/table-zhajinhua",
+			"style": {
+				"navigationStyle": "custom",
+				"disableScroll": true,
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/table-niuniu/table-niuniu",
+			"style": {
+				"navigationStyle": "custom",
+				"disableScroll": true,
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/table-sangong/table-sangong",
+			"style": {
+				"navigationStyle": "custom",
+				"disableScroll": true,
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/wallet/wallet",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/flow/flow",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/agent/agent",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/setting/setting",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/error/error",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/dev/engine-test",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "v-poker",
+		"navigationBarBackgroundColor": "#141922",
+		"backgroundColor": "#0a0e14",
+		"backgroundColorContent": "#0a0e14",
+		"pageOrientation": "landscape"
+	}
+}

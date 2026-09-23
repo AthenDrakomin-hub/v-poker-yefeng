@@ -1,0 +1,107 @@
+<template>
+	<view class="vpi" :class="rootClass">
+		<input class="vpi-inner" :type="inputType" :value="modelValue" :placeholder="placeholder"
+			:placeholder-style="placeholderStyle" :password="isPassword" @input="onInput"
+			@focus="onFocus" @blur="onBlur" />
+		<text v-if="error.length > 0" class="vpi-error">{{ error }}</text>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+
+	/**
+	 * 输入框（迁移自源 PkInput）
+	 * vapor 约束：:focus 伪类改 @focus/@blur 状态 class；错误提示绝对定位在容器内
+	 */
+	type VpInputProps = {
+		modelValue: string
+		/** text | password | number */
+		type: string
+		placeholder: string
+		error: string
+	}
+
+	const props = withDefaults(defineProps<VpInputProps>(), {
+		modelValue: '',
+		type: 'text',
+		placeholder: '',
+		error: ''
+	})
+
+	const emit = defineEmits(['update:modelValue'])
+
+	const focused = ref(false)
+	const placeholderStyle = 'color: #9aa4b2'
+
+	const inputType = computed((): string => {
+		return props.type == 'number' ? 'number' : 'text'
+	})
+
+	const isPassword = computed((): boolean => {
+		return props.type == 'password'
+	})
+
+	const rootClass = computed((): string => {
+		let c = ''
+		if (focused.value) {
+			c += ' vpi-focus'
+		}
+		if (props.error.length > 0) {
+			c += ' vpi-error-border'
+		}
+		return c
+	})
+
+	const onInput = (e: UniInputEvent) => {
+		emit('update:modelValue', e.detail.value)
+	}
+
+	const onFocus = () => {
+		focused.value = true
+	}
+
+	const onBlur = () => {
+		focused.value = false
+	}
+</script>
+
+<style lang="scss">
+	.vpi {
+		position: relative;
+		flex-direction: row;
+		align-items: center;
+		height: 44px;
+		background-color: $vp-surface-2;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		border-radius: $vp-radius-sm;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.vpi-focus {
+		border-color: $vp-gold;
+	}
+
+	.vpi-error-border {
+		border-color: $vp-danger;
+	}
+
+	.vpi-inner {
+		flex: 1;
+		height: 100%;
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.vpi-error {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		margin-top: 4px;
+		font-size: 11px;
+		color: $vp-danger;
+	}
+</style>

@@ -1,0 +1,320 @@
+<template>
+	<view class="vp-page mr-page">
+		<view class="mr-statusbar" :style="statusBarStyle"></view>
+
+		<view class="mr-topbar">
+			<view class="mr-back" hover-class="mr-pressed" @click="goBack">
+				<text class="mr-back-text">← 返回</text>
+			</view>
+			<view class="mr-brand">
+				<text class="mr-brand-text">我的房间</text>
+				<text class="mr-brand-sub">仅显示我创建的房间</text>
+			</view>
+			<view class="mr-spacer"></view>
+			<view class="mr-refresh" hover-class="mr-pressed" @click="loadRooms">
+				<text class="mr-refresh-text">刷新</text>
+			</view>
+		</view>
+
+		<view class="mr-body">
+			<view class="mr-filter">
+				<vp-tab v-model="filter" :tabs="tabs" @change="onFilterChange" />
+			</view>
+
+			<scroll-view class="mr-list" direction="vertical">
+				<view class="mr-grid">
+					<view v-for="r in filteredRooms" :key="r.room_id" class="mr-card vp-card">
+						<view class="mr-card-top">
+							<text class="mr-no">{{ r.room_name }}</text>
+							<view class="mr-status" :class="statusClass(r.status)">
+								<text class="mr-status-text">{{ statusText(r.status) }}</text>
+							</view>
+						</view>
+						<text class="mr-meta">{{ gameTypeIcon(r.game_type) }} {{ gameTypeName(r.game_type) }} · 房号 {{ r.room_id }}</text>
+						<text class="mr-meta">第 {{ r.current_round }}/{{ r.total_rounds }} 局 · 上限 {{ r.max_players }} 人 · 底分 {{ r.base_score }}</text>
+						<view class="mr-btns">
+							<vp-button size="sm" type="blue" text="旁观" @click="spectate(r)" />
+							<view class="mr-btn-gap"></view>
+							<vp-button size="sm" type="gold" text="进入" @click="enter(r)" />
+						</view>
+					</view>
+				</view>
+
+				<vp-empty v-if="filteredRooms.length == 0 && !loading" title="暂无房间"
+					:description="filter == 'playing' ? '当前没有进行中的房间' : '暂无已结束的房间'"
+					action-text="创建房间" @action="goCreate" />
+			</scroll-view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { listRooms } from '@/utils/http/api/room.uts'
+	import { RoomItem } from '@/store/lobby.uts'
+	import { gameTypeName, gameTypeIcon, gameTypeRoute, roomStatusText } from '@/utils/games.uts'
+
+	type TabItem = {
+		label: string
+		value: string
+	}
+
+	const auth = useAuthStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const filter = ref('playing')
+	const loading = ref(false)
+	const allRooms = ref<RoomItem[]>([])
+
+	const tabs: TabItem[] = [
+		{ label: '进行中', value: 'playing' },
+		{ label: '已结束', value: 'finished' }
+	]
+
+	/** 我的房间 = 全量列表中 created_by == 当前用户 */
+	const filteredRooms = computed((): RoomItem[] => {
+		const out: RoomItem[] = []
+		for (let i = 0; i < allRooms.value.length; i++) {
+			const r = allRooms.value[i]
+			if (r.created_by == auth.userId && r.status == filter.value) {
+				out.push(r)
+			}
+		}
+		return out
+	})
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		loadRooms()
+	})
+
+	const loadRooms = async () => {
+		loading.value = true
+		try {
+			const raw = await listRooms(null, null)
+			const list: RoomItem[] = []
+			for (let i = 0; i < raw.length; i++) {
+				list.push(readRoom(raw[i]))
+			}
+			allRooms.value = list
+		} catch (e) {
+			console.error('loadRooms failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	const readRoom = (obj: UTSJSONObject): RoomItem => {
+		const rid = obj.getString('room_id')
+		const name = obj.getString('room_name')
+		const gt = obj.getString('game_type')
+		const base = obj.getNumber('base_score')
+		const minP = obj.getNumber('min_players')
+		const maxP = obj.getNumber('max_players')
+		const status = obj.getString('status')
+		const cur = obj.getNumber('current_round')
+		const total = obj.getNumber('total_rounds')
+		const rtype = obj.getString('room_type')
+		const createdBy = obj.getString('created_by')
+		return {
+			room_id: rid == null ? '' : rid,
+			room_name: name == null ? '' : name,
+			game_type: gt == null ? '' : gt,
+			base_score: base == null ? 0 : base,
+			min_players: minP == null ? 2 : minP,
+			max_players: maxP == null ? 6 : maxP,
+			status: status == null ? '' : status,
+			current_round: cur == null ? 0 : cur,
+			total_rounds: total == null ? 0 : total,
+			room_type: rtype == null ? 'public' : rtype,
+			created_by: createdBy == null ? '' : createdBy
+		}
+	}
+
+	const onFilterChange = () => {}
+
+	const statusText = (status: string): string => roomStatusText(status)
+
+	const statusClass = (status: string): string => {
+		return status == 'playing' ? 'mr-status-playing' : 'mr-status-ended'
+	}
+
+	const spectate = (r: RoomItem) => {
+		uni.navigateTo({ url: `${gameTypeRoute(r.game_type)}?room_id=${r.room_id}&as_spectator=true` })
+	}
+
+	const enter = (r: RoomItem) => {
+		uni.navigateTo({ url: `${gameTypeRoute(r.game_type)}?room_id=${r.room_id}` })
+	}
+
+	const goCreate = () => {
+		uni.navigateTo({ url: '/pages/create-room/create-room' })
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.mr-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.mr-statusbar {
+		width: 100%;
+	}
+
+	.mr-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.mr-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.mr-pressed {
+		opacity: 0.75;
+	}
+
+	.mr-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.mr-brand {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-left: 16px;
+	}
+
+	.mr-brand-text {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.mr-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.mr-spacer {
+		flex: 1;
+	}
+
+	.mr-refresh {
+		height: 30px;
+		background-color: $vp-surface-2;
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.mr-refresh-text {
+		color: $vp-text;
+		font-size: 12px;
+	}
+
+	.mr-body {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.mr-filter {
+		flex-direction: row;
+		margin-bottom: 12px;
+	}
+
+	.mr-list {
+		flex: 1;
+	}
+
+	.mr-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.mr-card {
+		width: 240px;
+		margin-right: 12px;
+		margin-bottom: 12px;
+		padding: 14px;
+		flex-direction: column;
+	}
+
+	.mr-card-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.mr-no {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.mr-status {
+		border-radius: 999px;
+		padding: 2px 8px;
+	}
+
+	.mr-status-playing {
+		background-color: rgba(239, 68, 68, 0.16);
+	}
+
+	.mr-status-ended {
+		background-color: rgba(154, 164, 178, 0.16);
+	}
+
+	.mr-status-text {
+		color: $vp-muted;
+		font-size: 10px;
+	}
+
+	.mr-meta {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 6px;
+	}
+
+	.mr-btns {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 12px;
+	}
+
+	.mr-btn-gap {
+		width: 8px;
+	}
+</style>

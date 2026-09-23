@@ -1,0 +1,166 @@
+/**
+ * 德州扑克底池与边池结算
+ * 边池算法：按下注额升序去重分层，每层金额 = (本层 - 上层) × 该层参与人数
+ * 赢家均分，余数前 N 个赢家各多拿 1 个筹码
+ */
+
+import { HandResult, PlayerNetResult, RoundState, Seat, SidePot } from './types.uts'
+import { evaluate7Cards } from './evaluator.uts'
+
+function scoreOf(seat: Seat, state: RoundState): number {
+	const hr = seat.hand_result
+	if (hr != null) {
+		return (hr as HandResult).score
+	}
+	return evaluate7Cards(seat.cards, state.community_cards).score
+}
+
+/**
+ * 计算边池分层
+ */
+export function calculateSidePots(state: RoundState): SidePot[] {
+	const players: Seat[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		const s = state.seats[i]
+		if (s.user_id.length > 0 && s.current_bet > 0 && s.status != 'folded') {
+			players.push(s)
+		}
+	}
+	if (players.length == 0) {
+		return []
+	}
+
+	const betLevels: number[] = []
+	for (let i = 0; i < players.length; i++) {
+		const b = players[i].current_bet
+		let found = false
+		for (let j = 0; j < betLevels.length; j++) {
+			if (betLevels[j] == b) {
+				found = true
+				break
+			}
+		}
+		if (!found) {
+			betLevels.push(b)
+		}
+	}
+	betLevels.sort((a: number, b: number): number => a - b)
+
+	const sidePots: SidePot[] = []
+	let prevLevel = 0
+	for (let li = 0; li < betLevels.length; li++) {
+		const level = betLevels[li]
+		const eligible: string[] = []
+		for (let i = 0; i < players.length; i++) {
+			if (players[i].current_bet >= level) {
+				eligible.push(players[i].user_id)
+			}
+		}
+		const layerAmount = (level - prevLevel) * eligible.length
+		if (layerAmount > 0) {
+			const pot: SidePot = {
+				amount: layerAmount,
+				eligible_user_ids: eligible
+			}
+			sidePots.push(pot)
+		}
+		prevLevel = level
+	}
+	return sidePots
+}
+
+/**
+ * 计算每个玩家的净输赢（含边池分配与余数处理）
+ */
+export function calculateNetScores(state: RoundState): PlayerNetResult[] {
+	const activeSeats: Seat[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		const s = state.seats[i]
+		if (s.user_id.length > 0 && s.current_bet > 0 && s.status != 'folded') {
+			activeSeats.push(s)
+		}
+	}
+
+	const results: PlayerNetResult[] = []
+	if (activeSeats.length == 0) {
+		return results
+	}
+
+	const sidePots = calculateSidePots(state)
+	state.side_pots = sidePots
+
+	const netMap = new Map<string, number>()
+	const betMap = new Map<string, number>()
+	const handMap = new Map<string, string>()
+	for (let i = 0; i < activeSeats.length; i++) {
+		const s = activeSeats[i]
+		netMap.set(s.user_id, -s.current_bet)
+		betMap.set(s.user_id, s.current_bet)
+		const hr = s.hand_result
+		handMap.set(s.user_id, hr == null ? '未评估' : (hr as HandResult).rank_name)
+	}
+
+	for (let pi = 0; pi < sidePots.length; pi++) {
+		const pot = sidePots[pi]
+		const contenders: Seat[] = []
+		for (let i = 0; i < activeSeats.length; i++) {
+			const s = activeSeats[i]
+			if (pot.eligible_user_ids.includes(s.user_id)) {
+				contenders.push(s)
+			}
+		}
+		if (contenders.length == 0) {
+			continue
+		}
+
+		contenders.sort((a: Seat, b: Seat): number => {
+			return scoreOf(b, state) - scoreOf(a, state)
+		})
+
+		const topScore = scoreOf(contenders[0], state)
+		const winners: Seat[] = []
+		for (let i = 0; i < contenders.length; i++) {
+			if (scoreOf(contenders[i], state) == topScore) {
+				winners.push(contenders[i])
+			}
+		}
+
+		const share = Math.floor(pot.amount / winners.length)
+		const remainder = pot.amount - share * winners.length
+		for (let i = 0; i < winners.length; i++) {
+			const uid = winners[i].user_id
+			const prev = netMap.get(uid)
+			const add = share + (i < remainder ? 1 : 0)
+			netMap.set(uid, (prev == null ? 0 : prev) + add)
+		}
+	}
+
+	for (let i = 0; i < state.seats.length; i++) {
+		const s = state.seats[i]
+		if (s.user_id.length == 0 || s.current_bet <= 0) {
+			continue
+		}
+
+		let net = 0
+		if (s.status == 'folded') {
+			net = -s.current_bet
+		} else {
+			const n = netMap.get(s.user_id)
+			net = n == null ? 0 : n
+		}
+
+		const bet = betMap.get(s.user_id)
+		const betTotal = bet == null ? s.current_bet : bet
+		const handName = handMap.get(s.user_id)
+
+		const r: PlayerNetResult = {
+			user_id: s.user_id,
+			net_amount: net,
+			bet_total: betTotal,
+			gross_win: Math.max(0, net + betTotal),
+			hand_name: s.status == 'folded' ? '弃牌' : (handName == null ? '未评估' : handName)
+		}
+		results.push(r)
+	}
+	return results
+}

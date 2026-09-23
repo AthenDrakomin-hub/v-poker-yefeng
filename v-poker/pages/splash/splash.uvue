@@ -1,0 +1,90 @@
+<template>
+	<view class="vp-page sp-page">
+		<view class="sp-body">
+			<text class="sp-logo">V-POKER</text>
+			<text class="sp-slogan">德州扑克 · 牛牛 · 三公 · 炸金花</text>
+
+			<view class="sp-bar">
+				<view class="sp-bar-inner" :style="barStyle"></view>
+			</view>
+			<text class="sp-tip">{{ tip }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+
+	const auth = useAuthStore()
+
+	const tip = ref('正在启动…')
+	const barStyle = ref('width: 10%;')
+
+	onLoad(() => {
+		let progress = 10
+		const timer = setInterval(() => {
+			progress += 20
+			if (progress > 100) {
+				progress = 100
+			}
+			barStyle.value = `width: ${progress}%;`
+			if (progress >= 100) {
+				clearInterval(timer)
+				auth.restore()
+				tip.value = '进入游戏…'
+				setTimeout(() => {
+					uni.reLaunch({ url: auth.isLoggedIn ? '/pages/hall/hall' : '/pages/login/login' })
+				}, 300)
+			}
+		}, 180)
+	})
+</script>
+
+<style lang="scss">
+	.sp-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.sp-body {
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.sp-logo {
+		color: $vp-gold;
+		font-size: 52px;
+		font-weight: bold;
+		letter-spacing: 8px;
+	}
+
+	.sp-slogan {
+		color: $vp-muted;
+		font-size: 14px;
+		margin-top: 12px;
+	}
+
+	.sp-bar {
+		width: 220px;
+		height: 6px;
+		background-color: $vp-surface-2;
+		border-radius: 3px;
+		margin-top: 40px;
+		flex-direction: row;
+	}
+
+	.sp-bar-inner {
+		height: 6px;
+		background-color: $vp-gold;
+		border-radius: 3px;
+	}
+
+	.sp-tip {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 14px;
+	}
+</style>

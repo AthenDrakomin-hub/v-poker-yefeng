@@ -1,0 +1,112 @@
+<template>
+	<view v-if="active && remain > 0" class="vpcnt" :class="box_class">
+		<text class="vpcnt-text" :class="text_class">{{ countdown_text }}</text>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+	import { formatCountdown, isCountdownDanger } from '@/utils/format.uts'
+
+	/**
+	 * 倒计时：由服务端绝对 deadline 本地驱动（200ms 刷新），不依赖轮询到达时刻
+	 * deadline 为已换算到本地时钟的毫秒时间戳；<=5s 变红
+	 */
+	type VpCountdownProps = {
+		deadline: number
+		active: boolean
+	}
+
+	const props = defineProps<VpCountdownProps>()
+	const emit = defineEmits(['timeout'])
+
+	const remain = ref(0)
+	let timer: number | null = null
+	let notified = false
+
+	const tick = () => {
+		if (!props.active) {
+			remain.value = 0
+			return
+		}
+		const r = props.deadline - Date.now()
+		remain.value = r > 0 ? r : 0
+		if (r <= 0 && !notified) {
+			notified = true
+			emit('timeout')
+		}
+	}
+
+	const countdown_text = computed((): string => {
+		return formatCountdown(remain.value)
+	})
+
+	const danger = computed((): boolean => {
+		return isCountdownDanger(remain.value)
+	})
+
+	const box_class = computed((): string => {
+		return danger.value ? 'vpcnt-danger' : ''
+	})
+
+	const text_class = computed((): string => {
+		return danger.value ? 'vpcnt-text-danger' : ''
+	})
+
+	onMounted(() => {
+		tick()
+		if (timer != null) {
+			clearInterval(timer)
+		}
+		timer = setInterval(() => {
+			tick()
+		}, 200)
+	})
+
+	onUnmounted(() => {
+		if (timer != null) {
+			clearInterval(timer)
+			timer = null
+		}
+	})
+
+	watch((): number => props.deadline, (v: number) => {
+		notified = false
+		tick()
+	})
+
+	watch((): boolean => props.active, (v: boolean) => {
+		notified = false
+		tick()
+	})
+</script>
+
+<style lang="scss">
+	.vpcnt {
+		width: 44px;
+		height: 44px;
+		border-radius: 22px;
+		background-color: $vp-ink;
+		border-width: 3px;
+		border-style: solid;
+		border-color: $vp-gold;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vpcnt-danger {
+		border-color: $vp-danger;
+		background-color: #2a1416;
+	}
+
+	.vpcnt-text {
+		color: $vp-gold;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.vpcnt-text-danger {
+		color: $vp-danger;
+	}
+</style>

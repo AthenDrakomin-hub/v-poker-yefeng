@@ -1,0 +1,551 @@
+<template>
+	<view class="ts-page">
+		<view class="ts-statusbar" :style="statusBarStyle"></view>
+
+		<view class="ts-header">
+			<view class="ts-back" hover-class="ts-pressed" @click="goBack">
+				<text class="ts-back-text">← 离开</text>
+			</view>
+
+			<view class="ts-header-center">
+				<text class="ts-title">{{ gameName }} · 房号 {{ roomId }}</text>
+				<text class="ts-phase">{{ phaseText }}</text>
+			</view>
+
+			<view class="ts-header-right">
+				<view class="ts-hand">
+					<text class="ts-hand-label">我的手牌</text>
+					<vp-card v-for="(c, i) in roomStore.myCardCodes" :key="i" :code="c" :face_down="false" size="sm" />
+					<text v-if="roomStore.myCardCodes.length == 0" class="ts-hand-empty">—</text>
+				</view>
+				<view class="ts-balance">
+					<text class="ts-balance-text">{{ balanceText }}</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="ts-body">
+			<view class="ts-table-wrap" :style="tableWrapStyle">
+				<view class="ts-felt-holder">
+					<vp-poker-table :pot="roomStore.pot" :community_codes="roomStore.communityCodes"
+						:phase="roomStore.phase" />
+				</view>
+
+				<view v-for="(seat, i) in roomStore.seats" :key="seat.seat_index" class="ts-seat-pos"
+					:style="seatStyle(i, roomStore.seats.length)">
+					<vp-seat :seat_index="seat.seat_index" :user_id="seat.user_id" :chips="seat.chips"
+						:current_bet="seat.current_bet" :status="seat.status"
+						:is_turn="roomStore.turnSeatIndex == seat.seat_index && roomStore.phase == 'BETTING'"
+						:is_self="roomStore.mySeatIndex == i" :is_disconnected="seat.is_disconnected"
+						:card_codes="cardsFor(i)" :hidden_card_count="hiddenFor(i)"
+						:hand_name="seat.hand_name" />
+				</view>
+
+				<view v-if="roomStore.isMyTurn" class="ts-countdown">
+					<vp-countdown :deadline="roomStore.turnDeadline" :active="roomStore.isMyTurn" @timeout="onTimeout" />
+				</view>
+			</view>
+		</view>
+
+		<view class="ts-footer">
+			<view v-if="roomStore.canReady" class="ts-ready">
+				<vp-button type="gold" :text="readyText" @click="toggleReady" />
+				<text class="ts-ready-hint">已准备 {{ roomStore.readyCount }} 人</text>
+			</view>
+			<view v-else-if="game_type == 'texas_holdem'" class="ts-actions">
+				<text class="ts-hint">{{ actionHint }}</text>
+				<vp-action-bar :is_turn="roomStore.isMyTurn" :can_check="roomStore.canCheck"
+					:call_amount="roomStore.callAmount" :min_raise="roomStore.minRaise"
+					:max_raise="roomStore.maxRaise" @action="onAction" />
+			</view>
+			<view v-else class="ts-actions-row">
+				<vp-button size="sm" type="gray" text="弃牌" @click="onSimple('fold')" />
+				<view class="ts-gap"></view>
+				<vp-button v-if="game_type == 'zha_jin_hua'" size="sm" type="blue" text="看牌"
+					@click="onSimple('view_cards')" />
+				<view v-if="game_type == 'zha_jin_hua'" class="ts-gap"></view>
+				<vp-button v-if="game_type == 'zha_jin_hua'" size="sm" type="purple" text="比牌"
+					@click="onCompare" />
+				<view v-if="game_type == 'zha_jin_hua'" class="ts-gap"></view>
+				<vp-button size="sm" type="gold" text="跟注" @click="onSimple('call')" />
+				<view class="ts-gap"></view>
+				<vp-button size="sm" type="gold" text="加注" @click="showRaise = true" />
+			</view>
+		</view>
+
+		<vp-raise-slider v-if="showRaise" :min="roomStore.minRaise" :max="roomStore.maxRaise" :step="1"
+			:value="roomStore.minRaise" :pot="roomStore.pot" @confirm="onRaiseConfirm" @cancel="onRaiseCancel" />
+
+		<vp-toast :visible="toastVisible" :type="toastType" :message="toastMessage" @close="closeToast" />
+
+		<vp-dialog :visible="showCompare" title="选择比牌对象" confirm-text="确定" @update:visible="onCompareVisible"
+			@confirm="onCompareConfirm">
+			<view class="ts-compare">
+				<view v-for="p in compareTargets" :key="p.user_id" class="ts-compare-item"
+					:class="p.user_id == compareTarget ? 'ts-compare-active' : ''"
+					@click="selectCompare(p.user_id)">
+					<text class="ts-compare-text">{{ p.user_id }}</text>
+				</view>
+				<text v-if="compareTargets.length == 0" class="ts-compare-empty">暂无可比牌玩家</text>
+			</view>
+		</vp-dialog>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useWalletStore } from '@/store/wallet.uts'
+	import { useRoomStore, phaseLabel } from '@/store/room.uts'
+	import { gameTypeName } from '@/utils/games.uts'
+	import { formatAmount } from '@/utils/format.uts'
+	import { releaseAudio } from '@/utils/audio.uts'
+
+	type VpTableShellProps = {
+		game_type: string
+		room_id: string
+		as_spectator: boolean
+	}
+
+	/** 比牌可选对象 */
+	type CompareTarget = {
+		user_id: string
+	}
+
+	const props = withDefaults(defineProps<VpTableShellProps>(), {
+		game_type: 'texas_holdem',
+		room_id: '',
+		as_spectator: false
+	})
+
+	const auth = useAuthStore()
+	const wallet = useWalletStore()
+	const roomStore = useRoomStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const roomId = ref('')
+	const joined = ref(false)
+	const tableW = ref(0)
+	const tableH = ref(0)
+	const showRaise = ref(false)
+
+	const showCompare = ref(false)
+	const compareTarget = ref('')
+
+	const toastVisible = ref(false)
+	const toastType = ref('info')
+	const toastMessage = ref('')
+
+	const compareTargets = computed((): CompareTarget[] => {
+		const out: CompareTarget[] = []
+		for (let i = 0; i < roomStore.seats.length; i++) {
+			const s = roomStore.seats[i]
+			if (s.user_id.length > 0 && s.user_id != auth.userId && s.status != 'empty' && s.status != 'folded') {
+				out.push({ user_id: s.user_id })
+			}
+		}
+		return out
+	})
+
+	const gameName = computed((): string => gameTypeName(props.game_type))
+	const phaseText = computed((): string => phaseLabel(roomStore.phase))
+	const balanceText = computed((): string => `筹码 ${formatAmount(wallet.balance)}`)
+	const tableWrapStyle = computed((): string => `width:${tableW.value}px;height:${tableH.value}px;`)
+	const readyText = computed((): string => roomStore.isReady ? '已准备' : '准备')
+
+	const actionHint = computed((): string => {
+		if (roomStore.isMyTurn) {
+			return `轮到你行动 · 跟注需 ${formatAmount(roomStore.callAmount)}`
+		}
+		if (roomStore.phase == 'BETTING') {
+			return '等待其他玩家行动'
+		}
+		return '等待开局'
+	})
+
+	onMounted(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+		roomId.value = props.room_id
+		const w = info.windowWidth - 24
+		tableW.value = w
+		tableH.value = Math.floor(w * 0.62)
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		wallet.refreshBalance()
+		doJoin()
+	})
+
+	onUnmounted(() => {
+		roomStore.leaveRoom()
+		releaseAudio()
+	})
+
+	const doJoin = async () => {
+		if (roomId.value.length == 0) {
+			showToast('缺少房号', 'error')
+			return
+		}
+		if (roomStore.roomId == roomId.value && roomStore.connected) {
+			joined.value = true
+			return
+		}
+		const ok = await roomStore.enterRoom(roomId.value, props.as_spectator)
+		if (ok) {
+			joined.value = true
+		} else {
+			showToast(roomStore.errorMessage.length > 0 ? roomStore.errorMessage : '加入房间失败', 'error')
+		}
+	}
+
+	const seatStyle = (i: number, n: number): string => {
+		if (n <= 0 || tableW.value <= 0) {
+			return 'left: 0px; top: 0px;'
+		}
+		const cx = tableW.value / 2
+		const cy = tableH.value / 2
+		let rx = tableW.value / 2 - 46
+		let ry = tableH.value / 2 - 52
+		if (rx < 8) {
+			rx = 8
+		}
+		if (ry < 8) {
+			ry = 8
+		}
+		const angle = (2 * Math.PI * i) / n - Math.PI / 2
+		const x = cx + rx * Math.cos(angle) - 42
+		const y = cy + ry * Math.sin(angle) - 48
+		return `left: ${x}px; top: ${y}px;`
+	}
+
+	const cardsFor = (i: number): string[] => {
+		const list = roomStore.seats
+		const out: string[] = []
+		if (i < 0 || i >= list.length) {
+			return out
+		}
+		const cards = list[i].cards
+		for (let k = 0; k < cards.length; k++) {
+			if (cards[k].code.length > 0) {
+				out.push(cards[k].code)
+			}
+		}
+		return out
+	}
+
+	const hiddenFor = (i: number): number => {
+		const list = roomStore.seats
+		if (i < 0 || i >= list.length) {
+			return 0
+		}
+		const seat = list[i]
+		if (seat.user_id.length == 0 || seat.user_id == auth.userId) {
+			return 0
+		}
+		if (seat.status == 'empty' || seat.status == 'folded') {
+			return 0
+		}
+		let n = 0
+		for (let k = 0; k < seat.cards.length; k++) {
+			if (seat.cards[k].code.length == 0) {
+				n++
+			}
+		}
+		if (n == 0 && seat.cards.length == 0) {
+			return roomStore.holeCardCount
+		}
+		return n
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+
+	const toggleReady = () => {
+		if (!roomStore.isReady) {
+			roomStore.ready()
+		}
+	}
+
+	const onAction = (action: string) => {
+		if (action == 'raise') {
+			showRaise.value = true
+			return
+		}
+		if (action == 'all_in') {
+			roomStore.allIn()
+			return
+		}
+		roomStore.sendAction(action)
+	}
+
+	const onSimple = (action: string) => {
+		roomStore.sendAction(action)
+	}
+
+	const onCompare = () => {
+		compareTarget.value = ''
+		showCompare.value = true
+	}
+
+	const onCompareVisible = (v: boolean) => {
+		showCompare.value = v
+	}
+
+	const selectCompare = (uid: string) => {
+		compareTarget.value = uid
+	}
+
+	const onCompareConfirm = () => {
+		if (compareTarget.value.length == 0) {
+			showToast('请选择比牌对象', 'error')
+			return
+		}
+		showCompare.value = false
+		roomStore.compare(compareTarget.value)
+	}
+
+	const onRaiseConfirm = (value: number) => {
+		showRaise.value = false
+		roomStore.raise(value)
+	}
+
+	const onRaiseCancel = () => {
+		showRaise.value = false
+	}
+
+	const onTimeout = () => {}
+
+	const showToast = (message: string, type: string) => {
+		toastMessage.value = message
+		toastType.value = type
+		toastVisible.value = true
+	}
+
+	const closeToast = () => {
+		toastVisible.value = false
+	}
+
+	watch((): string => roomStore.errorMessage, (v: string) => {
+		if (v.length > 0) {
+			showToast(v, 'error')
+			roomStore.errorMessage = ''
+		}
+	})
+
+	watch((): string => roomStore.phase, (v: string) => {
+		if (v == 'FINISHED') {
+			showToast('本局结束', 'success')
+			wallet.refreshBalance()
+		}
+	})
+</script>
+
+<style lang="scss">
+	.ts-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.ts-statusbar {
+		width: 100%;
+	}
+
+	.ts-header {
+		flex-direction: row;
+		align-items: center;
+		height: 54px;
+		padding-left: 12px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.ts-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.ts-pressed {
+		opacity: 0.7;
+	}
+
+	.ts-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.ts-header-center {
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.ts-title {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.ts-phase {
+		color: $vp-gold;
+		font-size: 11px;
+		margin-top: 2px;
+	}
+
+	.ts-header-right {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.ts-hand {
+		flex-direction: row;
+		align-items: center;
+		margin-right: 12px;
+	}
+
+	.ts-hand-label {
+		color: $vp-muted;
+		font-size: 11px;
+		margin-right: 6px;
+	}
+
+	.ts-hand-empty {
+		color: $vp-faint;
+		font-size: 12px;
+	}
+
+	.ts-balance {
+		height: 30px;
+		background-color: $vp-surface-2;
+		border-radius: 15px;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.ts-balance-text {
+		color: $vp-gold;
+		font-size: 12px;
+	}
+
+	.ts-body {
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.ts-table-wrap {
+		position: relative;
+	}
+
+	.ts-felt-holder {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: column;
+	}
+
+	.ts-seat-pos {
+		position: absolute;
+		width: 96px;
+	}
+
+	.ts-countdown {
+		position: absolute;
+		left: 50%;
+		top: 10px;
+		margin-left: -22px;
+	}
+
+	.ts-footer {
+		min-height: 68px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: $vp-surface;
+		border-top-width: 1px;
+		border-top-style: solid;
+		border-top-color: $vp-border;
+	}
+
+	.ts-ready {
+		flex-direction: column;
+		align-items: center;
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+
+	.ts-ready-hint {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 6px;
+	}
+
+	.ts-actions {
+		flex-direction: row;
+		align-items: center;
+		width: 100%;
+	}
+
+	.ts-hint {
+		width: 170px;
+		color: $vp-muted;
+		font-size: 12px;
+		padding-left: 16px;
+	}
+
+	.ts-actions-row {
+		flex-direction: row;
+		align-items: center;
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+
+	.ts-gap {
+		width: 8px;
+	}
+
+	.ts-compare {
+		flex-direction: column;
+		width: 240px;
+	}
+
+	.ts-compare-item {
+		height: 36px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		background-color: $vp-surface-2;
+		border-radius: $vp-radius-sm;
+		margin-bottom: 8px;
+		border-width: 1px;
+		border-style: solid;
+		border-color: transparent;
+	}
+
+	.ts-compare-active {
+		border-color: $vp-gold;
+	}
+
+	.ts-compare-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.ts-compare-empty {
+		color: $vp-muted;
+		font-size: 13px;
+		text-align: center;
+	}
+</style>

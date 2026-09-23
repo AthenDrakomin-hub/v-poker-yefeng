@@ -1,0 +1,29 @@
+/**
+ * 代理接口（需 agent/admin）
+ * 契约 3.4：/api/agent/dashboard、/children、/settlements、/commission
+ */
+
+import { httpGet, httpGetList } from '../client.uts'
+
+/** 代理仪表盘（余额 + 代理树） */
+export function dashboard(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/agent/dashboard', null)
+}
+
+/** 下级代理列表（parent_id 默认取当前登录用户） */
+export function children(parentId: string | null = null): Promise<UTSJSONObject[]> {
+	const params: UTSJSONObject = {
+		parent_id: parentId
+	}
+	return httpGetList('/api/agent/children', params)
+}
+
+/** 代理结算流水 */
+export function settlements(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/agent/settlements', null)
+}
+
+/** 佣金明细 */
+export function commission(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/agent/commission', null)
+}

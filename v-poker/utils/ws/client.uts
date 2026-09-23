@@ -1,0 +1,365 @@
+/**
+ * WebSocket 客户端（uni.connectSocket 封装）
+ * 契约：
+ *  - WS 直连 game-engine（不经过 BFF）
+ *  - 心跳 30s 发 ping，60s 未收 pong 主动断开
+ *  - 断线指数退避重连 1→2→4→8→16→30s，最多 5 次
+ *  - action_ack 按 req_id 匹配，5s 超时（禁止省略）
+ *  - 重连成功后自动重新 join_room（以服务端 game_state 为准）
+ */
+
+import {
+	WS_URL,
+	HEARTBEAT_INTERVAL_MS,
+	PONG_TIMEOUT_MS,
+	ACK_TIMEOUT_MS,
+	JOIN_TIMEOUT_MS,
+	MAX_RECONNECT,
+	RECONNECT_BASE_MS,
+	RECONNECT_MAX_MS
+} from '@/config/env.uts'
+import { getToken } from '@/utils/storage.uts'
+import { genReqId } from '@/utils/ids.uts'
+import {
+	MessageHandler,
+	AckWaiter,
+	buildJoinRoom,
+	buildPlayerAction,
+	buildLeaveRoom,
+	buildPing,
+	msgType,
+	msgRoomId,
+	msgReqId,
+	msgCode,
+	msgMessage
+} from './protocol.uts'
+
+/* ============================================================
+ * 模块级状态
+ * ============================================================ */
+
+let socket: SocketTask | null = null
+let connected = false
+let manualClosed = false
+
+let heartbeatTimer: number | null = null
+let pongTimer: number | null = null
+let reconnectTimer: number | null = null
+let reconnectAttempts = 0
+
+/** 当前房间（用于重连后自动 rejoin） */
+let activeRoomId: string | null = null
+let activeUserId: string | null = null
+let activeSpectator = false
+
+let handlerSeq = 0
+const handlers = new Map<number, MessageHandler>()
+const ackWaiters = new Map<string, AckWaiter>()
+
+/* ============================================================
+ * 内部工具
+ * ============================================================ */
+
+function clearPongTimer() {
+	if (pongTimer != null) {
+		clearTimeout(pongTimer)
+		pongTimer = null
+	}
+}
+
+function stopHeartbeat() {
+	if (heartbeatTimer != null) {
+		clearInterval(heartbeatTimer)
+		heartbeatTimer = null
+	}
+	clearPongTimer()
+}
+
+function startHeartbeat() {
+	stopHeartbeat()
+	heartbeatTimer = setInterval(() => {
+		try {
+			sendRaw(buildPing())
+			clearPongTimer()
+			pongTimer = setTimeout(() => {
+				// pong 超时：主动断开，触发 onClose → 重连
+				if (socket != null) {
+					const closeOpts: CloseSocketOptions = { code: 1000, reason: '' }
+					socket!.close(closeOpts)
+				}
+			}, PONG_TIMEOUT_MS)
+		} catch (e) {
+			console.error('[WS] 心跳发送失败', e)
+		}
+	}, HEARTBEAT_INTERVAL_MS)
+}
+
+function dispatch(msg: UTSJSONObject) {
+	handlers.forEach((handler: MessageHandler, _id: number) => {
+		handler(msg)
+	})
+}
+
+function handleMessage(msg: UTSJSONObject) {
+	const type = msgType(msg)
+
+	// 1. pong 清超时
+	if (type == 'pong') {
+		clearPongTimer()
+		return
+	}
+
+	// 2. action_ack 匹配 req_id
+	if (type == 'action_ack') {
+		const reqId = msgReqId(msg)
+		if (reqId.length > 0) {
+			const waiter = ackWaiters.get(reqId)
+			if (waiter != null) {
+				clearTimeout(waiter.timer)
+				ackWaiters.delete(reqId)
+				if (msgCode(msg) == 0) {
+					waiter.resolve(msg)
+				} else {
+					waiter.reject(new Error(msgMessage(msg).length > 0 ? msgMessage(msg) : 'Action failed'))
+				}
+			}
+		}
+	}
+
+	// 3. 广播给所有监听器
+	dispatch(msg)
+}
+
+/** 直接发送（未连接抛错） */
+function sendRaw(msg: UTSJSONObject) {
+	if (!connected || socket == null) {
+		throw new Error('WebSocket 未连接')
+	}
+	const text = JSON.stringify(msg)
+	socket!.send({ data: text == null ? '' : text })
+}
+
+function scheduleReconnect() {
+	if (manualClosed) {
+		return
+	}
+	if (reconnectAttempts >= MAX_RECONNECT) {
+		console.error('[WS] 重连次数已达上限')
+		return
+	}
+	const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts), RECONNECT_MAX_MS)
+	reconnectAttempts++
+	if (reconnectTimer != null) {
+		clearTimeout(reconnectTimer)
+	}
+	reconnectTimer = setTimeout(() => {
+		reconnectTimer = null
+		wsConnect().catch((_e: Error) => {})
+	}, delay)
+}
+
+/* ============================================================
+ * 对外 API
+ * ============================================================ */
+
+/** 建立连接（幂等） */
+export function wsConnect(): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		if (connected && socket != null) {
+			resolve()
+			return
+		}
+		manualClosed = false
+
+		const task = uni.connectSocket({ url: WS_URL })
+		socket = task
+		let settled = false
+
+		task.onOpen(() => {
+			connected = true
+			reconnectAttempts = 0
+			startHeartbeat()
+			// 重连后自动重新加入原房间
+			if (activeRoomId != null && activeUserId != null) {
+				try {
+					sendRaw(buildJoinRoom(activeRoomId, activeUserId, getToken(), activeSpectator))
+				} catch (e) {
+					console.error('[WS] 重连自动 rejoin 失败', e)
+				}
+			}
+			if (!settled) {
+				settled = true
+				resolve()
+			}
+		})
+
+		task.onMessage((res: OnSocketMessageCallbackResult) => {
+			const raw = res.data
+			if (raw == null) {
+				return
+			}
+			let msg: UTSJSONObject | null = null
+			if (typeof raw == 'string') {
+				msg = JSON.parseObject(raw as string)
+			} else if (raw instanceof UTSJSONObject) {
+				msg = raw as UTSJSONObject
+			}
+			if (msg != null) {
+				handleMessage(msg)
+			}
+		})
+
+		task.onClose((_res: any) => {
+			connected = false
+			stopHeartbeat()
+			if (!settled) {
+				settled = true
+				reject(new Error('WebSocket 连接已关闭'))
+			}
+			scheduleReconnect()
+		})
+
+		task.onError((err: GeneralCallbackResult) => {
+			connected = false
+			stopHeartbeat()
+			if (!settled) {
+				settled = true
+				reject(new Error(err.errMsg))
+			}
+			scheduleReconnect()
+		})
+	})
+}
+
+export function wsIsConnected(): boolean {
+	return connected
+}
+
+/** 发送消息（未连接抛错） */
+export function wsSend(msg: UTSJSONObject) {
+	sendRaw(msg)
+}
+
+/** 设置当前房间（重连后自动 rejoin） */
+export function wsSetActiveRoom(roomId: string, userId: string, asSpectator: boolean) {
+	activeRoomId = roomId
+	activeUserId = userId
+	activeSpectator = asSpectator
+}
+
+/** 加入房间（等待 joined 确认，5s 超时） */
+export function wsJoinRoom(roomId: string, userId: string, token: string | null, asSpectator: boolean): Promise<void> {
+	wsSetActiveRoom(roomId, userId, asSpectator)
+
+	return new Promise<void>((resolve, reject) => {
+		let done = false
+		const off = wsOnMessage((msg: UTSJSONObject) => {
+			if (done) {
+				return
+			}
+			if (msgType(msg) != 'joined') {
+				return
+			}
+			const rid = msgRoomId(msg)
+			if (rid.length == 0 || rid == roomId) {
+				done = true
+				off()
+				resolve()
+			}
+		})
+
+		setTimeout(() => {
+			if (!done) {
+				done = true
+				off()
+				reject(new Error('join_room 超时'))
+			}
+		}, JOIN_TIMEOUT_MS)
+
+		try {
+			sendRaw(buildJoinRoom(roomId, userId, token, asSpectator))
+		} catch (e) {
+			if (!done) {
+				done = true
+				off()
+				reject(e as Error)
+			}
+		}
+	})
+}
+
+/** 发送玩家动作（等待 action_ack，默认 5s 超时） */
+export function wsSendAction(action: UTSJSONObject, timeoutMs: number = ACK_TIMEOUT_MS): Promise<UTSJSONObject> {
+	const reqId = genReqId('act')
+	const userId = activeUserId == null ? '' : activeUserId
+
+	return new Promise<UTSJSONObject>((resolve, reject) => {
+		const timer = setTimeout(() => {
+			ackWaiters.delete(reqId)
+			reject(new Error('action_ack 超时'))
+		}, timeoutMs)
+
+		const waiter: AckWaiter = {
+			resolve: resolve,
+			reject: reject,
+			timer: timer
+		}
+		ackWaiters.set(reqId, waiter)
+
+		try {
+			sendRaw(buildPlayerAction(reqId, userId, action))
+		} catch (e) {
+			clearTimeout(timer)
+			ackWaiters.delete(reqId)
+			reject(e as Error)
+		}
+	})
+}
+
+/** 离开房间 */
+export function wsLeaveRoom() {
+	if (activeRoomId != null && connected) {
+		try {
+			sendRaw(buildLeaveRoom(activeRoomId))
+		} catch (e) {
+			console.warn('[WS] leave_room 发送失败')
+		}
+	}
+	activeRoomId = null
+	activeUserId = null
+	activeSpectator = false
+}
+
+/** 订阅消息，返回取消订阅函数 */
+export function wsOnMessage(handler: MessageHandler): () => void {
+	handlerSeq++
+	const id = handlerSeq
+	handlers.set(id, handler)
+	return () => {
+		handlers.delete(id)
+	}
+}
+
+/** 主动断开（不再重连） */
+export function wsDisconnect() {
+	manualClosed = true
+	stopHeartbeat()
+	if (reconnectTimer != null) {
+		clearTimeout(reconnectTimer)
+		reconnectTimer = null
+	}
+	activeRoomId = null
+	activeUserId = null
+	activeSpectator = false
+	if (socket != null) {
+		try {
+			const closeOpts: CloseSocketOptions = { code: 1000, reason: '' }
+			socket!.close(closeOpts)
+		} catch (e) {
+			console.warn('[WS] close 失败')
+		}
+	}
+	socket = null
+	connected = false
+	ackWaiters.clear()
+}

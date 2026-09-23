@@ -1,0 +1,144 @@
+<template>
+	<view v-if="visible" class="vptst-mask" @click="onClose">
+		<view class="vptst" :class="box_class">
+			<text class="vptst-text" :class="text_class">{{ message }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed, onUnmounted, watch } from 'vue'
+
+	/**
+	 * 轻提示：info / success / error / auto_fold 四类
+	 * 受控显示，2s 后自动关闭
+	 */
+	type VpToastProps = {
+		visible: boolean
+		type: string
+		message: string
+	}
+
+	const props = defineProps<VpToastProps>()
+	const emit = defineEmits(['close'])
+
+	let timer: number | null = null
+
+	const box_class = computed((): string => {
+		const t = props.type
+		if (t == 'success') {
+			return 'vptst-success'
+		}
+		if (t == 'error') {
+			return 'vptst-error'
+		}
+		if (t == 'auto_fold') {
+			return 'vptst-warning'
+		}
+		return 'vptst-info'
+	})
+
+	const text_class = computed((): string => {
+		const t = props.type
+		if (t == 'success') {
+			return 'vptst-text-success'
+		}
+		if (t == 'error') {
+			return 'vptst-text-error'
+		}
+		if (t == 'auto_fold') {
+			return 'vptst-text-warning'
+		}
+		return 'vptst-text-info'
+	})
+
+	const clearTimer = () => {
+		if (timer != null) {
+			clearTimeout(timer)
+			timer = null
+		}
+	}
+
+	const onClose = () => {
+		clearTimer()
+		emit('close')
+	}
+
+	watch((): boolean => props.visible, (v: boolean) => {
+		clearTimer()
+		if (v) {
+			timer = setTimeout(() => {
+				emit('close')
+			}, 2000)
+		}
+	})
+
+	onUnmounted(() => {
+		clearTimer()
+	})
+</script>
+
+<style lang="scss">
+	.vptst-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vptst {
+		max-width: 260px;
+		border-radius: 10px;
+		border-width: 1px;
+		border-style: solid;
+		padding: 12px 18px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vptst-info {
+		background-color: #141922;
+		border-color: #3b82f6;
+	}
+
+	.vptst-success {
+		background-color: #141922;
+		border-color: #10b981;
+	}
+
+	.vptst-error {
+		background-color: #141922;
+		border-color: #ef4444;
+	}
+
+	.vptst-warning {
+		background-color: #141922;
+		border-color: #f59e0b;
+	}
+
+	.vptst-text {
+		font-size: 14px;
+		text-align: center;
+	}
+
+	.vptst-text-info {
+		color: #3b82f6;
+	}
+
+	.vptst-text-success {
+		color: #10b981;
+	}
+
+	.vptst-text-error {
+		color: #ef4444;
+	}
+
+	.vptst-text-warning {
+		color: #f59e0b;
+	}
+</style>

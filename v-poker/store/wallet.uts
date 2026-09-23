@@ -1,0 +1,161 @@
+/**
+ * 钱包 Store：余额 + 流水 + 转账
+ * 契约 3.3：
+ *  - GET  /api/wallet/balance/:user_id
+ *  - GET  /api/wallet/transactions/:user_id（data 为数组）
+ *  - POST /api/wallet/transfer（transaction_id 前端保证全局唯一）
+ * 契约第七章：禁止前端计算分账，所有资金操作走后端 API；金额整数
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import { getBalance, listTransactions, transfer as apiTransfer } from '@/utils/http/api/wallet.uts'
+import { useAuthStore } from './auth.uts'
+import { genTxId } from '@/utils/ids.uts'
+
+/** 每页流水条数 */
+const PAGE_SIZE = 20
+
+/** 归一化后的流水条目（扁平类型，便于模板绑定） */
+export type TxItem = {
+	transaction_id: string
+	from_wallet_id: string
+	to_wallet_id: string
+	amount: number
+	fee: number
+	type: string
+	status: string
+	remark: string
+	created_at: number
+}
+
+/** UTSJSONObject -> TxItem */
+function readTx(obj: UTSJSONObject): TxItem {
+	const id = obj.getString('transaction_id')
+	const from = obj.getString('from_wallet_id')
+	const to = obj.getString('to_wallet_id')
+	const amount = obj.getNumber('amount')
+	const fee = obj.getNumber('fee')
+	const type = obj.getString('type')
+	const status = obj.getString('status')
+	const remark = obj.getString('remark')
+	const created = obj.getNumber('created_at')
+	return {
+		transaction_id: id == null ? '' : id,
+		from_wallet_id: from == null ? '' : from,
+		to_wallet_id: to == null ? '' : to,
+		amount: amount == null ? 0 : amount,
+		fee: fee == null ? 0 : fee,
+		type: type == null ? '' : type,
+		status: status == null ? '' : status,
+		remark: remark == null ? '' : remark,
+		created_at: created == null ? 0 : created
+	}
+}
+
+export const useWalletStore = defineStore('wallet', () => {
+	const balance = ref(0)
+	const frozen = ref(0)
+	const walletId = ref<string>('')
+	const transactions = ref<TxItem[]>([])
+	const total = ref(0)
+	const loading = ref(false)
+	const finished = ref(false)
+	const errorMessage = ref('')
+
+	/** 刷新余额 */
+	const refreshBalance = async () => {
+		const auth = useAuthStore()
+		if (auth.userId.length == 0) {
+			balance.value = 0
+			frozen.value = 0
+			walletId.value = ''
+			return
+		}
+		try {
+			const data = await getBalance(auth.userId)
+			if (data != null) {
+				const b = data.getNumber('balance')
+				balance.value = b == null ? 0 : b
+				const f = data.getNumber('frozen_balance')
+				frozen.value = f == null ? 0 : f
+				const w = data.getString('wallet_id')
+				walletId.value = w == null ? '' : w
+			}
+		} catch (e) {
+			console.error('refreshBalance failed', e)
+		}
+	}
+
+	/** 加载流水；reset = true 时从第一页重新加载 */
+	const loadTransactions = async (reset: boolean = false) => {
+		const auth = useAuthStore()
+		if (loading.value) {
+			return
+		}
+		if (!reset && finished.value) {
+			return
+		}
+		if (auth.userId.length == 0) {
+			return
+		}
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const offset = reset ? 0 : transactions.value.length
+			const raw = await listTransactions(auth.userId, PAGE_SIZE, offset)
+			const list: TxItem[] = []
+			for (let i = 0; i < raw.length; i++) {
+				list.push(readTx(raw[i]))
+			}
+			if (reset) {
+				transactions.value = list
+			} else {
+				transactions.value = transactions.value.concat(list)
+			}
+			total.value = transactions.value.length
+			finished.value = list.length < PAGE_SIZE
+		} catch (e) {
+			errorMessage.value = '流水加载失败'
+			console.error('loadTransactions failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	/** 自由转账（扣 0.01% 手续费） */
+	const transfer = async (toUserId: string, amount: number, remark: string = ''): Promise<boolean> => {
+		const auth = useAuthStore()
+		try {
+			await apiTransfer(genTxId('tx_transfer'), auth.userId, toUserId, amount, remark)
+			await refreshBalance()
+			return true
+		} catch (e) {
+			console.error('transfer failed', e)
+			return false
+		}
+	}
+
+	/** 重置分页状态 */
+	const reset = () => {
+		transactions.value = []
+		total.value = 0
+		finished.value = false
+		errorMessage.value = ''
+	}
+
+	return {
+		balance,
+		frozen,
+		walletId,
+		transactions,
+		total,
+		loading,
+		finished,
+		errorMessage,
+		refreshBalance,
+		loadTransactions,
+		transfer,
+		reset
+	}
+})

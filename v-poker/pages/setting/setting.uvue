@@ -1,0 +1,207 @@
+<template>
+	<view class="vp-page st-page">
+		<view class="st-statusbar" :style="statusBarStyle"></view>
+
+		<view class="st-topbar">
+			<view class="st-back" hover-class="st-pressed" @click="goBack">
+				<text class="st-back-text">← 返回</text>
+			</view>
+			<view class="st-brand">
+				<text class="st-brand-text">设置</text>
+				<text class="st-brand-sub">V-POKER v1.0.0</text>
+			</view>
+			<view class="st-spacer"></view>
+		</view>
+
+		<view class="st-body">
+			<view class="st-menu vp-card">
+				<view class="st-item" hover-class="st-pressed" @click="toggleAudio">
+					<text class="st-item-text">游戏音效</text>
+					<view class="st-switch" :class="audioEnabled ? 'st-switch-on' : 'st-switch-off'">
+						<text class="st-switch-text">{{ audioEnabled ? '开' : '关' }}</text>
+					</view>
+				</view>
+				<view class="st-divider"></view>
+				<view class="st-item" hover-class="st-pressed" @click="onLogout">
+					<text class="st-item-text st-item-danger">退出登录</text>
+					<text class="st-item-arrow">›</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { setAudioEnabled, isAudioEnabled } from '@/utils/audio.uts'
+
+	const auth = useAuthStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const audioEnabled = ref(isAudioEnabled())
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+		const saved = uni.getStorageSync('audio_enabled')
+		if (saved != null && `${saved}`.length > 0) {
+			audioEnabled.value = `${saved}` == 'true'
+			setAudioEnabled(audioEnabled.value)
+		}
+	})
+
+	onShow(() => {
+		auth.restore()
+	})
+
+	const toggleAudio = () => {
+		audioEnabled.value = !audioEnabled.value
+		setAudioEnabled(audioEnabled.value)
+		uni.setStorageSync('audio_enabled', audioEnabled.value ? 'true' : 'false')
+		uni.showToast({ title: audioEnabled.value ? '音效已开启' : '音效已关闭', icon: 'none' })
+	}
+
+	const onLogout = () => {
+		uni.showModal({
+			title: '提示',
+			content: '确定退出登录？',
+			success: (res) => {
+				if (res.confirm) {
+					auth.logout()
+				}
+			}
+		})
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.st-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.st-statusbar {
+		width: 100%;
+	}
+
+	.st-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.st-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.st-pressed {
+		opacity: 0.75;
+	}
+
+	.st-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.st-brand {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-left: 16px;
+	}
+
+	.st-brand-text {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.st-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.st-spacer {
+		flex: 1;
+	}
+
+	.st-body {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.st-menu {
+		flex-direction: column;
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.st-item {
+		height: 48px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.st-divider {
+		height: 1px;
+		background-color: $vp-border;
+	}
+
+	.st-item-text {
+		color: $vp-text;
+		font-size: 15px;
+	}
+
+	.st-item-danger {
+		color: $vp-danger;
+	}
+
+	.st-item-arrow {
+		color: $vp-faint;
+		font-size: 18px;
+	}
+
+	.st-switch {
+		min-width: 44px;
+		height: 24px;
+		border-radius: 12px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+
+	.st-switch-on {
+		background-color: $vp-gold;
+	}
+
+	.st-switch-off {
+		background-color: $vp-surface-3;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.st-switch-text {
+		color: #14100a;
+		font-size: 11px;
+		font-weight: bold;
+	}
+</style>

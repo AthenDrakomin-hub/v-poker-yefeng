@@ -1,0 +1,28 @@
+/**
+ * 管理接口（需 admin）
+ * 契约 3.5：/api/admin/overview、/mint、/audit
+ * 注意：mint 是唯一凭空产生筹码的入口，仅开发/联调使用，生产必须关闭
+ */
+
+import { httpGet, httpPost } from '../client.uts'
+
+/** 系统全景数据 */
+export function overview(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/admin/overview', null)
+}
+
+/** 能量守恒审计 */
+export function audit(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/admin/audit', null)
+}
+
+/** 铸币（仅开发 / 联调） */
+export function mint(txId: string, userId: string, amount: number, remark: string = '初始筹码'): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		transaction_id: txId,
+		user_id: userId,
+		amount: amount,
+		remark: remark
+	}
+	return httpPost('/api/admin/mint', data)
+}

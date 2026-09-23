@@ -1,0 +1,272 @@
+<template>
+	<view class="vp-page pf-page">
+		<view class="pf-statusbar" :style="statusBarStyle"></view>
+
+		<view class="pf-topbar">
+			<view class="pf-back" hover-class="pf-pressed" @click="goBack">
+				<text class="pf-back-text">← 返回</text>
+			</view>
+			<view class="pf-brand">
+				<text class="pf-brand-text">个人中心</text>
+				<text class="pf-brand-sub">{{ roleText }}</text>
+			</view>
+			<view class="pf-spacer"></view>
+			<view class="pf-balance">
+				<text class="pf-balance-text">{{ balanceText }}</text>
+			</view>
+		</view>
+
+		<view class="pf-body">
+			<view class="pf-user vp-card">
+				<vp-avatar :name="displayName" :size="52" :online="true" />
+				<view class="pf-user-meta">
+					<text class="pf-nick">{{ displayName }}</text>
+					<text class="pf-uid">ID: {{ auth.userId }}</text>
+				</view>
+			</view>
+
+			<view class="pf-menu vp-card">
+				<view class="pf-item" hover-class="pf-pressed" @click="goWallet">
+					<text class="pf-item-text">钱包</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goFlow">
+					<text class="pf-item-text">资金流水</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view v-if="auth.isAgent" class="pf-divider"></view>
+				<view v-if="auth.isAgent" class="pf-item" hover-class="pf-pressed" @click="goAgent">
+					<text class="pf-item-text">代理中心</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goSetting">
+					<text class="pf-item-text">设置</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="onLogout">
+					<text class="pf-item-text pf-item-danger">退出登录</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useWalletStore } from '@/store/wallet.uts'
+	import { formatAmount } from '@/utils/format.uts'
+
+	const auth = useAuthStore()
+	const wallet = useWalletStore()
+
+	const statusBarStyle = ref('height: 0px')
+
+	const displayName = computed((): string => {
+		return auth.nickname.length > 0 ? auth.nickname : auth.userId
+	})
+
+	const balanceText = computed((): string => `筹码 ${formatAmount(wallet.balance)}`)
+
+	const roleText = computed((): string => {
+		if (auth.role == 'agent') {
+			return '代理'
+		}
+		if (auth.role == 'admin') {
+			return '管理员'
+		}
+		if (auth.role == 'support') {
+			return '客服'
+		}
+		return '玩家'
+	})
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		wallet.refreshBalance()
+	})
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+
+	const goWallet = () => {
+		uni.navigateTo({ url: '/pages/wallet/wallet' })
+	}
+
+	const goFlow = () => {
+		uni.navigateTo({ url: '/pages/flow/flow' })
+	}
+
+	const goAgent = () => {
+		uni.navigateTo({ url: '/pages/agent/agent' })
+	}
+
+	const goSetting = () => {
+		uni.navigateTo({ url: '/pages/setting/setting' })
+	}
+
+	const onLogout = () => {
+		uni.showModal({
+			title: '提示',
+			content: '确定退出登录？',
+			success: (res) => {
+				if (res.confirm) {
+					auth.logout()
+				}
+			}
+		})
+	}
+</script>
+
+<style lang="scss">
+	.pf-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.pf-statusbar {
+		width: 100%;
+	}
+
+	.pf-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.pf-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.pf-pressed {
+		opacity: 0.75;
+	}
+
+	.pf-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.pf-brand {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-left: 16px;
+	}
+
+	.pf-brand-text {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.pf-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.pf-spacer {
+		flex: 1;
+	}
+
+	.pf-balance {
+		height: 30px;
+		background-color: $vp-surface-2;
+		border-radius: 15px;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.pf-balance-text {
+		color: $vp-gold;
+		font-size: 12px;
+	}
+
+	.pf-body {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.pf-user {
+		flex-direction: row;
+		align-items: center;
+		padding: 16px;
+		margin-bottom: 12px;
+	}
+
+	.pf-user-meta {
+		flex: 1;
+		flex-direction: column;
+		margin-left: 14px;
+	}
+
+	.pf-nick {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.pf-uid {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 4px;
+	}
+
+	.pf-menu {
+		flex-direction: column;
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.pf-item {
+		height: 46px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.pf-divider {
+		height: 1px;
+		background-color: $vp-border;
+	}
+
+	.pf-item-text {
+		color: $vp-text;
+		font-size: 15px;
+	}
+
+	.pf-item-danger {
+		color: $vp-danger;
+	}
+
+	.pf-item-arrow {
+		color: $vp-faint;
+		font-size: 18px;
+	}
+</style>

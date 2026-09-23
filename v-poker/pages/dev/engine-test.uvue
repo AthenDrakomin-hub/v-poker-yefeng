@@ -1,0 +1,108 @@
+<template>
+	<view class="vp-page test-page">
+		<view class="test-statusbar" :style="statusBarStyle"></view>
+		<view class="test-header">
+			<text class="test-title">引擎黄金测试</text>
+			<text class="test-summary">{{ passed }}/{{ total }} 通过</text>
+		</view>
+		<scroll-view class="test-list" direction="vertical">
+			<view v-for="(t, i) in cases" :key="i" class="test-item" :class="t.passed ? 'test-item-pass' : 'test-item-fail'">
+				<text class="test-name">{{ t.passed ? '✓' : '✗' }} {{ t.name }}</text>
+				<text class="test-detail">期望 {{ t.expected }} / 实际 {{ t.actual }}</text>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { runEngineTests, TestCase } from '@/test/golden-vectors.uts'
+
+	const statusBarStyle = ref('height: 0px')
+	const cases = ref<TestCase[]>([])
+	const passed = ref(0)
+	const total = ref(0)
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+
+		const results = runEngineTests()
+		cases.value = results
+		total.value = results.length
+		let p = 0
+		for (let i = 0; i < results.length; i++) {
+			if (results[i].passed) {
+				p++
+			}
+		}
+		passed.value = p
+	})
+</script>
+
+<style lang="scss">
+	.test-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.test-statusbar {
+		width: 100%;
+	}
+
+	.test-header {
+		height: 52px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.test-title {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+	}
+
+	.test-summary {
+		color: $vp-gold;
+		font-size: 14px;
+	}
+
+	.test-list {
+		flex: 1;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.test-item {
+		flex-direction: column;
+		padding: 10px 12px;
+		margin-bottom: 8px;
+		border-radius: $vp-radius-sm;
+		background-color: $vp-surface;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.test-item-pass {
+		border-color: $vp-success;
+	}
+
+	.test-item-fail {
+		border-color: $vp-danger;
+	}
+
+	.test-name {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.test-detail {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 4px;
+	}
+</style>

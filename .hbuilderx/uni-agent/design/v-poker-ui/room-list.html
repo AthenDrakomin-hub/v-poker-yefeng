@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>V-POKER · 房间列表</title>
+	<link rel="stylesheet" href="assets/design.css">
+</head>
+
+<body>
+	<div class="app" data-design-id="room-list-page">
+		<header class="topbar" data-design-id="room-list-topbar">
+			<button type="button" class="btn btn-secondary btn-sm" data-design-id="room-list-back">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+				返回
+			</button>
+			<div class="brand" data-design-id="room-list-title">德州扑克 <small>等待中的房间</small></div>
+			<div style="flex:1"></div>
+			<button type="button" class="btn btn-secondary btn-sm" data-design-id="room-list-refresh">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+					<path d="M20 12a8 8 0 1 1-2.3-5.6" />
+					<path d="M20 4v4h-4" />
+				</svg>
+				刷新
+			</button>
+		</header>
+
+		<main class="main" data-design-id="room-list-main">
+			<div style="display:flex; align-items:center; justify-content:space-between;">
+				<div style="display:flex; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:3px;" data-design-id="room-list-filters" role="tablist">
+					<button type="button" role="tab" aria-selected="true" class="chip-btn is-active" data-design-id="filter-waiting">等待中</button>
+					<button type="button" role="tab" aria-selected="false" class="chip-btn" data-design-id="filter-playing">进行中</button>
+					<button type="button" role="tab" aria-selected="false" class="chip-btn" data-design-id="filter-all">全部</button>
+				</div>
+				<button type="button" class="btn btn-ghost btn-sm" data-design-id="room-list-join-open">
+					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+					按房号加入
+				</button>
+			</div>
+
+			<div class="games" style="grid-template-columns:repeat(3, minmax(0,1fr));" data-design-id="room-list-grid">
+				<article class="panel" data-design-id="room-card-389236">
+					<div class="panel-head">
+						<h3 class="panel-title num" data-design-id="room-389236-id">房号 389236</h3>
+						<span class="badge badge-wait" data-design-id="room-389236-state">等待中</span>
+					</div>
+					<div class="row-sub" data-design-id="room-389236-name">alice 的德州房</div>
+					<div style="display:flex; gap:18px; margin:10px 0 12px;">
+						<div><div class="section-title">底分</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-389236-base">100</div></div>
+						<div><div class="section-title">人数上限</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-389236-max">6</div></div>
+						<div><div class="section-title">局数</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-389236-round">0 / 10</div></div>
+					</div>
+					<button type="button" class="btn btn-primary btn-sm btn-block" data-design-id="room-389236-enter">进入房间</button>
+				</article>
+
+				<article class="panel" data-design-id="room-card-401882">
+					<div class="panel-head">
+						<h3 class="panel-title num" data-design-id="room-401882-id">房号 401882</h3>
+						<span class="badge badge-play" data-design-id="room-401882-state">进行中</span>
+					</div>
+					<div class="row-sub" data-design-id="room-401882-name">bob 的高额房 · 私有</div>
+					<div style="display:flex; gap:18px; margin:10px 0 12px;">
+						<div><div class="section-title">底分</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-401882-base">500</div></div>
+						<div><div class="section-title">人数上限</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-401882-max">6</div></div>
+						<div><div class="section-title">局数</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-401882-round">3 / 10</div></div>
+					</div>
+					<button type="button" class="btn btn-secondary btn-sm btn-block" data-design-id="room-401882-enter">旁观</button>
+				</article>
+
+				<article class="panel" data-design-id="room-card-556710">
+					<div class="panel-head">
+						<h3 class="panel-title num" data-design-id="room-556710-id">房号 556710</h3>
+						<span class="badge badge-wait" data-design-id="room-556710-state">等待中</span>
+					</div>
+					<div class="row-sub" data-design-id="room-556710-name">新手练习房</div>
+					<div style="display:flex; gap:18px; margin:10px 0 12px;">
+						<div><div class="section-title">底分</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-556710-base">50</div></div>
+						<div><div class="section-title">人数上限</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-556710-max">4</div></div>
+						<div><div class="section-title">局数</div><div class="num" style="font-size:15px;font-weight:700;" data-design-id="room-556710-round">0 / 5</div></div>
+					</div>
+					<button type="button" class="btn btn-primary btn-sm btn-block" data-design-id="room-556710-enter">进入房间</button>
+				</article>
+			</div>
+
+			<div class="panel" data-design-id="room-list-empty-demo">
+				<div class="empty">
+					<span class="empty-icon">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v3H4V6Zm0 5h16v7H4v-7Zm3 2v3h4v-3H7Z" /></svg>
+					</span>
+					<span style="font-size:14px;font-weight:600;">该筛选下暂无房间</span>
+					<span style="font-size:12px;">换个筛选条件，或自己创建一个房间</span>
+					<button type="button" class="btn btn-primary btn-sm" data-design-id="room-list-empty-create">创建房间</button>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<div class="overlay" data-design-id="room-list-join-overlay">
+		<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="join-dialog-title" data-design-id="room-list-join-dialog">
+			<div class="dialog-head">
+				<h2 class="dialog-title" id="join-dialog-title" data-design-id="join-dialog-title">加入房间</h2>
+				<button type="button" class="dialog-close" data-design-id="join-dialog-close" aria-label="关闭">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+				</button>
+			</div>
+			<div class="dialog-body">
+				<div class="field" data-design-id="join-dialog-room-field">
+					<label for="dialog-room-id">房号</label>
+					<input id="dialog-room-id" class="input num" value="401882" inputmode="numeric" data-design-id="join-dialog-room-input">
+				</div>
+				<div class="field" data-design-id="join-dialog-pwd-field">
+					<label for="dialog-room-pwd">房间密码</label>
+					<input id="dialog-room-pwd" class="input" type="password" value="1234" data-design-id="join-dialog-pwd-input">
+				</div>
+				<p style="font-size:12px;color:var(--muted);" data-design-id="join-dialog-hint">私有房需输入密码；密码错误时服务端返回 403。</p>
+			</div>
+			<div class="dialog-foot">
+				<button type="button" class="btn btn-secondary" data-design-id="join-dialog-cancel">取消</button>
+				<button type="button" class="btn btn-primary" data-design-id="join-dialog-confirm">加入</button>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>

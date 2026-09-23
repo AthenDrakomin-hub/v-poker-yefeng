@@ -1,0 +1,400 @@
+<template>
+	<view class="vp-page wl-page">
+		<view class="wl-statusbar" :style="statusBarStyle"></view>
+
+		<view class="wl-topbar">
+			<view class="wl-back" hover-class="wl-pressed" @click="goBack">
+				<text class="wl-back-text">← 返回</text>
+			</view>
+			<view class="wl-brand">
+				<text class="wl-brand-text">钱包</text>
+				<text class="wl-brand-sub">筹码账本</text>
+			</view>
+			<view class="wl-spacer"></view>
+			<view class="wl-refresh" hover-class="wl-pressed" @click="refresh">
+				<text class="wl-refresh-text">刷新</text>
+			</view>
+		</view>
+
+		<view class="wl-body">
+			<view class="wl-top">
+				<view class="wl-panel vp-card wl-balance-panel">
+					<text class="wl-label">可用筹码</text>
+					<text class="wl-balance">{{ balanceText }}</text>
+					<text class="wl-sub">冻结 {{ frozenText }} · {{ wallet.walletId }}</text>
+				</view>
+
+				<view class="wl-panel vp-card wl-transfer-panel">
+					<view class="wl-panel-head">
+						<text class="wl-panel-title">自由转账</text>
+						<text class="wl-note">手续费 0.01%</text>
+					</view>
+					<view class="wl-field">
+						<text class="wl-field-label">收款玩家 ID</text>
+						<vp-input v-model="toUserId" placeholder="如 player_bob" />
+					</view>
+					<view class="wl-field">
+						<text class="wl-field-label">金额（整数筹码）</text>
+						<vp-input v-model="amountText" type="number" placeholder="10000" />
+					</view>
+					<view class="wl-transfer-btn">
+						<vp-button type="gold" text="确认转账" block :loading="transferring" @click="doTransfer" />
+					</view>
+				</view>
+			</view>
+
+			<view class="wl-panel vp-card wl-flow-panel">
+				<view class="wl-panel-head">
+					<text class="wl-panel-title">资金流水</text>
+					<text class="wl-note">每页 20 条 · 向下滚动加载</text>
+				</view>
+
+				<scroll-view class="wl-list" direction="vertical" @scrolltolower="onLoadMore">
+					<view v-for="tx in wallet.transactions" :key="tx.transaction_id" class="wl-row">
+						<view class="wl-row-main">
+							<text class="wl-row-title">{{ txTypeText(tx.type) }}</text>
+							<text class="wl-row-sub">{{ formatTime(tx.created_at) }} · {{ tx.type }}</text>
+						</view>
+						<text class="wl-row-amount" :class="txAmountClass(tx)">{{ txAmountText(tx) }}</text>
+					</view>
+
+					<view v-if="wallet.transactions.length == 0 && !wallet.loading" class="wl-more">
+						<text class="wl-more-text">暂无流水记录</text>
+					</view>
+					<view v-if="wallet.loading" class="wl-more">
+						<text class="wl-more-text">加载中…</text>
+					</view>
+					<view v-if="wallet.finished && wallet.transactions.length > 0" class="wl-more">
+						<text class="wl-more-text">没有更多了</text>
+					</view>
+				</scroll-view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useWalletStore, TxItem } from '@/store/wallet.uts'
+	import { formatAmount, formatTime } from '@/utils/format.uts'
+
+	const auth = useAuthStore()
+	const wallet = useWalletStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const toUserId = ref('')
+	const amountText = ref('')
+	const transferring = ref(false)
+
+	const balanceText = computed((): string => formatAmount(wallet.balance))
+	const frozenText = computed((): string => formatAmount(wallet.frozen))
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		refresh()
+	})
+
+	const refresh = () => {
+		wallet.refreshBalance()
+		wallet.reset()
+		wallet.loadTransactions(true)
+	}
+
+	const onLoadMore = () => {
+		wallet.loadTransactions(false)
+	}
+
+	const doTransfer = async () => {
+		const to = toUserId.value.trim()
+		const amount = parseInt(amountText.value)
+		if (to.length == 0) {
+			uni.showToast({ title: '请输入收款玩家 ID', icon: 'none' })
+			return
+		}
+		if (!(amount > 0)) {
+			uni.showToast({ title: '请输入有效金额', icon: 'none' })
+			return
+		}
+		if (transferring.value) {
+			return
+		}
+		transferring.value = true
+		try {
+			const ok = await wallet.transfer(to, amount, '自由转账')
+			if (ok) {
+				uni.showToast({ title: '转账成功', icon: 'none' })
+				toUserId.value = ''
+				amountText.value = ''
+				wallet.reset()
+				wallet.loadTransactions(true)
+			}
+		} finally {
+			transferring.value = false
+		}
+	}
+
+	const txTypeText = (type: string): string => {
+		if (type == 'mint') {
+			return '铸币'
+		}
+		if (type == 'transfer') {
+			return '转账'
+		}
+		if (type == 'bet') {
+			return '下注'
+		}
+		if (type == 'refund') {
+			return '退款'
+		}
+		if (type == 'game_settle') {
+			return '对局结算'
+		}
+		if (type == 'commission') {
+			return '代理佣金'
+		}
+		return type
+	}
+
+	const isIncome = (tx: TxItem): boolean => {
+		const wid = wallet.walletId
+		return wid.length > 0 && tx.to_wallet_id == wid
+	}
+
+	const txAmountText = (tx: TxItem): string => {
+		return (isIncome(tx) ? '+' : '-') + formatAmount(tx.amount)
+	}
+
+	const txAmountClass = (tx: TxItem): string => {
+		return isIncome(tx) ? 'wl-amount-in' : 'wl-amount-out'
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.wl-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.wl-statusbar {
+		width: 100%;
+	}
+
+	.wl-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.wl-back {
+		height: 32px;
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.wl-pressed {
+		opacity: 0.7;
+	}
+
+	.wl-back-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.wl-brand {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-left: 16px;
+	}
+
+	.wl-brand-text {
+		color: $vp-text;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.wl-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.wl-spacer {
+		flex: 1;
+	}
+
+	.wl-refresh {
+		height: 30px;
+		background-color: $vp-surface-2;
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+	}
+
+	.wl-refresh-text {
+		color: $vp-text;
+		font-size: 12px;
+	}
+
+	.wl-body {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.wl-top {
+		flex-direction: row;
+	}
+
+	.wl-panel {
+		flex-direction: column;
+		padding: 14px;
+	}
+
+	.wl-balance-panel {
+		flex: 1;
+		margin-right: 12px;
+	}
+
+	.wl-label {
+		color: $vp-muted;
+		font-size: 12px;
+	}
+
+	.wl-balance {
+		color: $vp-gold;
+		font-size: 38px;
+		font-weight: bold;
+		margin-top: 4px;
+	}
+
+	.wl-sub {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 6px;
+	}
+
+	.wl-transfer-panel {
+		width: 300px;
+	}
+
+	.wl-panel-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 10px;
+	}
+
+	.wl-panel-title {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.wl-note {
+		color: $vp-faint;
+		font-size: 11px;
+	}
+
+	.wl-field {
+		flex-direction: column;
+		margin-bottom: 10px;
+	}
+
+	.wl-field-label {
+		color: $vp-muted;
+		font-size: 11px;
+		margin-bottom: 5px;
+	}
+
+	.wl-transfer-btn {
+		flex-direction: row;
+		margin-top: 4px;
+	}
+
+	.wl-flow-panel {
+		flex: 1;
+		margin-top: 12px;
+	}
+
+	.wl-list {
+		flex: 1;
+	}
+
+	.wl-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 11px;
+		padding-bottom: 11px;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.wl-row-main {
+		flex-direction: column;
+	}
+
+	.wl-row-title {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.wl-row-sub {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-top: 2px;
+	}
+
+	.wl-row-amount {
+		font-size: 15px;
+		font-weight: bold;
+	}
+
+	.wl-amount-in {
+		color: $vp-success;
+	}
+
+	.wl-amount-out {
+		color: $vp-danger;
+	}
+
+	.wl-more {
+		flex-direction: row;
+		justify-content: center;
+		padding-top: 16px;
+		padding-bottom: 16px;
+	}
+
+	.wl-more-text {
+		color: $vp-muted;
+		font-size: 13px;
+	}
+</style>

@@ -1,0 +1,287 @@
+<template>
+	<view class="vprs-mask" @click="onCancel">
+		<view class="vprs" @click="stop">
+			<view class="vprs-head">
+				<text class="vprs-label">加注至</text>
+				<text class="vprs-amount">{{ amount_text }}</text>
+			</view>
+
+			<slider class="vprs-slider" :min="min" :max="max" :step="step" :value="amount"
+				activeColor="#d4af37" backgroundColor="#242c39" blockColor="#e6c85a" blockSize="18"
+				@changing="onChanging" @change="onChange" />
+
+			<view class="vprs-range">
+				<text class="vprs-range-text">最小 {{ min_text }}</text>
+				<text class="vprs-range-text">全下 {{ max_text }}</text>
+			</view>
+
+			<view class="vprs-quick">
+				<view class="vprs-quick-btn" :class="quick_min_class" hover-class="vprs-pressed" @click="setMin">
+					<text class="vprs-quick-text" :class="quick_min_text_class">最小</text>
+				</view>
+				<view class="vprs-quick-btn" :class="quick_half_class" hover-class="vprs-pressed" @click="setHalf">
+					<text class="vprs-quick-text" :class="quick_half_text_class">半池</text>
+				</view>
+				<view class="vprs-quick-btn" :class="quick_max_class" hover-class="vprs-pressed" @click="setMax">
+					<text class="vprs-quick-text" :class="quick_max_text_class">全下</text>
+				</view>
+			</view>
+
+			<view class="vprs-actions">
+				<view class="vprs-btn vprs-cancel" hover-class="vprs-pressed" @click="onCancel">
+					<text class="vprs-btn-text vprs-text-light">取消</text>
+				</view>
+				<view class="vprs-btn vprs-confirm" hover-class="vprs-pressed" @click="onConfirm">
+					<text class="vprs-btn-text vprs-text-dark">确认加注</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed, watch } from 'vue'
+	import { formatAmount } from '@/utils/format.uts'
+
+	/**
+	 * 加注滑块：最小加注 ~ 全下
+	 * 说明：min/max 为“目标下注额”，amount 为当前选择值
+	 */
+	type VpRaiseSliderProps = {
+		min: number
+		max: number
+		step: number
+		value: number
+		pot: number
+	}
+
+	const props = defineProps<VpRaiseSliderProps>()
+	const emit = defineEmits(['confirm', 'cancel'])
+
+	const amount = ref(props.value)
+
+	const amount_text = computed((): string => {
+		return formatAmount(amount.value)
+	})
+	const min_text = computed((): string => {
+		return formatAmount(props.min)
+	})
+	const max_text = computed((): string => {
+		return formatAmount(props.max)
+	})
+	const half_value = computed((): number => {
+		return clamp(props.min + Math.floor(props.pot / 2))
+	})
+
+	const quick_min_class = computed((): string => {
+		return amount.value == props.min ? 'vprs-quick-active' : ''
+	})
+	const quick_min_text_class = computed((): string => {
+		return amount.value == props.min ? 'vprs-quick-text-active' : 'vprs-quick-text-normal'
+	})
+	const quick_half_class = computed((): string => {
+		return amount.value == half_value.value ? 'vprs-quick-active' : ''
+	})
+	const quick_half_text_class = computed((): string => {
+		return amount.value == half_value.value ? 'vprs-quick-text-active' : 'vprs-quick-text-normal'
+	})
+	const quick_max_class = computed((): string => {
+		return amount.value == props.max ? 'vprs-quick-active' : ''
+	})
+	const quick_max_text_class = computed((): string => {
+		return amount.value == props.max ? 'vprs-quick-text-active' : 'vprs-quick-text-normal'
+	})
+
+	watch((): number => props.value, (v: number) => {
+		amount.value = v
+	})
+
+	function clamp(v: number): number {
+		let out = v
+		if (out < props.min) {
+			out = props.min
+		}
+		if (out > props.max) {
+			out = props.max
+		}
+		return out
+	}
+
+	const onChange = (e: SliderChangeEvent) => {
+		amount.value = clamp(e.detail.value)
+	}
+
+	const onChanging = (e: SliderChangeEvent) => {
+		amount.value = clamp(e.detail.value)
+	}
+
+	const setMin = () => {
+		amount.value = props.min
+	}
+
+	const setHalf = () => {
+		amount.value = half_value.value
+	}
+
+	const setMax = () => {
+		amount.value = props.max
+	}
+
+	const onConfirm = () => {
+		emit('confirm', amount.value)
+	}
+
+	const onCancel = () => {
+		emit('cancel')
+	}
+
+	const stop = () => {
+		// 阻止点击面板冒泡到遮罩
+	}
+</script>
+
+<style lang="scss">
+	.vprs-mask {
+		position: fixed;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.62);
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.vprs {
+		width: 100%;
+		background-color: $vp-surface-2;
+		border-top-left-radius: 16px;
+		border-top-right-radius: 16px;
+		flex-direction: column;
+		padding: 16px;
+	}
+
+	.vprs-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 6px;
+	}
+
+	.vprs-label {
+		color: $vp-muted;
+		font-size: 12px;
+	}
+
+	.vprs-amount {
+		color: $vp-gold;
+		font-size: 18px;
+		font-weight: bold;
+		margin-left: 8px;
+	}
+
+	.vprs-slider {
+		margin-left: 8px;
+		margin-right: 8px;
+	}
+
+	.vprs-range {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+
+	.vprs-range-text {
+		color: $vp-muted;
+		font-size: 12px;
+	}
+
+	.vprs-quick {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 10px;
+	}
+
+	.vprs-quick-btn {
+		height: 32px;
+		flex: 1;
+		background-color: $vp-surface-3;
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-left: 4px;
+		margin-right: 4px;
+	}
+
+	.vprs-quick-active {
+		background-color: $vp-gold;
+		border-color: $vp-gold;
+	}
+
+	.vprs-quick-text {
+		font-size: 13px;
+	}
+
+	.vprs-quick-text-normal {
+		color: $vp-text;
+	}
+
+	.vprs-quick-text-active {
+		color: #14100a;
+		font-weight: bold;
+	}
+
+	.vprs-actions {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 14px;
+	}
+
+	.vprs-btn {
+		height: 44px;
+		flex: 1;
+		border-radius: $vp-radius-sm;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-left: 4px;
+		margin-right: 4px;
+	}
+
+	.vprs-pressed {
+		opacity: 0.85;
+	}
+
+	.vprs-btn-text {
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.vprs-text-light {
+		color: $vp-text;
+	}
+
+	.vprs-text-dark {
+		color: #14100a;
+	}
+
+	.vprs-cancel {
+		background-color: $vp-surface-3;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.vprs-confirm {
+		background-color: $vp-gold;
+	}
+</style>

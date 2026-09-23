@@ -1,0 +1,173 @@
+<template>
+	<view class="vpc" :class="root_class">
+		<view v-if="show_back" class="vpc-inner vpc-back">
+			<text class="vpc-back-mark">V</text>
+		</view>
+		<view v-else class="vpc-inner vpc-front">
+			<text class="vpc-rank" :class="rank_class">{{ rank_text }}</text>
+			<text class="vpc-suit" :class="suit_class">{{ suit_icon }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+
+	/**
+	 * 扑克牌
+	 * code 格式："{suit}-{rank}"，如 "S-1"、"H-11"；空 code 或 face_down 时显示背面
+	 */
+	type VpCardProps = {
+		code: string
+		face_down: boolean
+		size: string
+	}
+
+	const props = defineProps<VpCardProps>()
+
+	const show_back = computed((): boolean => {
+		return props.face_down || props.code.length == 0
+	})
+
+	const suit_char = computed((): string => {
+		if (props.code.length == 0) {
+			return ''
+		}
+		return props.code.substring(0, 1)
+	})
+
+	const rank_raw = computed((): string => {
+		if (props.code.length == 0) {
+			return ''
+		}
+		const parts = props.code.split('-')
+		if (parts.length < 2) {
+			return ''
+		}
+		return parts[1]
+	})
+
+	const rank_text = computed((): string => {
+		const r = rank_raw.value
+		if (r == '1') {
+			return 'A'
+		}
+		if (r == '11') {
+			return 'J'
+		}
+		if (r == '12') {
+			return 'Q'
+		}
+		if (r == '13') {
+			return 'K'
+		}
+		return r
+	})
+
+	const suit_icon = computed((): string => {
+		const s = suit_char.value
+		if (s == 'S') {
+			return '♠'
+		}
+		if (s == 'H') {
+			return '♥'
+		}
+		if (s == 'C') {
+			return '♣'
+		}
+		if (s == 'D') {
+			return '♦'
+		}
+		return ''
+	})
+
+	const color_class = computed((): string => {
+		const s = suit_char.value
+		if (s == 'H' || s == 'D') {
+			return 'vpc-red'
+		}
+		return 'vpc-black'
+	})
+
+	const size_font_class = computed((): string => {
+		return props.size == 'sm' ? 'vpc-font-sm' : 'vpc-font-md'
+	})
+
+	const root_class = computed((): string => {
+		return props.size == 'sm' ? 'vpc-sm' : 'vpc-md'
+	})
+
+	const rank_class = computed((): string => {
+		return `vpc-rank ${size_font_class.value} ${color_class.value}`
+	})
+
+	const suit_class = computed((): string => {
+		return `vpc-suit ${size_font_class.value} ${color_class.value}`
+	})
+</script>
+
+<style lang="scss">
+	.vpc {
+		flex-direction: column;
+	}
+
+	.vpc-sm {
+		width: 28px;
+		height: 40px;
+	}
+
+	.vpc-md {
+		width: 40px;
+		height: 56px;
+	}
+
+	.vpc-inner {
+		flex: 1;
+		border-radius: 6px;
+		border-width: 1px;
+		border-style: solid;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vpc-front {
+		background-color: #f5f5f5;
+		border-color: #c9c9c9;
+	}
+
+	.vpc-back {
+		background-color: #1c232e;
+		border-color: #3a4658;
+	}
+
+	.vpc-back-mark {
+		color: #d4af37;
+		font-size: 13px;
+		font-weight: bold;
+	}
+
+	.vpc-rank {
+		font-weight: bold;
+	}
+
+	.vpc-suit {
+		margin-top: 2px;
+	}
+
+	.vpc-font-sm {
+		font-size: 11px;
+	}
+
+	.vpc-font-md {
+		font-size: 15px;
+	}
+
+	.vpc-red {
+		color: #d33030;
+	}
+
+	.vpc-black {
+		color: #1a1a1a;
+	}
+</style>

@@ -1,0 +1,150 @@
+<template>
+	<view class="vpt">
+		<view class="vpt-felt">
+			<view class="vpt-rail"></view>
+
+			<text class="vpt-phase">{{ phase_text }}</text>
+
+			<view class="vpt-pot">
+				<text class="vpt-pot-label">底池</text>
+				<text class="vpt-pot-value">{{ pot_text }}</text>
+			</view>
+
+			<view class="vpt-community">
+				<vp-card v-for="(c, i) in community_codes" :key="i" :code="c" :face_down="false" size="md" />
+				<view v-for="(item, j) in empty_slots" :key="'e' + j" class="vpt-slot" />
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+	import { formatAmount } from '@/utils/format.uts'
+
+	/**
+	 * 牌桌绒布：底池 + 公共牌 + 阶段
+	 * 座位由页面绝对定位覆盖，避免向组件传递嵌套自定义类型
+	 * vapor 约束：不用 calc/min()/aspect-ratio，尺寸由页面 JS 计算后传入
+	 */
+	type VpPokerTableProps = {
+		pot: number
+		community_codes: string[]
+		phase: string
+	}
+
+	const props = defineProps<VpPokerTableProps>()
+
+	const pot_text = computed((): string => {
+		return formatAmount(props.pot)
+	})
+
+	const empty_slots = computed((): number[] => {
+		const out: number[] = []
+		const remain = 5 - props.community_codes.length
+		for (let i = 0; i < remain; i++) {
+			out.push(i)
+		}
+		return out
+	})
+
+	const phase_text = computed((): string => {
+		const p = props.phase
+		if (p == 'WAITING') {
+			return '等待开始'
+		}
+		if (p == 'DEALING') {
+			return '发牌中'
+		}
+		if (p == 'BETTING') {
+			return '下注中'
+		}
+		if (p == 'SHOWDOWN') {
+			return '比牌'
+		}
+		if (p == 'SETTLING') {
+			return '结算中'
+		}
+		if (p == 'FINISHED') {
+			return '本局结束'
+		}
+		return p
+	})
+</script>
+
+<style lang="scss">
+	.vpt {
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.vpt-felt {
+		position: relative;
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: $vp-felt;
+		border-radius: 160px;
+		border-width: 8px;
+		border-style: solid;
+		border-color: #0e1520;
+	}
+
+	.vpt-rail {
+		position: absolute;
+		left: -14px;
+		top: -14px;
+		right: -14px;
+		bottom: -14px;
+		border-radius: 172px;
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.28);
+	}
+
+	.vpt-phase {
+		position: absolute;
+		top: 10px;
+		color: rgba(255, 255, 255, 0.62);
+		font-size: 11px;
+		letter-spacing: 2px;
+	}
+
+	.vpt-pot {
+		flex-direction: column;
+		align-items: center;
+		margin-bottom: 12px;
+	}
+
+	.vpt-pot-label {
+		color: rgba(255, 255, 255, 0.7);
+		font-size: 11px;
+		letter-spacing: 1px;
+	}
+
+	.vpt-pot-value {
+		color: #e6c85a;
+		font-size: 22px;
+		font-weight: bold;
+		margin-top: 2px;
+	}
+
+	.vpt-community {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.vpt-slot {
+		width: 40px;
+		height: 56px;
+		background-color: rgba(0, 0, 0, 0.18);
+		border-radius: 6px;
+		border-width: 1px;
+		border-style: dashed;
+		border-color: rgba(255, 255, 255, 0.24);
+		margin-left: 4px;
+		margin-right: 4px;
+	}
+</style>

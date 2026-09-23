@@ -1,0 +1,166 @@
+/**
+ * 德州扑克牌堆管理
+ * 52 张标准牌（4 花色 × 13 点数，1=A），Fisher-Yates 洗牌
+ * 发牌规范：底牌轮流发两轮每人 2 张；公共牌先烧 1 张再发
+ */
+
+import { Card } from './types.uts'
+
+const SUITS: string[] = ['S', 'H', 'C', 'D']
+const RANKS: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+
+/**
+ * 创建一副全新的 52 张标准牌
+ */
+export function createStandardDeck(): Card[] {
+	const deck: Card[] = []
+	for (let i = 0; i < SUITS.length; i++) {
+		for (let j = 0; j < RANKS.length; j++) {
+			const suit = SUITS[i]
+			const rank = RANKS[j]
+			const card: Card = {
+				suit: suit,
+				rank: rank,
+				code: `${suit}-${rank}`
+			}
+			deck.push(card)
+		}
+	}
+	return deck
+}
+
+/**
+ * Fisher-Yates 原地洗牌
+ */
+export function shuffleDeck(deck: Card[]): Card[] {
+	for (let i = deck.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1))
+		const tmp = deck[i]
+		deck[i] = deck[j]
+		deck[j] = tmp
+	}
+	return deck
+}
+
+/**
+ * 创建并洗好一副牌
+ */
+export function createShuffledDeck(): Card[] {
+	return shuffleDeck(createStandardDeck())
+}
+
+/**
+ * 烧 1 张牌（德州防窥牌规则）
+ */
+export function burnOne(deck: Card[]): Card | null {
+	if (deck.length == 0) {
+		return null
+	}
+	return deck.pop() as Card
+}
+
+/**
+ * 荷官轮流发底牌：顺时针每位玩家每次发 1 张，共发 2 轮
+ */
+export function dealHoleCards(deck: Card[], playerCount: number): Card[][] {
+	const hands: Card[][] = []
+	for (let p = 0; p < playerCount; p++) {
+		hands.push([] as Card[])
+	}
+	for (let round = 0; round < 2; round++) {
+		for (let p = 0; p < playerCount; p++) {
+			const card = deck.pop()
+			if (card != null) {
+				hands[p].push(card as Card)
+			}
+		}
+	}
+	return hands
+}
+
+/**
+ * 翻牌圈：先烧 1 张，再发 3 张
+ */
+export function dealFlop(deck: Card[]): Card[] {
+	const out: Card[] = []
+	deck.pop()
+	for (let i = 0; i < 3; i++) {
+		const card = deck.pop()
+		if (card != null) {
+			out.push(card as Card)
+		}
+	}
+	return out
+}
+
+/**
+ * 转牌圈：先烧 1 张，再发第 4 张
+ */
+export function dealTurn(deck: Card[]): Card | null {
+	deck.pop()
+	const card = deck.pop()
+	return card
+}
+
+/**
+ * 河牌圈：先烧 1 张，再发第 5 张
+ */
+export function dealRiver(deck: Card[]): Card | null {
+	deck.pop()
+	const card = deck.pop()
+	return card
+}
+
+/**
+ * 牌面符号化：如 "S-1" -> "♠A"
+ */
+function suitIcon(suit: string): string {
+	if (suit == 'S') {
+		return '♠'
+	}
+	if (suit == 'H') {
+		return '♥'
+	}
+	if (suit == 'C') {
+		return '♣'
+	}
+	if (suit == 'D') {
+		return '♦'
+	}
+	return suit
+}
+
+function rankText(rank: number): string {
+	if (rank == 1) {
+		return 'A'
+	}
+	if (rank == 11) {
+		return 'J'
+	}
+	if (rank == 12) {
+		return 'Q'
+	}
+	if (rank == 13) {
+		return 'K'
+	}
+	return `${rank}`
+}
+
+export function formatCard(card: Card): string {
+	return `${suitIcon(card.suit)}${rankText(card.rank)}`
+}
+
+/**
+ * 牌堆完整性校验
+ */
+export function verifyDeckIntegrity(deck: Card[]): boolean {
+	const seen = new Set<string>()
+	for (let i = 0; i < deck.length; i++) {
+		const code = deck[i].code
+		if (seen.has(code)) {
+			return false
+		}
+		seen.add(code)
+	}
+	return true
+}

@@ -1,0 +1,118 @@
+{
+	"schemaVersion": 1,
+	"id": "v-poker-ui",
+	"entry": "hall.html",
+	"taskType": "free-design",
+	"pageType": "game-lobby",
+	"pages": ["hall.html", "room-list.html", "poker-table.html", "wallet.html"],
+	"pageNames": {
+		"hall.html": "大厅（玩法入口）",
+		"room-list.html": "房间列表（含加入弹窗）",
+		"poker-table.html": "德州牌桌（下注中）",
+		"wallet.html": "钱包（余额与流水）"
+	},
+	"viewports": ["1280x720", "960x540"],
+	"designSystem": null,
+	"userOverrides": [],
+	"designBrief": {
+		"deliverable": "V-POKER 棋牌平台横屏 App 的 4 个核心界面设计稿",
+		"audience": "休闲棋牌玩家（玩家/代理角色），横屏手游使用场景",
+		"coreTasks": [
+			"选择玩法并进入房间",
+			"按房号/密码加入房间",
+			"在牌桌上完成弃牌/跟注/加注/全下",
+			"查看筹码余额与资金流水"
+		],
+		"pageType": "game-lobby",
+		"visualAuthority": "free-exploration",
+		"targetViewports": ["1280x720", "960x540"],
+		"contentHierarchy": ["玩法入口", "房间信息", "牌桌状态与行动", "余额与流水"],
+		"states": ["default", "empty", "disabled", "selected", "dialog-open", "turn-active", "disconnected"],
+		"resources": ["assets/design.css"],
+		"validationPlan": ["code-inspection"],
+		"assumptions": [
+			"对齐 v-poker-yefeng 契约：game_type 为 texas_holdem / zha_jin_hua / niu_niu / san_gong",
+			"金额为整数筹码，界面按千分位展示",
+			"房间无实时在线人数接口，卡片不展示人数统计，仅展示底分/人数上限/局数"
+		]
+	},
+	"componentPlan": {
+		"tokenStrategy": {
+			"mode": "local",
+			"sources": ["assets/design.css :root 变量，对齐工程 uni.scss 的 $vp-* token"]
+		},
+		"components": [
+			{
+				"id": "app-shell",
+				"purpose": "横屏页面骨架：顶栏 + 左侧导航 + 主区 + 右侧辅助栏",
+				"source": "new",
+				"contract": null,
+				"variants": ["with-rail", "with-aside"],
+				"states": ["default"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "game-entry",
+				"purpose": "玩法入口卡：花色标识 + 名称 + 底分/人数 + 进入",
+				"source": "new",
+				"contract": null,
+				"variants": ["texas", "zhajinhua", "niuniu", "sangong"],
+				"states": ["default", "hover"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "room-card",
+				"purpose": "房间卡：房号 + 状态徽标 + 底分/人数上限/局数 + 进入",
+				"source": "new",
+				"contract": null,
+				"variants": ["waiting", "playing"],
+				"states": ["default", "disabled"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "poker-table",
+				"purpose": "椭圆牌桌：座位环绕 + 公共牌 + 底池 + 回合倒计时",
+				"source": "new",
+				"contract": null,
+				"variants": ["6-seat"],
+				"states": ["turn-active", "folded", "empty-seat", "disconnected"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "action-bar",
+				"purpose": "玩家行动：弃牌/跟注/加注/全下 + 加注滑动面板",
+				"source": "new",
+				"contract": null,
+				"variants": ["fold-check-call-raise-allin", "raise-panel-open"],
+				"states": ["default", "disabled"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "flow-row",
+				"purpose": "流水行：类型 + 时间 + 带符号金额",
+				"source": "new",
+				"contract": null,
+				"variants": ["income", "expense"],
+				"states": ["default"],
+				"viewports": ["1280x720", "960x540"]
+			},
+			{
+				"id": "dialog",
+				"purpose": "弹层：标题 + 表单 + 取消/确认",
+				"source": "new",
+				"contract": null,
+				"variants": ["join-room"],
+				"states": ["open"],
+				"viewports": ["1280x720", "960x540"]
+			}
+		],
+		"notes": [
+			"深色明度阶梯：--ink(页面) < --surface(卡片) < --surface-2(浮层) < --surface-3(悬停)",
+			"金色 --gold 为唯一品牌强调色；成功/危险/信息使用独立语义色",
+			"金额统一等宽数字（tabular-nums），正负号与颜色双重表达",
+			"动效基准 180ms，仅过渡具体属性，未使用 transition: all"
+		]
+	},
+	"assets": ["assets/design.css"],
+	"createdComponents": []
+}

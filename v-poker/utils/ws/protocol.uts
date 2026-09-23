@@ -1,0 +1,117 @@
+/**
+ * WebSocket 协议（契约第四章）
+ *
+ * 客户端 → 服务端：
+ *   join_room      { room_id, user_id, as_spectator? }
+ *   player_action  { req_id, user_id, action }
+ *   leave_room     { room_id }
+ *   ping           —
+ *
+ * 服务端 → 客户端：
+ *   joined / game_state / action_ack / phase_changed / action_broadcast
+ *   / turn_timer / player_status / auto_fold / round_result / pong
+ *
+ * 说明：服务端消息统一用 UTSJSONObject 承载，由 store/room.uts 做安全归一化
+ */
+
+/** 消息监听器 */
+export type MessageHandler = (msg: UTSJSONObject) => void
+
+/** action_ack 等待项 */
+export type AckWaiter = {
+	resolve: (msg: UTSJSONObject) => void
+	reject: (err: Error) => void
+	timer: number
+}
+
+/* ============================================================
+ * 客户端消息构造
+ * ============================================================ */
+
+/** 加入房间（旁观者 as_spectator = true 时屏蔽他人底牌） */
+export function buildJoinRoom(roomId: string, userId: string, token: string | null, asSpectator: boolean): UTSJSONObject {
+	const msg: UTSJSONObject = {
+		type: 'join_room',
+		room_id: roomId,
+		user_id: userId,
+		as_spectator: asSpectator
+	}
+	// 契约已知：后端 join_room 暂未校验 token，前端仍携带，为将来做准备
+	if (token != null && token.length > 0) {
+		msg.set('token', token)
+	}
+	return msg
+}
+
+/** 玩家动作 */
+export function buildPlayerAction(reqId: string, userId: string, action: UTSJSONObject): UTSJSONObject {
+	return {
+		type: 'player_action',
+		req_id: reqId,
+		user_id: userId,
+		action: action
+	}
+}
+
+/** 构造动作对象 */
+export function buildAction(actionType: string, userId: string, amount: number = -1, targetUserId: string = ''): UTSJSONObject {
+	const action: UTSJSONObject = {
+		action_type: actionType,
+		user_id: userId
+	}
+	if (amount >= 0) {
+		action.set('amount', amount)
+	}
+	if (targetUserId.length > 0) {
+		action.set('target_user_id', targetUserId)
+	}
+	return action
+}
+
+/** 离开房间 */
+export function buildLeaveRoom(roomId: string): UTSJSONObject {
+	return {
+		type: 'leave_room',
+		room_id: roomId
+	}
+}
+
+/** 心跳 */
+export function buildPing(): UTSJSONObject {
+	return {
+		type: 'ping'
+	}
+}
+
+/* ============================================================
+ * 服务端消息安全读取
+ * ============================================================ */
+
+export function msgType(msg: UTSJSONObject): string {
+	const t = msg.getString('type')
+	return t == null ? '' : t
+}
+
+export function msgRoomId(msg: UTSJSONObject): string {
+	const r = msg.getString('room_id')
+	return r == null ? '' : r
+}
+
+export function msgReqId(msg: UTSJSONObject): string {
+	const r = msg.getString('req_id')
+	return r == null ? '' : r
+}
+
+export function msgCode(msg: UTSJSONObject): number {
+	const c = msg.getNumber('code')
+	return c == null ? 0 : c
+}
+
+export function msgMessage(msg: UTSJSONObject): string {
+	const m = msg.getString('message')
+	return m == null ? '' : m
+}
+
+export function msgData(msg: UTSJSONObject): UTSJSONObject | null {
+	return msg.getJSON('data')
+}

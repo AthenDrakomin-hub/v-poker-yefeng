@@ -1,0 +1,151 @@
+/**
+ * 引擎黄金测试向量
+ * 云端权威引擎与客户端 UTS 引擎须对同一组向量产出一致结果
+ */
+
+import { Card, RoomConfig, RoundState, Seat, SidePot, createSeat } from '../game/types.uts'
+import { evaluate5Cards, evaluate7Cards } from '../game/evaluator.uts'
+import { createStandardDeck, verifyDeckIntegrity } from '../game/deck.uts'
+import { calculateSidePots } from '../game/pot.uts'
+
+export type TestCase = {
+	name: string
+	passed: boolean
+	expected: string
+	actual: string
+}
+
+function c(suit: string, rank: number): Card {
+	const card: Card = { suit: suit, rank: rank, code: `${suit}-${rank}` }
+	return card
+}
+
+function checkNum(name: string, expected: number, actual: number): TestCase {
+	const t: TestCase = {
+		name: name,
+		passed: expected == actual,
+		expected: `${expected}`,
+		actual: `${actual}`
+	}
+	return t
+}
+
+function checkBool(name: string, expected: boolean, actual: boolean): TestCase {
+	const t: TestCase = {
+		name: name,
+		passed: expected == actual,
+		expected: expected ? 'true' : 'false',
+		actual: actual ? 'true' : 'false'
+	}
+	return t
+}
+
+export function runEngineTests(): TestCase[] {
+	const results: TestCase[] = []
+
+	results.push(checkBool('52 张牌无重复', true, verifyDeckIntegrity(createStandardDeck())))
+
+	const royal = evaluate5Cards([c('S', 1), c('S', 13), c('S', 12), c('S', 11), c('S', 10)])
+	results.push(checkNum('皇家同花顺', 10000014, royal.score))
+
+	const sf = evaluate5Cards([c('S', 9), c('S', 8), c('S', 7), c('S', 6), c('S', 5)])
+	results.push(checkNum('同花顺(9高)', 9000009, sf.score))
+
+	const quads = evaluate5Cards([c('H', 5), c('D', 5), c('C', 5), c('S', 5), c('S', 1)])
+	results.push(checkNum('四条(5)', 8000089, quads.score))
+
+	const fh = evaluate5Cards([c('H', 5), c('D', 5), c('C', 5), c('S', 3), c('D', 3)])
+	results.push(checkNum('葫芦(5带3)', 7000078, fh.score))
+
+	const flush = evaluate5Cards([c('S', 1), c('S', 10), c('S', 8), c('S', 6), c('S', 3)])
+	results.push(checkNum('同花(A高)', 6744393, flush.score))
+
+	const straight = evaluate5Cards([c('S', 1), c('H', 13), c('D', 12), c('C', 11), c('S', 10)])
+	results.push(checkNum('顺子(A高)', 5000014, straight.score))
+
+	const wheel = evaluate5Cards([c('S', 1), c('H', 5), c('D', 4), c('C', 3), c('S', 2)])
+	results.push(checkNum('轮转顺(5高)', 5000005, wheel.score))
+
+	const trips = evaluate5Cards([c('S', 7), c('H', 7), c('D', 7), c('C', 1), c('S', 3)])
+	results.push(checkNum('三条(7)', 4001788, trips.score))
+
+	const twoPair = evaluate5Cards([c('S', 1), c('H', 1), c('D', 13), c('C', 13), c('S', 3)])
+	results.push(checkNum('两对(A与K)', 3003348, twoPair.score))
+
+	const onePair = evaluate5Cards([c('S', 1), c('H', 1), c('D', 13), c('C', 11), c('S', 9)])
+	results.push(checkNum('一对(A)', 2050349, onePair.score))
+
+	const high = evaluate5Cards([c('S', 1), c('H', 13), c('D', 11), c('C', 9), c('S', 7)])
+	results.push(checkNum('高牌(A)', 1755242, high.score))
+
+	const best7 = evaluate7Cards([c('S', 1), c('S', 13)], [c('S', 12), c('S', 11), c('S', 10), c('H', 2), c('D', 3)])
+	results.push(checkNum('7选5 皇家同花顺', 10000014, best7.score))
+
+	results.push(checkBool('皇家 > 同花顺', true, royal.score > sf.score))
+	results.push(checkBool('四条 > 葫芦', true, quads.score > fh.score))
+	results.push(checkBool('葫芦 > 同花', true, fh.score > flush.score))
+	results.push(checkBool('同花 > 顺子', true, flush.score > straight.score))
+	results.push(checkBool('顺子 > 三条', true, straight.score > trips.score))
+	results.push(checkBool('三条 > 两对', true, trips.score > twoPair.score))
+	results.push(checkBool('两对 > 一对', true, twoPair.score > onePair.score))
+	results.push(checkBool('一对 > 高牌', true, onePair.score > high.score))
+
+	const pairAK = evaluate5Cards([c('S', 1), c('H', 1), c('D', 13), c('C', 9), c('S', 7)])
+	const pairAQ = evaluate5Cards([c('S', 1), c('H', 1), c('D', 12), c('C', 9), c('S', 7)])
+	results.push(checkBool('一对A: K踢脚 > Q踢脚', true, pairAK.score > pairAQ.score))
+
+	// 边池：p1 下注 100，p2/p3 各下注 200
+	const s0 = createSeat(0)
+	s0.user_id = 'p1'
+	s0.status = 'playing'
+	s0.current_bet = 100
+	const s1 = createSeat(1)
+	s1.user_id = 'p2'
+	s1.status = 'playing'
+	s1.current_bet = 200
+	const s2 = createSeat(2)
+	s2.user_id = 'p3'
+	s2.status = 'playing'
+	s2.current_bet = 200
+	const seats: Seat[] = [s0, s1, s2]
+
+	const emptyCards: Card[] = []
+	const emptySidePots: SidePot[] = []
+	const emptyAgents: string[] = []
+	const room: RoomConfig = {
+		room_id: '888888',
+		game_type: 'texas_holdem',
+		base_score: 100,
+		platform_fee_rate: 0.05,
+		agent_commission_rate: 0.03,
+		agent_ids: emptyAgents,
+		min_players_to_start: 2,
+		max_seats: 6,
+		big_blind: 100,
+		rake_cap_multiplier: 5
+	}
+	const st: RoundState = {
+		room: room,
+		seats: seats,
+		deck: emptyCards,
+		community_cards: emptyCards,
+		phase: 'BETTING',
+		current_turn_seat_index: 0,
+		total_pot: 500,
+		current_highest_bet: 200,
+		min_call_amount: 200,
+		betting_round_count: 1,
+		side_pots: emptySidePots
+	}
+
+	const pots = calculateSidePots(st)
+	results.push(checkNum('边池层数', 2, pots.length))
+	if (pots.length == 2) {
+		results.push(checkNum('主池金额', 300, pots[0].amount))
+		results.push(checkNum('主池参与人数', 3, pots[0].eligible_user_ids.length))
+		results.push(checkNum('边池金额', 200, pots[1].amount))
+		results.push(checkNum('边池参与人数', 2, pots[1].eligible_user_ids.length))
+	}
+
+	return results
+}

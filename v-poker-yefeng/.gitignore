@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# 环境变量文件（真实密钥不提交，示例文件除外）
+.env
+.env.local
+.env.*.local
+
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.pytest_cache/

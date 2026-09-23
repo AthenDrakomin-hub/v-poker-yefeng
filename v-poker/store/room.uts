@@ -1,0 +1,674 @@
+/**
+ * 房间 Store：桌台状态 + 玩家动作 + WebSocket 同步
+ * 契约第四章：
+ *  - 状态真源在 game-engine，客户端只做展示与乐观禁用
+ *  - game_state 为全量状态（room / round_state / seats / turn_timer）
+ *  - 金额整数；时间 Unix 毫秒；字段 snake_case
+ *  - 他人底牌由服务端脱敏（旁观者收到空数组），客户端拿不到
+ * 说明：服务端消息以 UTSJSONObject 承载，这里做安全归一化，避免缺失字段运行时异常
+ */
+
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+import { wsConnect, wsJoinRoom, wsSendAction, wsLeaveRoom, wsOnMessage } from '@/utils/ws/client.uts'
+import { buildAction } from '@/utils/ws/protocol.uts'
+import { getToken } from '@/utils/storage.uts'
+import { playSound } from '@/utils/audio.uts'
+import { useAuthStore } from './auth.uts'
+import { useWalletStore } from './wallet.uts'
+
+/** 座位上的牌：自己为明牌（code 非空），暗牌兼容 count */
+export type SeatCardView = {
+	code: string
+	count: number
+}
+
+/** 归一化后的座位视图 */
+export type SeatView = {
+	seat_index: number
+	user_id: string
+	chips: number
+	current_bet: number
+	status: string
+	cards: SeatCardView[]
+	is_disconnected: boolean
+	is_banker: boolean
+	banker_multiplier: number
+	bet_multiplier: number
+	hand_name: string
+}
+
+/**
+ * 归一化单个座位
+ */
+function readSeat(obj: UTSJSONObject): SeatView {
+	const seatIndex = obj.getNumber('seat_index')
+	const userId = obj.getString('user_id')
+	const chips = obj.getNumber('chips')
+	const currentBet = obj.getNumber('current_bet')
+	const status = obj.getString('status')
+	const disconnected = obj.getBoolean('is_disconnected')
+	const banker = obj.getBoolean('is_banker')
+	const bankerMul = obj.getNumber('banker_multiplier')
+	const betMul = obj.getNumber('bet_multiplier')
+
+	const cards: SeatCardView[] = []
+	const rawCards = obj.getArray<UTSJSONObject>('cards')
+	if (rawCards != null) {
+		for (let i = 0; i < rawCards.length; i++) {
+			const raw = rawCards[i]
+			const count = raw.getNumber('count')
+			if (count != null) {
+				const hidden: SeatCardView = { code: '', count: count }
+				cards.push(hidden)
+			} else {
+				const code = raw.getString('code')
+				const face: SeatCardView = { code: code == null ? '' : code, count: 0 }
+				cards.push(face)
+			}
+		}
+	}
+
+	const seat: SeatView = {
+		seat_index: seatIndex == null ? 0 : seatIndex,
+		user_id: userId == null ? '' : userId,
+		chips: chips == null ? 0 : chips,
+		current_bet: currentBet == null ? 0 : currentBet,
+		status: status == null ? 'empty' : status,
+		cards: cards,
+		is_disconnected: disconnected == true,
+		is_banker: banker == true,
+		banker_multiplier: bankerMul == null ? 0 : bankerMul,
+		bet_multiplier: betMul == null ? 0 : betMul,
+		hand_name: ''
+	}
+	return seat
+}
+
+/**
+ * 阶段中文名
+ */
+export function phaseLabel(phase: string): string {
+	if (phase == 'WAITING') {
+		return '等待中'
+	}
+	if (phase == 'DEALING') {
+		return '发牌中'
+	}
+	if (phase == 'BETTING') {
+		return '下注中'
+	}
+	if (phase == 'SHOWDOWN') {
+		return '比牌'
+	}
+	if (phase == 'SETTLING') {
+		return '结算中'
+	}
+	if (phase == 'FINISHED') {
+		return '本局结束'
+	}
+	return phase
+}
+
+export const useRoomStore = defineStore('room', () => {
+	const roomId = ref('')
+	const gameType = ref('')
+	const room = ref<UTSJSONObject | null>(null)
+	const roundState = ref<UTSJSONObject | null>(null)
+	const phase = ref('WAITING')
+	const seats = ref<SeatView[]>([])
+	const communityCodes = ref<string[]>([])
+	const pot = ref(0)
+	const highestBet = ref(0)
+	const minCall = ref(0)
+	const baseScore = ref(0)
+	const bigBlind = ref(0)
+	const turnSeatIndex = ref(-1)
+	const turnUserId = ref('')
+	const turnDeadline = ref(0)
+	const turnRemaining = ref(0)
+	const mySeatIndex = ref(-1)
+	const isSpectator = ref(false)
+	const connected = ref(false)
+	const errorMessage = ref('')
+
+	const lastResult = ref<UTSJSONObject[]>([])
+	const eventLog = ref<UTSJSONObject[]>([])
+
+	/** 我的座位 */
+	const mySeat = computed((): SeatView | null => {
+		const auth = useAuthStore()
+		if (auth.userId.length == 0) {
+			return null
+		}
+		for (let i = 0; i < seats.value.length; i++) {
+			if (seats.value[i].user_id == auth.userId) {
+				return seats.value[i]
+			}
+		}
+		return null
+	})
+
+	/** 是否轮到我行动 */
+	const isMyTurn = computed((): boolean => {
+		const s = mySeat.value
+		if (s == null) {
+			return false
+		}
+		return phase.value == 'BETTING' && turnSeatIndex.value == s.seat_index && turnSeatIndex.value >= 0
+	})
+
+	/** 我的底牌 code 列表（他人底牌为空） */
+	const myCardCodes = computed((): string[] => {
+		const s = mySeat.value
+		if (s == null) {
+			return []
+		}
+		const out: string[] = []
+		for (let i = 0; i < s.cards.length; i++) {
+			if (s.cards[i].code.length > 0) {
+				out.push(s.cards[i].code)
+			}
+		}
+		return out
+	})
+
+	/** 是否可以过牌 */
+	const canCheck = computed((): boolean => {
+		const s = mySeat.value
+		if (s == null) {
+			return false
+		}
+		return s.current_bet >= highestBet.value
+	})
+
+	/** 跟注需追加的筹码 */
+	const callAmount = computed((): number => {
+		const s = mySeat.value
+		if (s == null) {
+			return 0
+		}
+		return Math.max(0, highestBet.value - s.current_bet)
+	})
+
+	/** 最小加注目标额 */
+	const minRaise = computed((): number => {
+		return highestBet.value + baseScore.value
+	})
+
+	/** 最大加注目标额（全下） */
+	const maxRaise = computed((): number => {
+		const s = mySeat.value
+		if (s == null) {
+			return 0
+		}
+		return s.chips + s.current_bet
+	})
+
+	/** 我是否已准备 */
+	const isReady = computed((): boolean => {
+		const s = mySeat.value
+		if (s == null) {
+			return false
+		}
+		return s.status == 'ready'
+	})
+
+	/** 是否可准备（等待 / 本局结束） */
+	const canReady = computed((): boolean => {
+		return phase.value == 'WAITING' || phase.value == 'FINISHED'
+	})
+
+	/** 已准备 / 在局人数 */
+	const readyCount = computed((): number => {
+		let n = 0
+		for (let i = 0; i < seats.value.length; i++) {
+			const st = seats.value[i].status
+			if (seats.value[i].user_id.length > 0 && (st == 'ready' || st == 'playing' || st == 'all_in')) {
+				n++
+			}
+		}
+		return n
+	})
+
+	/** 各玩法每人底牌数（他人底牌脱敏时用于展示牌背） */
+	const holeCardCount = computed((): number => {
+		const gt = gameType.value
+		if (gt == 'zha_jin_hua' || gt == 'san_gong') {
+			return 3
+		}
+		if (gt == 'niu_niu') {
+			return 5
+		}
+		return 2
+	})
+
+	/* ============================================================
+	 * 消息应用
+	 * ============================================================ */
+
+	/** 应用 turn_timer 独立消息（event: start/tick/cancel/expired） */
+	const applyTurnTimer = (data: UTSJSONObject) => {
+		const event = data.getString('event')
+		if (event == null) {
+			return
+		}
+		if (event == 'start') {
+			const si = data.getNumber('seat_index')
+			const uid = data.getString('user_id')
+			const dl = data.getNumber('deadline_ms')
+			const to = data.getNumber('timeout_ms')
+			turnSeatIndex.value = si == null ? -1 : si
+			turnUserId.value = uid == null ? '' : uid
+			turnDeadline.value = dl == null ? 0 : dl
+			turnRemaining.value = to == null ? 0 : to
+		} else if (event == 'tick') {
+			const rem = data.getNumber('remaining_ms')
+			turnRemaining.value = rem == null ? 0 : rem
+		} else if (event == 'cancel' || event == 'expired') {
+			turnSeatIndex.value = -1
+			turnUserId.value = ''
+			turnDeadline.value = 0
+			turnRemaining.value = 0
+		}
+	}
+
+	/** 应用 game_state.turn_timer 快照 */
+	const applyTurnTimerSnapshot = (tt: UTSJSONObject) => {
+		const si = tt.getNumber('seat_index')
+		const uid = tt.getString('user_id')
+		const dl = tt.getNumber('deadline_ms')
+		const rem = tt.getNumber('remaining_ms')
+		turnSeatIndex.value = si == null ? -1 : si
+		turnUserId.value = uid == null ? '' : uid
+		turnDeadline.value = dl == null ? 0 : dl
+		turnRemaining.value = rem == null ? 0 : rem
+	}
+
+	/** 应用全量 game_state */
+	const applyGameState = (data: UTSJSONObject) => {
+		const roomObj = data.getJSON('room')
+		room.value = roomObj
+		if (roomObj != null) {
+			const rid = roomObj.getString('room_id')
+			if (rid != null) {
+				roomId.value = rid
+			}
+			const gt = roomObj.getString('game_type')
+			if (gt != null) {
+				gameType.value = gt
+			}
+			const base = roomObj.getNumber('base_score')
+			baseScore.value = base == null ? 0 : base
+			const bb = roomObj.getNumber('big_blind')
+			bigBlind.value = bb == null ? 0 : bb
+		}
+
+		const rs = data.getJSON('round_state')
+		roundState.value = rs
+		if (rs != null) {
+			const ph = rs.getString('phase')
+			phase.value = ph == null ? 'WAITING' : ph
+			const tp = rs.getNumber('total_pot')
+			pot.value = tp == null ? 0 : tp
+			const hb = rs.getNumber('current_highest_bet')
+			highestBet.value = hb == null ? 0 : hb
+			const mc = rs.getNumber('min_call_amount')
+			minCall.value = mc == null ? 0 : mc
+
+			const codes: string[] = []
+			const cc = rs.getArray<UTSJSONObject>('community_cards')
+			if (cc != null) {
+				for (let i = 0; i < cc.length; i++) {
+					const code = cc[i].getString('code')
+					if (code != null) {
+						codes.push(code)
+					}
+				}
+			}
+			communityCodes.value = codes
+		}
+
+		const rawSeats = data.getArray<UTSJSONObject>('seats')
+		const nextSeats: SeatView[] = []
+		if (rawSeats != null) {
+			for (let i = 0; i < rawSeats.length; i++) {
+				nextSeats.push(readSeat(rawSeats[i]))
+			}
+		}
+		seats.value = nextSeats
+
+		// 计算自己的座位下标
+		const auth = useAuthStore()
+		let idx = -1
+		if (auth.userId.length > 0) {
+			for (let i = 0; i < nextSeats.length; i++) {
+				if (nextSeats[i].user_id == auth.userId) {
+					idx = i
+					break
+				}
+			}
+		}
+		mySeatIndex.value = idx
+
+		const tt = data.getJSON('turn_timer')
+		if (tt != null) {
+			applyTurnTimerSnapshot(tt)
+		} else {
+			turnSeatIndex.value = -1
+			turnRemaining.value = 0
+		}
+	}
+
+	/** 应用玩家断线/重连状态 */
+	const applyPlayerStatus = (data: UTSJSONObject) => {
+		const uid = data.getString('user_id')
+		const status = data.getString('status')
+		if (uid == null || status == null) {
+			return
+		}
+		const disconnected = status == 'disconnected'
+		const next: SeatView[] = []
+		for (let i = 0; i < seats.value.length; i++) {
+			const s = seats.value[i]
+			if (s.user_id == uid) {
+				const copy: SeatView = {
+					seat_index: s.seat_index,
+					user_id: s.user_id,
+					chips: s.chips,
+					current_bet: s.current_bet,
+					status: s.status,
+					cards: s.cards,
+					is_disconnected: disconnected,
+					is_banker: s.is_banker,
+					banker_multiplier: s.banker_multiplier,
+					bet_multiplier: s.bet_multiplier,
+					hand_name: s.hand_name
+				}
+				next.push(copy)
+			} else {
+				next.push(s)
+			}
+		}
+		seats.value = next
+	}
+
+	/** 应用超时自动弃牌 */
+	const applyAutoFold = (data: UTSJSONObject) => {
+		const folded = data.getArray<UTSJSONObject>('folded')
+		if (folded == null) {
+			return
+		}
+		const next: SeatView[] = []
+		for (let i = 0; i < seats.value.length; i++) {
+			const s = seats.value[i]
+			let isFolded = false
+			for (let j = 0; j < folded.length; j++) {
+				const f = folded[j]
+				const fUid = f.getString('userId')
+				const fSeat = f.getNumber('seatIndex')
+				if ((fUid != null && fUid == s.user_id) || (fSeat != null && fSeat == s.seat_index)) {
+					isFolded = true
+					break
+				}
+			}
+			if (isFolded) {
+				const copy: SeatView = {
+					seat_index: s.seat_index,
+					user_id: s.user_id,
+					chips: s.chips,
+					current_bet: s.current_bet,
+					status: 'folded',
+					cards: s.cards,
+					is_disconnected: s.is_disconnected,
+					is_banker: s.is_banker,
+					banker_multiplier: s.banker_multiplier,
+					bet_multiplier: s.bet_multiplier,
+					hand_name: s.hand_name
+				}
+				next.push(copy)
+			} else {
+				next.push(s)
+			}
+		}
+		seats.value = next
+	}
+
+	/** 应用一局结果 */
+	const applyRoundResult = (data: UTSJSONObject) => {
+		const results = data.getArray<UTSJSONObject>('results')
+		lastResult.value = results == null ? [] : results
+		const log = data.getArray<UTSJSONObject>('event_log')
+		eventLog.value = log == null ? [] : log
+		// 结算后刷新余额（资金真源在服务端）
+		const wallet = useWalletStore()
+		wallet.refreshBalance()
+	}
+
+	/* ============================================================
+	 * 消息订阅
+	 * ============================================================ */
+
+	let unsubscribe: (() => void) | null = null
+
+	const initMessageHandler = () => {
+		if (unsubscribe != null) {
+			return
+		}
+		unsubscribe = wsOnMessage((msg: UTSJSONObject) => {
+			const type = msg.getString('type')
+			if (type == null) {
+				return
+			}
+			if (type == 'game_state') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					applyGameState(data)
+					connected.value = true
+				}
+			} else if (type == 'turn_timer') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					applyTurnTimer(data)
+				}
+			} else if (type == 'player_status') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					applyPlayerStatus(data)
+				}
+			} else if (type == 'auto_fold') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					applyAutoFold(data)
+					playSound('click')
+				}
+			} else if (type == 'round_result') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					applyRoundResult(data)
+					playSound('win')
+				}
+			} else if (type == 'phase_changed') {
+				const data = msg.getJSON('data')
+				if (data != null) {
+					const np = data.getString('new_phase')
+					if (np != null) {
+						phase.value = np
+					}
+				}
+			}
+		})
+	}
+
+	/* ============================================================
+	 * 进入 / 离开房间
+	 * ============================================================ */
+
+	/** 进入房间（连接 WS → join_room → 等 joined） */
+	const enterRoom = async (id: string, asSpectator: boolean = false): Promise<boolean> => {
+		errorMessage.value = ''
+		isSpectator.value = asSpectator
+		roomId.value = id
+		initMessageHandler()
+
+		try {
+			await wsConnect()
+		} catch (e) {
+			errorMessage.value = '连接服务器失败'
+			return false
+		}
+
+		const auth = useAuthStore()
+		try {
+			await wsJoinRoom(id, auth.userId, getToken(), asSpectator)
+			connected.value = true
+			return true
+		} catch (e) {
+			errorMessage.value = '加入房间失败'
+			return false
+		}
+	}
+
+	/** 离开房间 */
+	const leaveRoom = () => {
+		wsLeaveRoom()
+		reset()
+	}
+
+	/* ============================================================
+	 * 玩家动作
+	 * ============================================================ */
+
+	/** 发送动作（action_ack 超时抛错由调用方处理） */
+	const sendAction = async (actionType: string, amount: number = -1, targetUserId: string = ''): Promise<void> => {
+		if (roomId.value.length == 0) {
+			return
+		}
+		const auth = useAuthStore()
+		const action = buildAction(actionType, auth.userId, amount, targetUserId)
+		try {
+			await wsSendAction(action)
+			if (actionType == 'fold') {
+				playSound('lose')
+			} else if (actionType == 'check' || actionType == 'ready') {
+				playSound('click')
+			} else if (actionType == 'raise' || actionType == 'bet' || actionType == 'call' || actionType == 'all_in') {
+				playSound('chip_bet')
+			}
+		} catch (e) {
+			const err = e as Error
+			errorMessage.value = err.message.length > 0 ? err.message : '操作失败'
+		}
+	}
+
+	const fold = async (): Promise<void> => {
+		await sendAction('fold')
+	}
+
+	const check = async (): Promise<void> => {
+		await sendAction('check')
+	}
+
+	const call = async (): Promise<void> => {
+		await sendAction('call')
+	}
+
+	const raise = async (amount: number): Promise<void> => {
+		await sendAction('raise', amount)
+	}
+
+	const allIn = async (): Promise<void> => {
+		await sendAction('all_in')
+	}
+
+	const ready = async (): Promise<void> => {
+		await sendAction('ready')
+	}
+
+	/** 炸金花：看牌 */
+	const viewCards = async (): Promise<void> => {
+		await sendAction('view_cards')
+	}
+
+	/** 炸金花：比牌 */
+	const compare = async (targetUserId: string): Promise<void> => {
+		await sendAction('compare', -1, targetUserId)
+	}
+
+	/* ============================================================
+	 * 重置
+	 * ============================================================ */
+
+	const reset = () => {
+		roomId.value = ''
+		gameType.value = ''
+		room.value = null
+		roundState.value = null
+		phase.value = 'WAITING'
+		seats.value = []
+		communityCodes.value = []
+		pot.value = 0
+		highestBet.value = 0
+		minCall.value = 0
+		baseScore.value = 0
+		bigBlind.value = 0
+		turnSeatIndex.value = -1
+		turnUserId.value = ''
+		turnDeadline.value = 0
+		turnRemaining.value = 0
+		mySeatIndex.value = -1
+		isSpectator.value = false
+		connected.value = false
+		errorMessage.value = ''
+		lastResult.value = []
+		eventLog.value = []
+	}
+
+	return {
+		roomId,
+		gameType,
+		room,
+		roundState,
+		phase,
+		seats,
+		communityCodes,
+		pot,
+		highestBet,
+		minCall,
+		baseScore,
+		bigBlind,
+		turnSeatIndex,
+		turnUserId,
+		turnDeadline,
+		turnRemaining,
+		mySeatIndex,
+		isSpectator,
+		connected,
+		errorMessage,
+		lastResult,
+		eventLog,
+		mySeat,
+		isMyTurn,
+		myCardCodes,
+		canCheck,
+		callAmount,
+		minRaise,
+		maxRaise,
+		isReady,
+		canReady,
+		readyCount,
+		holeCardCount,
+		enterRoom,
+		leaveRoom,
+		sendAction,
+		fold,
+		check,
+		call,
+		raise,
+		allIn,
+		ready,
+		viewCards,
+		compare,
+		reset
+	}
+})

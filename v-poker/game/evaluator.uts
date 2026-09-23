@@ -1,0 +1,281 @@
+/**
+ * 德州扑克牌型评估器
+ * 牌型等级 1~10：高牌 / 一对 / 两对 / 三条 / 顺子 / 同花 / 葫芦 / 四条 / 同花顺 / 皇家同花顺
+ * 采用基数-15 逐级权重计分，消除踢脚牌碰撞；含 A-5-4-3-2 轮转顺
+ */
+
+import { Card, HandResult } from './types.uts'
+
+type CountEntry = {
+	val: number
+	count: number
+}
+
+function rankLabel(rank: number): string {
+	if (rank == 14) {
+		return 'A'
+	}
+	if (rank == 13) {
+		return 'K'
+	}
+	if (rank == 12) {
+		return 'Q'
+	}
+	if (rank == 11) {
+		return 'J'
+	}
+	return `${rank}`
+}
+
+/**
+ * 5 张单调递减点数的唯一权重分（基数 15）
+ */
+function score5(v: number[]): number {
+	return v[0] * 50625 + v[1] * 3375 + v[2] * 225 + v[3] * 15 + v[4]
+}
+
+/**
+ * 精确评估 5 张牌的牌型与强度
+ */
+export function evaluate5Cards(cards: Card[]): HandResult {
+	const sorted: Card[] = []
+	for (let i = 0; i < cards.length; i++) {
+		sorted.push(cards[i])
+	}
+	sorted.sort((a: Card, b: Card): number => {
+		const va = a.rank == 1 ? 14 : a.rank
+		const vb = b.rank == 1 ? 14 : b.rank
+		return vb - va
+	})
+
+	const vals: number[] = []
+	for (let i = 0; i < sorted.length; i++) {
+		vals.push(sorted[i].rank == 1 ? 14 : sorted[i].rank)
+	}
+
+	let isFlush = true
+	for (let i = 1; i < sorted.length; i++) {
+		if (sorted[i].suit != sorted[0].suit) {
+			isFlush = false
+			break
+		}
+	}
+
+	let isStraight = false
+	let straightHigh = 0
+	if (vals[0] - vals[1] == 1 && vals[1] - vals[2] == 1 && vals[2] - vals[3] == 1 && vals[3] - vals[4] == 1) {
+		isStraight = true
+		straightHigh = vals[0]
+	} else if (vals[0] == 14 && vals[1] == 5 && vals[2] == 4 && vals[3] == 3 && vals[4] == 2) {
+		isStraight = true
+		straightHigh = 5
+	}
+
+	const counts = new Map<number, number>()
+	for (let i = 0; i < vals.length; i++) {
+		const v = vals[i]
+		const c = counts.get(v)
+		counts.set(v, c == null ? 1 : c + 1)
+	}
+	const countEntries: CountEntry[] = []
+	counts.forEach((count: number, val: number) => {
+		const e: CountEntry = { val: val, count: count }
+		countEntries.push(e)
+	})
+	countEntries.sort((a: CountEntry, b: CountEntry): number => {
+		if (b.count != a.count) {
+			return b.count - a.count
+		}
+		return b.val - a.val
+	})
+
+	// 同花顺 / 皇家同花顺
+	if (isFlush && isStraight) {
+		if (straightHigh == 14) {
+			const royal: HandResult = {
+				rank_name: '皇家同花顺',
+				rank_level: 10,
+				score: 10000000 + 14,
+				multiplier: 10,
+				best_cards: sorted
+			}
+			return royal
+		}
+		const sf: HandResult = {
+			rank_name: `同花顺(${rankLabel(straightHigh)}高)`,
+			rank_level: 9,
+			score: 9000000 + straightHigh,
+			multiplier: 8,
+			best_cards: sorted
+		}
+		return sf
+	}
+
+	// 四条
+	if (countEntries[0].count == 4) {
+		const quad = countEntries[0].val
+		const kicker = countEntries[1].val
+		const four: HandResult = {
+			rank_name: `四条(${rankLabel(quad)})`,
+			rank_level: 8,
+			score: 8000000 + quad * 15 + kicker,
+			multiplier: 6,
+			best_cards: sorted
+		}
+		return four
+	}
+
+	// 葫芦
+	if (countEntries[0].count == 3 && countEntries[1].count == 2) {
+		const trio = countEntries[0].val
+		const pair = countEntries[1].val
+		const fh: HandResult = {
+			rank_name: `葫芦(${rankLabel(trio)}带${rankLabel(pair)})`,
+			rank_level: 7,
+			score: 7000000 + trio * 15 + pair,
+			multiplier: 5,
+			best_cards: sorted
+		}
+		return fh
+	}
+
+	// 同花
+	if (isFlush) {
+		const fl: HandResult = {
+			rank_name: `同花(${rankLabel(vals[0])}高)`,
+			rank_level: 6,
+			score: 6000000 + score5(vals),
+			multiplier: 4,
+			best_cards: sorted
+		}
+		return fl
+	}
+
+	// 顺子
+	if (isStraight) {
+		const st: HandResult = {
+			rank_name: `顺子(${rankLabel(straightHigh)}高)`,
+			rank_level: 5,
+			score: 5000000 + straightHigh,
+			multiplier: 3,
+			best_cards: sorted
+		}
+		return st
+	}
+
+	// 三条
+	if (countEntries[0].count == 3) {
+		const trio = countEntries[0].val
+		const k1 = countEntries[1].val
+		const k2 = countEntries[2].val
+		const tp: HandResult = {
+			rank_name: `三条(${rankLabel(trio)})`,
+			rank_level: 4,
+			score: 4000000 + trio * 225 + k1 * 15 + k2,
+			multiplier: 2,
+			best_cards: sorted
+		}
+		return tp
+	}
+
+	// 两对
+	if (countEntries[0].count == 2 && countEntries[1].count == 2) {
+		const p1 = Math.max(countEntries[0].val, countEntries[1].val)
+		const p2 = Math.min(countEntries[0].val, countEntries[1].val)
+		const kicker = countEntries[2].val
+		const tw: HandResult = {
+			rank_name: `两对(${rankLabel(p1)}与${rankLabel(p2)})`,
+			rank_level: 3,
+			score: 3000000 + p1 * 225 + p2 * 15 + kicker,
+			multiplier: 1.5,
+			best_cards: sorted
+		}
+		return tw
+	}
+
+	// 一对
+	if (countEntries[0].count == 2) {
+		const pair = countEntries[0].val
+		const k1 = countEntries[1].val
+		const k2 = countEntries[2].val
+		const k3 = countEntries[3].val
+		const op: HandResult = {
+			rank_name: `一对(${rankLabel(pair)})`,
+			rank_level: 2,
+			score: 2000000 + pair * 3375 + k1 * 225 + k2 * 15 + k3,
+			multiplier: 1,
+			best_cards: sorted
+		}
+		return op
+	}
+
+	// 高牌
+	const hc: HandResult = {
+		rank_name: `高牌(${rankLabel(vals[0])}大)`,
+		rank_level: 1,
+		score: 1000000 + score5(vals),
+		multiplier: 1,
+		best_cards: sorted
+	}
+	return hc
+}
+
+/**
+ * 7 选 5 最佳牌型评估：遍历 C(7,5)=21 种组合取最高分
+ */
+export function evaluate7Cards(holeCards: Card[], communityCards: Card[]): HandResult {
+	const all: Card[] = []
+	for (let i = 0; i < holeCards.length; i++) {
+		all.push(holeCards[i])
+	}
+	for (let i = 0; i < communityCards.length; i++) {
+		all.push(communityCards[i])
+	}
+
+	const emptyCards: Card[] = []
+	if (all.length < 5) {
+		const none: HandResult = {
+			rank_name: '牌数不足',
+			rank_level: 0,
+			score: 0,
+			multiplier: 1,
+			best_cards: emptyCards
+		}
+		return none
+	}
+	if (all.length == 5) {
+		return evaluate5Cards(all)
+	}
+
+	const n = all.length
+	let best: HandResult = {
+		rank_name: '高牌',
+		rank_level: 0,
+		score: -1,
+		multiplier: 1,
+		best_cards: emptyCards
+	}
+	for (let a = 0; a < n; a++) {
+		for (let b = a + 1; b < n; b++) {
+			for (let c = b + 1; c < n; c++) {
+				for (let d = c + 1; d < n; d++) {
+					for (let e = d + 1; e < n; e++) {
+						const five: Card[] = [all[a], all[b], all[c], all[d], all[e]]
+						const cur = evaluate5Cards(five)
+						if (cur.score > best.score) {
+							best = cur
+						}
+					}
+				}
+			}
+		}
+	}
+	return best
+}
+
+/**
+ * 比较两副牌：>0 表示 a 胜，<0 表示 b 胜，0 平手
+ */
+export function compareEvaluations(a: HandResult, b: HandResult): number {
+	return a.score - b.score
+}

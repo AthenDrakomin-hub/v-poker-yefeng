@@ -1,0 +1,112 @@
+/**
+ * 大厅 Store：房间列表 / 创建 / 加入
+ * 契约 3.2：GET /api/rooms/list、POST /api/rooms/create、/join、/:id/bots
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import {
+	listRooms,
+	createRoom as apiCreateRoom,
+	joinRoom as apiJoinRoom,
+	addBots as apiAddBots
+} from '@/utils/http/api/room.uts'
+
+/** 归一化后的房间列表项（扁平类型，便于模板绑定） */
+export type RoomItem = {
+	room_id: string
+	room_name: string
+	game_type: string
+	base_score: number
+	min_players: number
+	max_players: number
+	status: string
+	current_round: number
+	total_rounds: number
+	room_type: string
+	created_by: string
+}
+
+/** UTSJSONObject -> RoomItem */
+function readRoom(obj: UTSJSONObject): RoomItem {
+	const rid = obj.getString('room_id')
+	const name = obj.getString('room_name')
+	const gt = obj.getString('game_type')
+	const base = obj.getNumber('base_score')
+	const minP = obj.getNumber('min_players')
+	const maxP = obj.getNumber('max_players')
+	const status = obj.getString('status')
+	const cur = obj.getNumber('current_round')
+	const total = obj.getNumber('total_rounds')
+	const rtype = obj.getString('room_type')
+	const createdBy = obj.getString('created_by')
+	return {
+		room_id: rid == null ? '' : rid,
+		room_name: name == null ? '' : name,
+		game_type: gt == null ? '' : gt,
+		base_score: base == null ? 0 : base,
+		min_players: minP == null ? 2 : minP,
+		max_players: maxP == null ? 6 : maxP,
+		status: status == null ? '' : status,
+		current_round: cur == null ? 0 : cur,
+		total_rounds: total == null ? 0 : total,
+		room_type: rtype == null ? 'public' : rtype,
+		created_by: createdBy == null ? '' : createdBy
+	}
+}
+
+export const useLobbyStore = defineStore('lobby', () => {
+	const rooms = ref<RoomItem[]>([])
+	const filterGameType = ref<string>('')
+	const filterStatus = ref<string>('')
+	const loading = ref(false)
+	const errorMessage = ref('')
+
+	/** 拉取房间列表 */
+	const fetchRooms = async () => {
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const gt = filterGameType.value.length > 0 ? filterGameType.value : null
+			const st = filterStatus.value.length > 0 ? filterStatus.value : null
+			const raw = await listRooms(gt, st)
+			const list: RoomItem[] = []
+			for (let i = 0; i < raw.length; i++) {
+				list.push(readRoom(raw[i]))
+			}
+			rooms.value = list
+		} catch (e) {
+			errorMessage.value = '房间列表加载失败'
+			console.error('fetchRooms failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	/** 创建房间（payload 不要包含 created_by） */
+	const createRoom = async (payload: UTSJSONObject): Promise<UTSJSONObject | null> => {
+		return await apiCreateRoom(payload)
+	}
+
+	/** 加入房间（不要传 user_id） */
+	const joinRoom = async (roomId: string, password: string = ''): Promise<UTSJSONObject | null> => {
+		return await apiJoinRoom(roomId, password)
+	}
+
+	/** 添加机器人（走 BFF） */
+	const addBots = async (roomId: string, count: number, strategy: string = 'loose', chips: number = 5000): Promise<UTSJSONObject | null> => {
+		return await apiAddBots(roomId, count, strategy, chips)
+	}
+
+	return {
+		rooms,
+		filterGameType,
+		filterStatus,
+		loading,
+		errorMessage,
+		fetchRooms,
+		createRoom,
+		joinRoom,
+		addBots
+	}
+})

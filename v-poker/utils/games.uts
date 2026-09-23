@@ -1,0 +1,61 @@
+/**
+ * 玩法与房间展示映射（对齐后端 game_type 枚举）
+ * 契约 3.2：texas_holdem / zha_jin_hua / niu_niu / san_gong
+ */
+
+export type GameEntry = {
+	game_type: string
+	name: string
+	icon: string
+	route: string
+}
+
+/** 大厅玩法入口（顺序即展示顺序） */
+export const GAME_ENTRIES: GameEntry[] = [
+	{ game_type: 'texas_holdem', name: '德州扑克', icon: '♠️', route: '/pages/table-texas/table-texas' },
+	{ game_type: 'zha_jin_hua', name: '炸金花', icon: '🃏', route: '/pages/table-zhajinhua/table-zhajinhua' },
+	{ game_type: 'niu_niu', name: '牛牛', icon: '🐂', route: '/pages/table-niuniu/table-niuniu' },
+	{ game_type: 'san_gong', name: '三公', icon: '🎴', route: '/pages/table-sangong/table-sangong' }
+]
+
+export function gameTypeName(gt: string): string {
+	for (let i = 0; i < GAME_ENTRIES.length; i++) {
+		if (GAME_ENTRIES[i].game_type == gt) {
+			return GAME_ENTRIES[i].name
+		}
+	}
+	return gt
+}
+
+export function gameTypeIcon(gt: string): string {
+	for (let i = 0; i < GAME_ENTRIES.length; i++) {
+		if (GAME_ENTRIES[i].game_type == gt) {
+			return GAME_ENTRIES[i].icon
+		}
+	}
+	return '🎮'
+}
+
+/** game_type -> 牌桌页路由（未匹配时回退德州） */
+export function gameTypeRoute(gt: string): string {
+	for (let i = 0; i < GAME_ENTRIES.length; i++) {
+		if (GAME_ENTRIES[i].game_type == gt) {
+			return GAME_ENTRIES[i].route
+		}
+	}
+	return '/pages/table-texas/table-texas'
+}
+
+/** 房间状态中文名 */
+export function roomStatusText(status: string): string {
+	if (status == 'waiting') {
+		return '等待中'
+	}
+	if (status == 'playing') {
+		return '进行中'
+	}
+	if (status == 'finished') {
+		return '已结束'
+	}
+	return status
+}

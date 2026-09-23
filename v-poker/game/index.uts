@@ -1,0 +1,11 @@
+/**
+ * V-Poker 客户端游戏引擎统一出口
+ * 用于牌型提示、动画、乐观预览与后续单机模式
+ * 注意：权威发牌与结算在云端，客户端引擎不参与资金决策
+ */
+
+export * from './types.uts'
+export * from './deck.uts'
+export * from './evaluator.uts'
+export * from './engine.uts'
+export * from './pot.uts'

@@ -1,0 +1,28 @@
+/**
+ * 客服接口（需 support/admin，玩家端预留）
+ * 契约 3.6：/api/support/tickets、/dashboard、/player_profile
+ */
+
+import { httpGet } from '../client.uts'
+
+/** 工单列表 */
+export function tickets(status: string | null = null, category: string | null = null): Promise<UTSJSONObject | null> {
+	const params: UTSJSONObject = {
+		status: status,
+		category: category
+	}
+	return httpGet('/api/support/tickets', params)
+}
+
+/** 客服仪表盘 */
+export function dashboard(): Promise<UTSJSONObject | null> {
+	return httpGet('/api/support/dashboard', null)
+}
+
+/** 玩家全息档案 */
+export function playerProfile(userId: string): Promise<UTSJSONObject | null> {
+	const params: UTSJSONObject = {
+		user_id: userId
+	}
+	return httpGet('/api/support/player_profile', params)
+}

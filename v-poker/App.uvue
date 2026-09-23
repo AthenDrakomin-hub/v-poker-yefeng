@@ -1,0 +1,101 @@
+<script setup lang="uts">
+	// #ifdef APP-ANDROID || APP-HARMONY
+	let firstBackTime = 0
+	// #endif
+
+	onLaunch(() => {
+		console.log('App Launch')
+	})
+
+	onAppShow(() => {
+		console.log('App Show')
+	})
+
+	onAppHide(() => {
+		console.log('App Hide')
+	})
+
+	// #ifdef APP-ANDROID || APP-HARMONY
+	onLastPageBackPress(() => {
+		console.log('App LastPageBackPress')
+		if (firstBackTime == 0) {
+			uni.showToast({
+				title: '再按一次退出应用',
+				position: 'bottom',
+			})
+			firstBackTime = Date.now()
+			setTimeout(() => {
+				firstBackTime = 0
+			}, 2000)
+		} else if (Date.now() - firstBackTime < 2000) {
+			firstBackTime = Date.now()
+			uni.exit()
+		}
+	})
+
+	onExit(() => {
+		console.log('App Exit')
+	})
+	// #endif
+</script>
+
+<style lang="scss">
+	/*每个页面公共css */
+	.uni-row {
+		flex-direction: row;
+	}
+
+	.uni-column {
+		flex-direction: column;
+	}
+
+	/* ============================================================
+	 * V-Poker 全局基础样式
+	 * 注意：uni-app x 样式不继承，文字样式必须直接作用于 <text>
+	 * ============================================================ */
+
+	/* 页面根容器 */
+	.vp-page {
+		flex-direction: column;
+		background-color: $vp-ink;
+	}
+
+	.vp-row {
+		flex-direction: row;
+	}
+
+	.vp-col {
+		flex-direction: column;
+	}
+
+	/* 文字 */
+	.vp-text {
+		color: $vp-text;
+		font-size: 14px;
+	}
+
+	.vp-text-muted {
+		color: $vp-muted;
+		font-size: 13px;
+	}
+
+	.vp-text-gold {
+		color: $vp-gold;
+		font-size: 14px;
+	}
+
+	.vp-title {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+	}
+
+	/* 卡片 / 浮层 */
+	.vp-card {
+		background-color: $vp-surface;
+		border-radius: $vp-radius-md;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+</style>

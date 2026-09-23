@@ -1,0 +1,20 @@
+<template>
+	<vp-table-shell :game_type="gameType" :room_id="roomId" :as_spectator="spectator" />
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+
+	const gameType = 'zha_jin_hua'
+	const roomId = ref('')
+	const spectator = ref(false)
+
+	onLoad((options) => {
+		const id = options.getString('room_id')
+		if (id != null) {
+			roomId.value = id
+		}
+		const sp = options.getString('as_spectator')
+		spectator.value = sp == 'true' || sp == '1'
+	})
+</script>

@@ -1,0 +1,513 @@
+<template>
+	<view class="vp-page hall-page">
+		<view class="hall-statusbar" :style="statusBarStyle"></view>
+
+		<view class="hall-topbar">
+			<view class="hall-brand">
+				<text class="hall-brand-text">V-POKER</text>
+				<text class="hall-brand-sub">棋牌竞技</text>
+			</view>
+			<view class="hall-notice">
+				<text class="hall-notice-text">{{ notice }}</text>
+			</view>
+			<view class="hall-user" hover-class="hall-pressed" @click="goProfile">
+				<vp-avatar :name="displayName" :size="34" />
+				<view class="hall-user-meta">
+					<text class="hall-user-name">{{ displayName }}</text>
+					<text class="hall-user-coin">{{ balanceText }}</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="hall-body">
+			<view class="hall-rail">
+				<view class="hall-rail-item hall-rail-active">
+					<text class="hall-rail-text hall-rail-text-active">大厅</text>
+				</view>
+				<view class="hall-rail-item" hover-class="hall-pressed" @click="goWallet">
+					<text class="hall-rail-text">钱包</text>
+				</view>
+				<view class="hall-rail-item" hover-class="hall-pressed" @click="goProfile">
+					<text class="hall-rail-text">我的</text>
+				</view>
+			</view>
+
+			<view class="hall-main">
+				<view class="hall-main-head">
+					<text class="hall-section">选择玩法</text>
+					<text class="hall-section-note">对齐后端 4 种玩法 · 现金局</text>
+				</view>
+
+				<view class="hall-games">
+					<view v-for="g in games" :key="g.game_type" class="hall-game vp-card" :style="gameCardStyle"
+						hover-class="hall-game-pressed" @click="enterGame(g)">
+						<view class="hall-game-top">
+							<view class="hall-game-suit" :class="suitClass(g.game_type)">
+								<text class="hall-game-suit-text" :class="suitTextClass(g.game_type)">{{ g.icon }}</text>
+							</view>
+							<view class="hall-game-badge">
+								<text class="hall-game-badge-text">可加入</text>
+							</view>
+						</view>
+						<text class="hall-game-name">{{ g.name }}</text>
+						<view class="hall-game-meta">
+							<text class="hall-game-meta-text">底分 {{ baseOf(g.game_type) }}</text>
+							<text class="hall-game-meta-text">2–6 人</text>
+						</view>
+						<view class="hall-game-foot">
+							<text class="hall-game-code">{{ g.game_type }}</text>
+							<text class="hall-game-enter">进入 ›</text>
+						</view>
+					</view>
+				</view>
+
+				<view class="hall-panel vp-card">
+					<view class="hall-panel-head">
+						<text class="hall-panel-title">房间管理</text>
+						<text class="hall-section-note">创建后可加入机器人陪练</text>
+					</view>
+					<view class="hall-actions">
+						<vp-button type="gold" text="+ 创建房间" @click="goCreateRoom" />
+						<view class="hall-gap"></view>
+						<vp-button type="gray" text="我的房间" @click="goMyRooms" />
+						<view class="hall-gap"></view>
+						<vp-button v-if="auth.isAgent" type="ghost" text="代理中心" @click="goAgent" />
+					</view>
+				</view>
+			</view>
+
+			<view v-if="wide" class="hall-aside">
+				<view class="hall-panel vp-card">
+					<text class="hall-panel-title">快速加入</text>
+					<view class="hall-field">
+						<text class="hall-field-label">房号</text>
+						<vp-input v-model="joinId" type="number" placeholder="6 位数字房号" />
+					</view>
+					<view class="hall-field">
+						<text class="hall-field-label">密码（选填）</text>
+						<vp-input v-model="joinPassword" type="password" placeholder="公开房可留空" />
+					</view>
+					<view class="hall-join-btn">
+						<vp-button type="gold" text="加入房间" block @click="joinRoom" />
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref, computed } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+	import { useWalletStore } from '@/store/wallet.uts'
+	import { useLobbyStore } from '@/store/lobby.uts'
+	import { GAME_ENTRIES, GameEntry, gameTypeRoute } from '@/utils/games.uts'
+	import { formatAmount } from '@/utils/format.uts'
+
+	const auth = useAuthStore()
+	const wallet = useWalletStore()
+	const lobby = useLobbyStore()
+
+	const statusBarStyle = ref('height: 0px')
+	const notice = ref('欢迎来到 V-POKER · 房间由服务端权威结算，前端不参与分账')
+	const games = GAME_ENTRIES
+	const joinId = ref('')
+	const joinPassword = ref('')
+	const joining = ref(false)
+	const wide = ref(true)
+
+	const displayName = computed((): string => {
+		return auth.nickname.length > 0 ? auth.nickname : auth.userId
+	})
+
+	const balanceText = computed((): string => {
+		return `筹码 ${formatAmount(wallet.balance)}`
+	})
+
+	/** 宽屏时 4 列铺满，窄屏 2 列换行 */
+	const gameCardStyle = computed((): string => {
+		return wide.value ? 'flex: 1;' : 'width: 48%; margin-bottom: 12px;'
+	})
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+		wide.value = info.windowWidth >= 1100
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (!auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/login/login' })
+			return
+		}
+		wallet.refreshBalance()
+	})
+
+	const suitClass = (gt: string): string => {
+		return gt == 'zha_jin_hua' || gt == 'san_gong' ? 'hall-game-suit-red' : 'hall-game-suit-black'
+	}
+
+	const suitTextClass = (gt: string): string => {
+		return gt == 'zha_jin_hua' || gt == 'san_gong' ? 'hall-game-suit-text-red' : 'hall-game-suit-text-black'
+	}
+
+	const baseOf = (gt: string): string => {
+		return gt == 'zha_jin_hua' ? '50' : '100'
+	}
+
+	const enterGame = (g: GameEntry) => {
+		uni.navigateTo({ url: `/pages/room-list/room-list?game_type=${g.game_type}&name=${g.name}` })
+	}
+
+	const joinRoom = async () => {
+		const id = joinId.value.trim()
+		if (id.length == 0) {
+			uni.showToast({ title: '请输入房号', icon: 'none' })
+			return
+		}
+		if (joining.value) {
+			return
+		}
+		joining.value = true
+		try {
+			const data = await lobby.joinRoom(id, joinPassword.value)
+			if (data != null) {
+				uni.navigateTo({ url: `/pages/table-texas/table-texas?room_id=${id}` })
+			}
+		} catch (e) {
+			console.error('joinRoom failed', e)
+		} finally {
+			joining.value = false
+		}
+	}
+
+	const goCreateRoom = () => {
+		uni.navigateTo({ url: '/pages/create-room/create-room' })
+	}
+
+	const goMyRooms = () => {
+		uni.navigateTo({ url: '/pages/my-rooms/my-rooms' })
+	}
+
+	const goWallet = () => {
+		uni.navigateTo({ url: '/pages/wallet/wallet' })
+	}
+
+	const goProfile = () => {
+		uni.navigateTo({ url: '/pages/profile/profile' })
+	}
+
+	const goAgent = () => {
+		uni.navigateTo({ url: '/pages/agent/agent' })
+	}
+</script>
+
+<style lang="scss">
+	.hall-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.hall-statusbar {
+		width: 100%;
+	}
+
+	.hall-topbar {
+		flex-direction: row;
+		align-items: center;
+		height: 52px;
+		padding-left: 16px;
+		padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: $vp-border;
+	}
+
+	.hall-brand {
+		flex-direction: row;
+		align-items: flex-end;
+	}
+
+	.hall-brand-text {
+		color: $vp-gold;
+		font-size: 16px;
+		font-weight: bold;
+		letter-spacing: 2px;
+	}
+
+	.hall-brand-sub {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-left: 6px;
+		margin-bottom: 2px;
+	}
+
+	.hall-notice {
+		flex: 1;
+		margin-left: 16px;
+		margin-right: 16px;
+		background-color: rgba(212, 175, 55, 0.08);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.28);
+		border-radius: 999px;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.hall-notice-text {
+		color: $vp-gold;
+		font-size: 12px;
+	}
+
+	.hall-user {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.hall-pressed {
+		opacity: 0.75;
+	}
+
+	.hall-user-meta {
+		flex-direction: column;
+		margin-left: 8px;
+	}
+
+	.hall-user-name {
+		color: $vp-text;
+		font-size: 13px;
+		font-weight: bold;
+	}
+
+	.hall-user-coin {
+		color: $vp-gold;
+		font-size: 11px;
+	}
+
+	.hall-body {
+		flex: 1;
+		flex-direction: row;
+	}
+
+	.hall-rail {
+		width: 78px;
+		background-color: $vp-surface;
+		border-right-width: 1px;
+		border-right-style: solid;
+		border-right-color: $vp-border;
+		flex-direction: column;
+		align-items: center;
+		padding-top: 12px;
+	}
+
+	.hall-rail-item {
+		width: 62px;
+		height: 52px;
+		border-radius: $vp-radius-sm;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 6px;
+	}
+
+	.hall-rail-active {
+		background-color: rgba(212, 175, 55, 0.12);
+	}
+
+	.hall-rail-text {
+		color: $vp-muted;
+		font-size: 13px;
+	}
+
+	.hall-rail-text-active {
+		color: $vp-gold;
+		font-weight: bold;
+	}
+
+	.hall-main {
+		flex: 1;
+		flex-direction: column;
+		padding: 14px 16px;
+	}
+
+	.hall-main-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 10px;
+	}
+
+	.hall-section {
+		color: $vp-muted;
+		font-size: 12px;
+		letter-spacing: 1px;
+	}
+
+	.hall-section-note {
+		color: $vp-faint;
+		font-size: 11px;
+	}
+
+	.hall-games {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	.hall-game {
+		flex-direction: column;
+		padding: 12px;
+		margin-right: 10px;
+	}
+
+	.hall-game-pressed {
+		opacity: 0.85;
+	}
+
+	.hall-game-top {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.hall-game-suit {
+		width: 34px;
+		height: 34px;
+		border-radius: 9px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.hall-game-suit-black {
+		background-color: $vp-surface-3;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.hall-game-suit-red {
+		background-color: rgba(239, 68, 68, 0.12);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(239, 68, 68, 0.35);
+	}
+
+	.hall-game-suit-text {
+		font-size: 18px;
+	}
+
+	.hall-game-suit-text-black {
+		color: #cfd6e0;
+	}
+
+	.hall-game-suit-text-red {
+		color: #e2564a;
+	}
+
+	.hall-game-badge {
+		background-color: rgba(16, 185, 129, 0.16);
+		border-radius: 999px;
+		padding: 2px 8px;
+	}
+
+	.hall-game-badge-text {
+		color: #34d399;
+		font-size: 10px;
+		font-weight: bold;
+	}
+
+	.hall-game-name {
+		color: $vp-text;
+		font-size: 15px;
+		font-weight: bold;
+		margin-top: 10px;
+	}
+
+	.hall-game-meta {
+		flex-direction: row;
+		margin-top: 4px;
+	}
+
+	.hall-game-meta-text {
+		color: $vp-muted;
+		font-size: 11px;
+		margin-right: 10px;
+	}
+
+	.hall-game-foot {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 10px;
+	}
+
+	.hall-game-code {
+		color: $vp-faint;
+		font-size: 10px;
+	}
+
+	.hall-game-enter {
+		color: $vp-gold;
+		font-size: 12px;
+		font-weight: bold;
+	}
+
+	.hall-panel {
+		flex-direction: column;
+		padding: 14px;
+		margin-top: 12px;
+	}
+
+	.hall-panel-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 10px;
+	}
+
+	.hall-panel-title {
+		color: $vp-text;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.hall-actions {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+	}
+
+	.hall-gap {
+		width: 10px;
+	}
+
+	.hall-aside {
+		width: 240px;
+		background-color: $vp-surface;
+		border-left-width: 1px;
+		border-left-style: solid;
+		border-left-color: $vp-border;
+		padding: 14px;
+	}
+
+	.hall-field {
+		flex-direction: column;
+		margin-top: 10px;
+	}
+
+	.hall-field-label {
+		color: $vp-muted;
+		font-size: 11px;
+		margin-bottom: 5px;
+	}
+
+	.hall-join-btn {
+		flex-direction: row;
+		margin-top: 12px;
+	}
+</style>

@@ -1,0 +1,122 @@
+/**
+ * V-Poker 游戏引擎共享类型
+ * 契约：snake_case、整数金额（筹码）、Unix 毫秒时间戳
+ * 说明：UTS 中对象字面量需 as 到具体 type；不使用 interface
+ */
+
+export type Card = {
+	suit: string
+	rank: number
+	code: string
+}
+
+export type SidePot = {
+	amount: number
+	eligible_user_ids: string[]
+}
+
+export type HandResult = {
+	rank_name: string
+	rank_level: number
+	score: number
+	multiplier: number
+	best_cards: Card[]
+}
+
+export type Seat = {
+	seat_index: number
+	user_id: string
+	chips: number
+	current_bet: number
+	status: string
+	cards: Card[]
+	is_banker: boolean
+	banker_multiplier: number
+	bet_multiplier: number
+	has_acted: boolean
+	has_viewed_cards: boolean
+	is_disconnected: boolean
+	disconnect_time: number
+	hand_result: HandResult | null
+}
+
+export type GameAction = {
+	action_type: string
+	user_id: string
+	amount: number
+	multiplier: number
+	target_user_id: string
+}
+
+export type PlayerNetResult = {
+	user_id: string
+	net_amount: number
+	gross_win: number
+	bet_total: number
+	hand_name: string
+}
+
+export type RoomConfig = {
+	room_id: string
+	game_type: string
+	base_score: number
+	platform_fee_rate: number
+	agent_commission_rate: number
+	agent_ids: string[]
+	min_players_to_start: number
+	max_seats: number
+	big_blind: number
+	rake_cap_multiplier: number
+}
+
+export type RoundState = {
+	room: RoomConfig
+	seats: Seat[]
+	deck: Card[]
+	community_cards: Card[]
+	phase: string
+	current_turn_seat_index: number
+	total_pot: number
+	current_highest_bet: number
+	min_call_amount: number
+	betting_round_count: number
+	side_pots: SidePot[]
+}
+
+/**
+ * 创建一个空座位
+ */
+export function createSeat(index: number): Seat {
+	const emptyCards: Card[] = []
+	const seat: Seat = {
+		seat_index: index,
+		user_id: '',
+		chips: 0,
+		current_bet: 0,
+		status: 'empty',
+		cards: emptyCards,
+		is_banker: false,
+		banker_multiplier: 0,
+		bet_multiplier: 1,
+		has_acted: false,
+		has_viewed_cards: false,
+		is_disconnected: false,
+		disconnect_time: 0,
+		hand_result: null
+	}
+	return seat
+}
+
+/**
+ * 创建一个默认动作对象
+ */
+export function createAction(actionType: string, userId: string): GameAction {
+	const action: GameAction = {
+		action_type: actionType,
+		user_id: userId,
+		amount: -1,
+		multiplier: -1,
+		target_user_id: ''
+	}
+	return action
+}

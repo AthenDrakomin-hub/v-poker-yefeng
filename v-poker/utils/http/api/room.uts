@@ -1,0 +1,55 @@
+/**
+ * 房间接口
+ * 契约 3.2：
+ *  - GET  /api/rooms/list
+ *  - POST /api/rooms/create（created_by 由服务端从 JWT 注入，不要传）
+ *  - POST /api/rooms/join（user_id 由服务端注入，不要传）
+ *  - GET  /api/rooms/:room_id
+ *  - POST /api/rooms/:room_id/bots
+ *  - GET  /api/rooms/:room_id/hand-history
+ */
+
+import { httpGet, httpGetList, httpPost } from '../client.uts'
+
+/** 房间列表（game_type: texas_holdem / zha_jin_hua / niu_niu / san_gong） */
+export function listRooms(gameType: string | null = null, status: string | null = null): Promise<UTSJSONObject[]> {
+	const params: UTSJSONObject = {
+		game_type: gameType,
+		status: status
+	}
+	return httpGetList('/api/rooms/list', params)
+}
+
+/** 创建房间（payload 不要包含 created_by） */
+export function createRoom(payload: UTSJSONObject): Promise<UTSJSONObject | null> {
+	return httpPost('/api/rooms/create', payload)
+}
+
+/** 加入房间（不要传 user_id） */
+export function joinRoom(roomId: string, roomPassword: string = ''): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		room_id: roomId,
+		room_password: roomPassword
+	}
+	return httpPost('/api/rooms/join', data)
+}
+
+/** 房间详情 */
+export function roomDetail(roomId: string): Promise<UTSJSONObject | null> {
+	return httpGet(`/api/rooms/${roomId}`, null)
+}
+
+/** 添加机器人（必须走 BFF，禁止直连 game-engine） */
+export function addBots(roomId: string, count: number, strategy: string = 'loose', chips: number = 5000): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		count: count,
+		strategy: strategy,
+		chips: chips
+	}
+	return httpPost(`/api/rooms/${roomId}/bots`, data)
+}
+
+/** 完整牌谱 */
+export function handHistory(roomId: string): Promise<UTSJSONObject | null> {
+	return httpGet(`/api/rooms/${roomId}/hand-history`, null)
+}

@@ -1,0 +1,56 @@
+/**
+ * 格式化工具
+ * 契约：金额为整数（筹码最小单位），时间为 Unix 毫秒时间戳
+ */
+
+/**
+ * 整数金额千分位格式化，如 1234567 -> "1,234,567"
+ */
+export function formatAmount(value: number): string {
+	const raw = `${Math.floor(value)}`
+	const negative = raw.startsWith('-')
+	const digits = negative ? raw.substring(1) : raw
+
+	let out = ''
+	let count = 0
+	for (let i = digits.length - 1; i >= 0; i--) {
+		out = digits.substring(i, i + 1) + out
+		count++
+		if (count % 3 === 0 && i > 0) {
+			out = ',' + out
+		}
+	}
+	return negative ? `-${out}` : out
+}
+
+/**
+ * 毫秒时间戳 -> "YYYY-MM-DD HH:mm:ss"
+ */
+export function formatTime(ms: number): string {
+	const d = new Date(ms)
+	const pad = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
+	const y = d.getFullYear()
+	const mo = pad(d.getMonth() + 1)
+	const da = pad(d.getDate())
+	const h = pad(d.getHours())
+	const mi = pad(d.getMinutes())
+	const s = pad(d.getSeconds())
+	return `${y}-${mo}-${da} ${h}:${mi}:${s}`
+}
+
+/**
+ * 剩余毫秒 -> 倒计时秒数文本
+ */
+export function formatCountdown(remainMs: number): string {
+	if (remainMs <= 0) {
+		return '0'
+	}
+	return `${Math.ceil(remainMs / 1000)}`
+}
+
+/**
+ * 剩余毫秒 -> 是否处于危险区间（<=5 秒）
+ */
+export function isCountdownDanger(remainMs: number): boolean {
+	return remainMs > 0 && remainMs <= 5000
+}

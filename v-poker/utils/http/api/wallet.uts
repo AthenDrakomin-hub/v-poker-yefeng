@@ -1,0 +1,36 @@
+/**
+ * 钱包接口（需 player 角色）
+ * 契约 3.3：
+ *  - GET  /api/wallet/balance/:user_id
+ *  - GET  /api/wallet/transactions/:user_id
+ *  - POST /api/wallet/transfer（transaction_id 需前端保证全局唯一）
+ * 契约第七章：所有写操作必须携带全局唯一 transaction_id；金额整数
+ */
+
+import { httpGet, httpGetList, httpPost } from '../client.uts'
+
+/** 查询余额 */
+export function getBalance(userId: string): Promise<UTSJSONObject | null> {
+	return httpGet(`/api/wallet/balance/${userId}`, null)
+}
+
+/** 查询流水（limit 1-100，offset 偏移） */
+export function listTransactions(userId: string, limit: number = 20, offset: number = 0): Promise<UTSJSONObject[]> {
+	const params: UTSJSONObject = {
+		limit: limit,
+		offset: offset
+	}
+	return httpGetList(`/api/wallet/transactions/${userId}`, params)
+}
+
+/** 自由转账（扣 0.01% 手续费） */
+export function transfer(txId: string, fromUserId: string, toUserId: string, amount: number, remark: string = ''): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		transaction_id: txId,
+		from_user_id: fromUserId,
+		to_user_id: toUserId,
+		amount: amount,
+		remark: remark
+	}
+	return httpPost('/api/wallet/transfer', data)
+}

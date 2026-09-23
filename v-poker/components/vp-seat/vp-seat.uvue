@@ -1,0 +1,243 @@
+<template>
+	<view class="vps" :class="root_class">
+		<view v-if="show_cards" class="vps-cards">
+			<vp-card v-for="(c, i) in card_codes" :key="i" :code="c" :face_down="false" size="sm" />
+			<vp-card v-for="(i, j) in hidden_slots" :key="'h' + j" code="" :face_down="true" size="sm" />
+		</view>
+
+		<view class="vps-plate" :class="plate_class">
+			<view class="vps-name-row">
+				<text class="vps-name" :class="name_class">{{ display_name }}</text>
+				<text v-if="is_turn" class="vps-turn">●</text>
+			</view>
+			<text class="vps-chips">{{ chips_text }}</text>
+		</view>
+
+		<view v-if="current_bet > 0" class="vps-bet">
+			<text class="vps-bet-text">下注 {{ bet_text }}</text>
+		</view>
+
+		<text v-if="show_status" class="vps-status">{{ status_text }}</text>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+	import { formatAmount } from '@/utils/format.uts'
+
+	/**
+	 * 座位：用户名 / 筹码 / 当前下注 / 状态 / 断线置灰 / 手牌
+	 * 说明：为规避 Android 嵌套类型 props 丢失，全部使用基础类型入参
+	 * vapor 约束：变体样式用扁平 class 直接绑定到元素，避免后代选择器
+	 */
+	type VpSeatProps = {
+		seat_index: number
+		user_id: string
+		chips: number
+		current_bet: number
+		status: string
+		is_turn: boolean
+		is_self: boolean
+		is_disconnected: boolean
+		card_codes: string[]
+		hidden_card_count: number
+		hand_name: string
+	}
+
+	const props = defineProps<VpSeatProps>()
+
+	const has_player = computed((): boolean => {
+		return props.user_id.length > 0
+	})
+
+	const display_name = computed((): string => {
+		if (props.user_id.length == 0) {
+			return '空位'
+		}
+		if (props.user_id.length > 10) {
+			return `${props.user_id.substring(0, 9)}…`
+		}
+		return props.user_id
+	})
+
+	const chips_text = computed((): string => {
+		if (!has_player.value) {
+			return '—'
+		}
+		return formatAmount(props.chips)
+	})
+
+	const bet_text = computed((): string => {
+		return formatAmount(props.current_bet)
+	})
+
+	const status_text = computed((): string => {
+		const s = props.status
+		if (s == 'ready') {
+			return '已准备'
+		}
+		if (s == 'waiting') {
+			return '等待'
+		}
+		if (s == 'folded') {
+			return '已弃牌'
+		}
+		if (s == 'all_in') {
+			return '全下'
+		}
+		if (s == 'playing') {
+			return ''
+		}
+		if (s == 'empty') {
+			return ''
+		}
+		return s
+	})
+
+	const show_status = computed((): boolean => {
+		return has_player.value && status_text.value.length > 0
+	})
+
+	const show_cards = computed((): boolean => {
+		if (!has_player.value) {
+			return false
+		}
+		if (props.card_codes.length > 0) {
+			return true
+		}
+		return !props.is_disconnected && props.hidden_card_count > 0
+	})
+
+	const hidden_slots = computed((): number[] => {
+		const out: number[] = []
+		if (props.card_codes.length > 0) {
+			return out
+		}
+		const n = props.is_disconnected ? 0 : props.hidden_card_count
+		for (let i = 0; i < n; i++) {
+			out.push(i)
+		}
+		return out
+	})
+
+	const root_class = computed((): string => {
+		return props.is_disconnected ? 'vps vps-offline' : 'vps'
+	})
+
+	const plate_class = computed((): string => {
+		let c = 'vps-plate'
+		if (!has_player.value) {
+			c += ' vps-plate-empty'
+		}
+		if (props.is_self) {
+			c += ' vps-plate-self'
+		}
+		if (props.is_turn) {
+			c += ' vps-plate-turn'
+		}
+		return c
+	})
+
+	const name_class = computed((): string => {
+		return props.is_self ? 'vps-name-self' : ''
+	})
+</script>
+
+<style lang="scss">
+	.vps {
+		width: 96px;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.vps-offline {
+		opacity: 0.45;
+	}
+
+	.vps-cards {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 3px;
+	}
+
+	.vps-plate {
+		width: 100%;
+		background-color: rgba(10, 14, 20, 0.86);
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border-strong;
+		padding-top: 4px;
+		padding-bottom: 4px;
+		padding-left: 5px;
+		padding-right: 5px;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.vps-plate-empty {
+		background-color: rgba(10, 14, 20, 0.6);
+		border-color: $vp-border;
+		opacity: 0.7;
+	}
+
+	.vps-plate-self {
+		background-color: rgba(212, 175, 55, 0.16);
+	}
+
+	.vps-plate-turn {
+		border-color: $vp-gold;
+		border-width: 2px;
+	}
+
+	.vps-name-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.vps-name {
+		color: $vp-text;
+		font-size: 11px;
+	}
+
+	.vps-name-self {
+		color: $vp-gold;
+	}
+
+	.vps-turn {
+		color: $vp-gold;
+		font-size: 9px;
+		margin-left: 3px;
+	}
+
+	.vps-chips {
+		color: $vp-gold;
+		font-size: 12px;
+		font-weight: bold;
+		margin-top: 1px;
+	}
+
+	.vps-bet {
+		flex-direction: row;
+		align-items: center;
+		background-color: rgba(0, 0, 0, 0.5);
+		border-radius: 999px;
+		padding-left: 7px;
+		padding-right: 7px;
+		padding-top: 1px;
+		padding-bottom: 1px;
+		margin-top: 3px;
+	}
+
+	.vps-bet-text {
+		color: #ffffff;
+		font-size: 10px;
+	}
+
+	.vps-status {
+		color: $vp-muted;
+		font-size: 10px;
+		margin-top: 3px;
+	}
+</style>

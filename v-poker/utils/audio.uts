@@ -1,0 +1,101 @@
+/**
+ * 音效封装
+ * 契约：6 类音效 click / chip_bet / deal_card / win / lose / flip_card
+ * 资源：/static/audio/{name}.mp3（需自行放入，缺失时自动降级为静默）
+ * 说明：懒加载 InnerAudioContext 并复用；播放失败（文件缺失）后标记该音效禁用，避免重复报错
+ */
+
+/** 音效名 -> 本地资源路径 */
+const SOUND_SOURCES: Map<string, string> = new Map<string, string>([
+	['click', '/static/audio/click.mp3'],
+	['chip_bet', '/static/audio/chip_bet.mp3'],
+	['deal_card', '/static/audio/deal_card.mp3'],
+	['win', '/static/audio/win.mp3'],
+	['lose', '/static/audio/lose.mp3'],
+	['flip_card', '/static/audio/flip_card.mp3']
+])
+
+/** 已创建的音频上下文（与名称一一对应） */
+let contextNames: string[] = []
+let contextList: InnerAudioContext[] = []
+/** 播放失败（多为资源缺失）的音效 */
+let failedNames: string[] = []
+
+let enabled = true
+
+function indexOfName(names: string[], name: string): number {
+	for (let i = 0; i < names.length; i++) {
+		if (names[i] == name) {
+			return i
+		}
+	}
+	return -1
+}
+
+/** 全局开关（如静音设置） */
+export function setAudioEnabled(value: boolean): void {
+	enabled = value
+}
+
+/** 是否启用 */
+export function isAudioEnabled(): boolean {
+	return enabled
+}
+
+/**
+ * 播放指定音效；资源缺失时静默降级
+ */
+export function playSound(name: string): void {
+	if (!enabled) {
+		return
+	}
+	if (indexOfName(failedNames, name) >= 0) {
+		return
+	}
+	const src = SOUND_SOURCES.get(name)
+	if (src == null) {
+		return
+	}
+
+	const idx = indexOfName(contextNames, name)
+	let audio: InnerAudioContext | null = null
+	if (idx >= 0) {
+		audio = contextList[idx]
+	} else {
+		try {
+			const created = uni.createInnerAudioContext()
+			created.src = src
+			created.onError((res: any) => {
+				failedNames.push(name)
+			})
+			contextNames.push(name)
+			contextList.push(created)
+			audio = created
+		} catch (e) {
+			failedNames.push(name)
+			return
+		}
+	}
+
+	if (audio != null) {
+		audio.stop()
+		audio.play()
+	}
+}
+
+/**
+ * 释放全部音频上下文（页面卸载时调用）
+ */
+export function releaseAudio(): void {
+	for (let i = 0; i < contextList.length; i++) {
+		try {
+			contextList[i].stop()
+			contextList[i].destroy()
+		} catch (e) {
+			console.warn('release audio failed')
+		}
+	}
+	contextList = []
+	contextNames = []
+	failedNames = []
+}

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>V-POKER · 德州牌桌</title>
+	<link rel="stylesheet" href="assets/design.css">
+</head>
+
+<body>
+	<div class="app table-page" data-design-id="table-page">
+		<header class="table-top" data-design-id="table-topbar">
+			<button type="button" class="btn btn-secondary btn-sm" data-design-id="table-back">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+				离开
+			</button>
+
+			<div class="center">
+				<span class="room num" data-design-id="table-room-id">德州扑克 · 房号 389236</span>
+				<span class="room-sub" data-design-id="table-phase">下注中 · 第 3 轮</span>
+			</div>
+
+			<div style="display:flex; align-items:center; gap:14px;">
+				<div class="self-cards">
+					<span class="label">我的手牌</span>
+					<span class="pcard is-black is-small" data-design-id="self-card-1"><span class="pcard-rank">A</span><span class="pcard-suit">♠</span></span>
+					<span class="pcard is-red is-small" data-design-id="self-card-2"><span class="pcard-rank">K</span><span class="pcard-suit">♥</span></span>
+					<span class="badge badge-wait" data-design-id="self-hand-name">同花听牌</span>
+				</div>
+				<span class="who-coin num" data-design-id="table-balance">筹码 12,340</span>
+			</div>
+		</header>
+
+		<div class="table-stage" data-design-id="table-stage">
+			<div class="felt" data-design-id="table-felt">
+				<span class="felt-rail"></span>
+
+				<span class="phase" data-design-id="table-phase-label">BETTING</span>
+
+				<div class="pot" data-design-id="table-pot">
+					<span class="pot-label">底池</span>
+					<span class="pot-value num" data-design-id="table-pot-value">12,400</span>
+				</div>
+
+				<div class="community" data-design-id="table-community">
+					<span class="pcard is-black" data-design-id="community-1"><span class="pcard-rank">10</span><span class="pcard-suit">♠</span></span>
+					<span class="pcard is-red" data-design-id="community-2"><span class="pcard-rank">7</span><span class="pcard-suit">♥</span></span>
+					<span class="pcard is-red" data-design-id="community-3"><span class="pcard-rank">3</span><span class="pcard-suit">♦</span></span>
+					<span class="pcard is-back" data-design-id="community-4" aria-label="待发"></span>
+					<span class="pcard is-back" data-design-id="community-5" aria-label="待发"></span>
+				</div>
+
+				<!-- 座位 0：自己（底部居中，明牌） -->
+				<div class="seat is-self is-turn" style="left:50%; top:85%;" data-design-id="seat-self">
+					<div class="timer" data-design-id="seat-self-timer"><span class="timer-core num">12</span></div>
+					<div class="seat-cards">
+						<span class="pcard is-black is-small"><span class="pcard-rank">A</span><span class="pcard-suit">♠</span></span>
+						<span class="pcard is-red is-small"><span class="pcard-rank">K</span><span class="pcard-suit">♥</span></span>
+					</div>
+					<div class="seat-plate">
+						<div class="seat-name" data-design-id="seat-self-name">player_alice（我）</div>
+						<div class="seat-chips num" data-design-id="seat-self-chips">9,500</div>
+					</div>
+					<span class="seat-bet num" data-design-id="seat-self-bet">已下注 1,000</span>
+				</div>
+
+				<!-- 座位 1：左下 -->
+				<div class="seat" style="left:13%; top:70%;" data-design-id="seat-1">
+					<div class="seat-cards">
+						<span class="pcard is-back is-small"></span>
+						<span class="pcard is-back is-small"></span>
+					</div>
+					<div class="seat-plate">
+						<div class="seat-name num" data-design-id="seat-1-name">player_bob</div>
+						<div class="seat-chips num" data-design-id="seat-1-chips">8,000</div>
+					</div>
+					<span class="seat-bet num" data-design-id="seat-1-bet">已下注 1,000</span>
+				</div>
+
+				<!-- 座位 2：左上 -->
+				<div class="seat" style="left:20%; top:24%;" data-design-id="seat-2">
+					<div class="seat-cards">
+						<span class="pcard is-back is-small"></span>
+						<span class="pcard is-back is-small"></span>
+					</div>
+					<div class="seat-plate">
+						<div class="seat-name num" data-design-id="seat-2-name">player_carol</div>
+						<div class="seat-chips num" data-design-id="seat-2-chips">11,200</div>
+					</div>
+					<span class="seat-status seat-offline" data-design-id="seat-2-status">已断线</span>
+				</div>
+
+				<!-- 座位 3：顶部居中（弃牌） -->
+				<div class="seat is-folded" style="left:50%; top:12%;" data-design-id="seat-3">
+					<div class="seat-plate">
+						<div class="seat-name num" data-design-id="seat-3-name">player_dave</div>
+						<div class="seat-chips num" data-design-id="seat-3-chips">6,400</div>
+					</div>
+					<span class="seat-status" data-design-id="seat-3-status">已弃牌</span>
+				</div>
+
+				<!-- 座位 4：右上 -->
+				<div class="seat" style="left:80%; top:24%;" data-design-id="seat-4">
+					<div class="seat-cards">
+						<span class="pcard is-back is-small"></span>
+						<span class="pcard is-back is-small"></span>
+					</div>
+					<div class="seat-plate">
+						<div class="seat-name num" data-design-id="seat-4-name">bot_loose_1</div>
+						<div class="seat-chips num" data-design-id="seat-4-chips">5,000</div>
+					</div>
+					<span class="seat-bet num" data-design-id="seat-4-bet">已下注 2,000</span>
+				</div>
+
+				<!-- 座位 5：右下（空位） -->
+				<div class="seat" style="left:87%; top:70%;" data-design-id="seat-5">
+					<div class="seat-plate" style="opacity:.6;">
+						<div class="seat-name" data-design-id="seat-5-name">空位</div>
+						<div class="seat-chips num" style="color:var(--muted);">—</div>
+					</div>
+					<span class="seat-status" data-design-id="seat-5-status">等待加入</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- 加注面板（展开态） -->
+		<div class="slider-panel" data-design-id="table-raise-panel">
+			<span class="section-title" data-design-id="raise-label">加注至</span>
+			<span class="num" style="font-size:18px;font-weight:700;color:var(--gold-soft);" data-design-id="raise-value">3,000</span>
+			<div class="slider-track" data-design-id="raise-track">
+				<span class="slider-thumb" data-design-id="raise-thumb"></span>
+			</div>
+			<div class="quick-chips" data-design-id="raise-quicks">
+				<button type="button" class="chip-btn" data-design-id="raise-min">最小 2,000</button>
+				<button type="button" class="chip-btn is-active" data-design-id="raise-half">半池 6,200</button>
+				<button type="button" class="chip-btn" data-design-id="raise-allin">全下 9,500</button>
+			</div>
+			<button type="button" class="btn btn-primary" data-design-id="raise-confirm">确认加注</button>
+			<button type="button" class="btn btn-secondary" data-design-id="raise-cancel">取消</button>
+		</div>
+
+		<!-- 行动栏 -->
+		<div class="actionbar" data-design-id="table-actionbar">
+			<span class="hint" data-design-id="action-hint">轮到你行动 · 跟注需 1,000</span>
+			<button type="button" class="action-btn action-fold" data-design-id="action-fold">弃牌</button>
+			<button type="button" class="action-btn action-call" data-design-id="action-call">跟注<small class="num">1,000</small></button>
+			<button type="button" class="action-btn action-raise" data-design-id="action-raise">加注<small>滑动选额</small></button>
+			<button type="button" class="action-btn action-allin" data-design-id="action-allin">全下<small class="num">9,500</small></button>
+		</div>
+	</div>
+</body>
+
+</html>

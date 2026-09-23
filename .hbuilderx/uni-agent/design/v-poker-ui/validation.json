@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"status": "not_run",
+	"staticValidation": "not_run",
+	"visualValidation": "not_run",
+	"blockingIssues": [],
+	"warnings": [
+		"initialize_design_artifact 工具在当前 CLI 环境不可用，design-artifact.json 为按 artifact-schema.md 手工写入，未经受控工具校验",
+		"未在浏览器或 HBuilderX 预览服务中实际渲染，视觉验证为 not_run",
+		"仅执行了代码级检查（文件存在、相对路径、无 <a> 标签、无远程依赖）"
+	],
+	"validatedAt": "",
+	"artifactRevision": ""
+}

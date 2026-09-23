@@ -1,0 +1,96 @@
+<template>
+	<view class="vpe">
+		<view class="vpe-illustration">
+			<view class="vpe-box"></view>
+		</view>
+		<text class="vpe-title">{{ title }}</text>
+		<text v-if="description.length > 0" class="vpe-desc">{{ description }}</text>
+		<view v-if="actionText.length > 0" class="vpe-action" hover-class="vpe-action-pressed" @click="onAction">
+			<text class="vpe-action-text">{{ actionText }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	/**
+	 * 空状态（迁移自源 PkEmpty）
+	 */
+	type VpEmptyProps = {
+		title: string
+		description: string
+		actionText: string
+	}
+
+	const props = withDefaults(defineProps<VpEmptyProps>(), {
+		title: '暂无数据',
+		description: '',
+		actionText: ''
+	})
+
+	const emit = defineEmits(['action'])
+
+	const onAction = () => {
+		emit('action')
+	}
+</script>
+
+<style lang="scss">
+	.vpe {
+		flex-direction: column;
+		align-items: center;
+		padding-top: 40px;
+		padding-bottom: 40px;
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+
+	.vpe-illustration {
+		width: 100px;
+		height: 100px;
+		border-radius: 50%;
+		background-color: rgba(255, 255, 255, 0.04);
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 12px;
+	}
+
+	.vpe-box {
+		width: 50px;
+		height: 40px;
+		border-width: 2px;
+		border-style: solid;
+		border-color: $vp-border;
+		border-radius: 6px;
+		opacity: 0.5;
+	}
+
+	.vpe-title {
+		font-size: 16px;
+		color: $vp-muted;
+		font-weight: bold;
+	}
+
+	.vpe-desc {
+		font-size: 13px;
+		color: $vp-muted;
+		margin-top: 8px;
+	}
+
+	.vpe-action {
+		margin-top: 16px;
+		padding: 10px 28px;
+		background-color: $vp-gold;
+		border-radius: 999px;
+	}
+
+	.vpe-action-pressed {
+		opacity: 0.85;
+	}
+
+	.vpe-action-text {
+		color: #ffffff;
+		font-weight: bold;
+		font-size: 14px;
+	}
+</style>

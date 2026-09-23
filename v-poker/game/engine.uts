@@ -1,0 +1,287 @@
+/**
+ * 德州扑克动作引擎
+ * 流程：WAITING -> DEALING -> BETTING(Preflop/Flop/Turn/River) -> SHOWDOWN -> SETTLING -> FINISHED
+ */
+
+import { Card, GameAction, HandResult, RoundState, Seat, SidePot } from './types.uts'
+import { evaluate7Cards } from './evaluator.uts'
+import { dealFlop, dealTurn, dealRiver } from './deck.uts'
+
+export type ActionResult = {
+	success: boolean
+	error: string
+}
+
+function makeResult(success: boolean, error: string): ActionResult {
+	const r: ActionResult = { success: success, error: error }
+	return r
+}
+
+/**
+ * 发底牌并扣大小盲（SB = floor(base_score/2)，BB = base_score）
+ * 2 人时小盲先行动；3 人及以上枪口位（第 3 个在局座位）先行动
+ */
+export function dealCards(state: RoundState): void {
+	const activeIdx: number[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		const st = state.seats[i].status
+		if (st == 'playing' || st == 'ready') {
+			activeIdx.push(i)
+		}
+	}
+
+	for (let i = 0; i < activeIdx.length; i++) {
+		const idx = activeIdx[i]
+		state.seats[idx].cards = []
+		state.seats[idx].status = 'playing'
+		state.seats[idx].current_bet = 0
+		state.seats[idx].has_acted = false
+	}
+
+	for (let round = 0; round < 2; round++) {
+		for (let i = 0; i < activeIdx.length; i++) {
+			const card = state.deck.pop()
+			if (card != null) {
+				state.seats[activeIdx[i]].cards.push(card as Card)
+			}
+		}
+	}
+
+	const sb = Math.floor(state.room.base_score / 2)
+	const bb = state.room.base_score
+	if (activeIdx.length >= 2) {
+		state.seats[activeIdx[0]].current_bet = sb
+		state.seats[activeIdx[1]].current_bet = bb
+		state.total_pot = sb + bb
+		state.current_highest_bet = bb
+		state.min_call_amount = bb
+		state.current_turn_seat_index = activeIdx.length > 2
+			? state.seats[activeIdx[2]].seat_index
+			: state.seats[activeIdx[0]].seat_index
+	}
+
+	state.community_cards = []
+	state.betting_round_count = 1
+}
+
+/**
+ * 展开公共牌（按当前 betting_round_count 决定 Flop/Turn/River）并重评所有在局玩家
+ */
+export function dealCommunityCards(state: RoundState): void {
+	if (state.betting_round_count == 2) {
+		const flop = dealFlop(state.deck)
+		for (let i = 0; i < flop.length; i++) {
+			state.community_cards.push(flop[i])
+		}
+	} else if (state.betting_round_count == 3) {
+		const t = dealTurn(state.deck)
+		if (t != null) {
+			state.community_cards.push(t as Card)
+		}
+	} else if (state.betting_round_count == 4) {
+		const r = dealRiver(state.deck)
+		if (r != null) {
+			state.community_cards.push(r as Card)
+		}
+	}
+
+	for (let i = 0; i < state.seats.length; i++) {
+		const s = state.seats[i]
+		if (s.status == 'playing' && s.cards.length == 2) {
+			state.seats[i].hand_result = evaluate7Cards(s.cards, state.community_cards)
+		}
+	}
+}
+
+/**
+ * 轮转到下一个仍在局（playing）的座位
+ */
+export function rotateTurn(state: RoundState, currentSeatIndex: number): void {
+	const alive: number[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		if (state.seats[i].status == 'playing') {
+			alive.push(state.seats[i].seat_index)
+		}
+	}
+	if (alive.length == 0) {
+		return
+	}
+	alive.sort((a: number, b: number): number => a - b)
+	let next = alive[0]
+	for (let i = 0; i < alive.length; i++) {
+		if (alive[i] > currentSeatIndex) {
+			next = alive[i]
+			break
+		}
+	}
+	state.current_turn_seat_index = next
+}
+
+/**
+ * 处理玩家动作
+ */
+export function handleAction(state: RoundState, action: GameAction): ActionResult {
+	let seatIndex = -1
+	for (let i = 0; i < state.seats.length; i++) {
+		if (state.seats[i].user_id == action.user_id) {
+			seatIndex = i
+			break
+		}
+	}
+	if (seatIndex < 0) {
+		return makeResult(false, 'Seat not found.')
+	}
+	if (state.seats[seatIndex].status != 'playing') {
+		return makeResult(false, 'Seat is not playing.')
+	}
+
+	if (action.action_type == 'fold') {
+		state.seats[seatIndex].status = 'folded'
+		state.seats[seatIndex].has_acted = true
+		return makeResult(true, '')
+	}
+
+	if (action.action_type == 'call') {
+		const callDiff = state.current_highest_bet - state.seats[seatIndex].current_bet
+		if (callDiff > 0) {
+			state.seats[seatIndex].current_bet += callDiff
+			state.total_pot += callDiff
+		}
+		state.seats[seatIndex].has_acted = true
+		rotateTurn(state, state.seats[seatIndex].seat_index)
+		return makeResult(true, '')
+	}
+
+	if (action.action_type == 'check') {
+		if (state.seats[seatIndex].current_bet < state.current_highest_bet) {
+			return makeResult(false, 'Cannot check when there is an active bet to call.')
+		}
+		state.seats[seatIndex].has_acted = true
+		rotateTurn(state, state.seats[seatIndex].seat_index)
+		return makeResult(true, '')
+	}
+
+	if (action.action_type == 'raise' || action.action_type == 'bet') {
+		let targetBet = 0
+		if (action.amount > state.current_highest_bet) {
+			targetBet = action.amount
+		} else if (action.amount > 0) {
+			targetBet = state.current_highest_bet + action.amount
+		} else {
+			targetBet = state.current_highest_bet + state.room.base_score
+		}
+		const addOn = targetBet - state.seats[seatIndex].current_bet
+		state.seats[seatIndex].current_bet = targetBet
+		state.current_highest_bet = targetBet
+		state.total_pot += addOn
+		state.seats[seatIndex].has_acted = true
+
+		for (let i = 0; i < state.seats.length; i++) {
+			const s = state.seats[i]
+			if (s.user_id != action.user_id && (s.status == 'playing' || s.status == 'all_in')) {
+				state.seats[i].has_acted = false
+			}
+		}
+		rotateTurn(state, state.seats[seatIndex].seat_index)
+		return makeResult(true, '')
+	}
+
+	if (action.action_type == 'all_in') {
+		state.seats[seatIndex].status = 'all_in'
+		const addOn = action.amount > 0 ? action.amount : 5000
+		state.seats[seatIndex].current_bet += addOn
+		if (state.seats[seatIndex].current_bet > state.current_highest_bet) {
+			state.current_highest_bet = state.seats[seatIndex].current_bet
+		}
+		state.total_pot += addOn
+		state.seats[seatIndex].has_acted = true
+
+		for (let i = 0; i < state.seats.length; i++) {
+			const s = state.seats[i]
+			if (s.user_id != action.user_id && s.status == 'playing') {
+				state.seats[i].has_acted = false
+			}
+		}
+		rotateTurn(state, state.seats[seatIndex].seat_index)
+		return makeResult(true, '')
+	}
+
+	return makeResult(false, `Unsupported action ${action.action_type}`)
+}
+
+/**
+ * 当前下注轮是否结束
+ */
+export function isPhaseComplete(state: RoundState): boolean {
+	const alive: Seat[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		if (state.seats[i].status == 'playing') {
+			alive.push(state.seats[i])
+		}
+	}
+	if (alive.length <= 1) {
+		return true
+	}
+	if (state.phase == 'BETTING') {
+		for (let i = 0; i < alive.length; i++) {
+			if (!alive[i].has_acted || alive[i].current_bet != state.current_highest_bet) {
+				return false
+			}
+		}
+		return true
+	}
+	return true
+}
+
+/**
+ * 计算下一个阶段（BETTING 时自动推进街道并重发公共牌）
+ */
+export function getNextPhase(state: RoundState): string {
+	const alive: Seat[] = []
+	for (let i = 0; i < state.seats.length; i++) {
+		const s = state.seats[i]
+		if (s.status == 'playing' || s.status == 'all_in') {
+			alive.push(s)
+		}
+	}
+	if (alive.length <= 1) {
+		return 'SHOWDOWN'
+	}
+
+	if (state.phase == 'WAITING') {
+		return 'DEALING'
+	}
+	if (state.phase == 'DEALING') {
+		return 'BETTING'
+	}
+
+	if (state.phase == 'BETTING') {
+		if (state.betting_round_count < 4) {
+			state.betting_round_count++
+			dealCommunityCards(state)
+			for (let i = 0; i < alive.length; i++) {
+				alive[i].has_acted = false
+			}
+			let firstAlive = -1
+			for (let i = 0; i < alive.length; i++) {
+				if (alive[i].status == 'playing') {
+					firstAlive = alive[i].seat_index
+					break
+				}
+			}
+			if (firstAlive >= 0) {
+				state.current_turn_seat_index = firstAlive
+			}
+			return 'BETTING'
+		}
+		return 'SHOWDOWN'
+	}
+
+	if (state.phase == 'SHOWDOWN') {
+		return 'SETTLING'
+	}
+	if (state.phase == 'SETTLING') {
+		return 'FINISHED'
+	}
+	return 'FINISHED'
+}

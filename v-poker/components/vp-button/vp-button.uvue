@@ -1,0 +1,183 @@
+<template>
+	<view class="vpb" :class="rootClass" hover-class="vpb-pressed" :hover-stay-time="80" @click="onClick">
+		<text class="vpb-text" :class="textClass">{{ loading ? '处理中…' : text }}</text>
+		<slot />
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { computed } from 'vue'
+
+	/**
+	 * 通用按钮（迁移自源 PkButton）
+	 * vapor 约束：不用 :active 伪类（改 hover-class）、不用 filter/pointer-events、
+	 * loading 不用 @keyframes 旋转动画（改文案），避免后代选择器
+	 */
+	type VpButtonProps = {
+		text: string
+		/** gold | red | green | purple | blue | gray | ghost */
+		type: string
+		/** sm | md | lg */
+		size: string
+		disabled: boolean
+		loading: boolean
+		block: boolean
+		round: boolean
+	}
+
+	const props = withDefaults(defineProps<VpButtonProps>(), {
+		text: '',
+		type: 'gold',
+		size: 'md',
+		disabled: false,
+		loading: false,
+		block: false,
+		round: true
+	})
+
+	const emit = defineEmits(['click'])
+
+	const rootClass = computed((): string => {
+		let c = `vpb-${props.type} vpb-${props.size}`
+		if (props.block) {
+			c += ' vpb-block'
+		}
+		if (props.disabled || props.loading) {
+			c += ' vpb-disabled'
+		}
+		if (!props.round) {
+			c += ' vpb-square'
+		}
+		return c
+	})
+
+	const textClass = computed((): string => {
+		let color = 'vpb-text-normal'
+		if (props.type == 'ghost') {
+			color = 'vpb-text-ghost'
+		} else if (props.type == 'gray') {
+			color = 'vpb-text-body'
+		}
+		let f = 'vpb-f-md'
+		if (props.size == 'sm') {
+			f = 'vpb-f-sm'
+		} else if (props.size == 'lg') {
+			f = 'vpb-f-lg'
+		}
+		return `${color} ${f}`
+	})
+
+	const onClick = () => {
+		if (props.disabled || props.loading) {
+			return
+		}
+		emit('click')
+	}
+</script>
+
+<style lang="scss">
+	.vpb {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		align-self: flex-start;
+		border-radius: 999px;
+	}
+
+	.vpb-block {
+		align-self: stretch;
+		width: 100%;
+	}
+
+	.vpb-sm {
+		height: 32px;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.vpb-md {
+		height: 44px;
+		padding-left: 24px;
+		padding-right: 24px;
+	}
+
+	.vpb-lg {
+		height: 54px;
+		padding-left: 32px;
+		padding-right: 32px;
+	}
+
+	.vpb-gold {
+		background-color: $vp-gold;
+	}
+
+	.vpb-red {
+		background-color: $vp-danger;
+	}
+
+	.vpb-green {
+		background-color: $vp-success;
+	}
+
+	.vpb-purple {
+		background-color: #7c5cff;
+	}
+
+	.vpb-blue {
+		background-color: $vp-info;
+	}
+
+	.vpb-gray {
+		background-color: $vp-surface-2;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+	}
+
+	.vpb-ghost {
+		background-color: transparent;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-gold;
+	}
+
+	.vpb-square {
+		border-radius: $vp-radius-sm;
+	}
+
+	.vpb-pressed {
+		opacity: 0.85;
+	}
+
+	.vpb-disabled {
+		opacity: 0.5;
+	}
+
+	.vpb-text {
+		font-weight: bold;
+	}
+
+	.vpb-text-normal {
+		color: #ffffff;
+	}
+
+	.vpb-text-body {
+		color: $vp-text;
+	}
+
+	.vpb-text-ghost {
+		color: $vp-gold;
+	}
+
+	.vpb-f-sm {
+		font-size: 12px;
+	}
+
+	.vpb-f-md {
+		font-size: 14px;
+	}
+
+	.vpb-f-lg {
+		font-size: 16px;
+	}
+</style>

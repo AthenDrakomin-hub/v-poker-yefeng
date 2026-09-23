@@ -1,0 +1,234 @@
+<template>
+	<view class="vp-page lg-page">
+		<view class="lg-statusbar" :style="statusBarStyle"></view>
+
+		<view class="lg-body">
+			<view class="lg-hero">
+				<text class="lg-logo">V-POKER</text>
+				<text class="lg-slogan">德州扑克 · 牛牛 · 三公 · 炸金花</text>
+				<view class="lg-hero-tags">
+					<view class="lg-tag"><text class="lg-tag-text">服务端权威结算</text></view>
+					<view class="lg-tag"><text class="lg-tag-text">能量守恒账本</text></view>
+				</view>
+				<text class="lg-hero-tip">测试账号：player_alice / test</text>
+			</view>
+
+			<view class="lg-form vp-card">
+				<text class="lg-form-title">账号登录</text>
+
+				<view class="lg-field">
+					<text class="lg-field-label">用户名</text>
+					<input class="lg-input" type="text" placeholder="请输入用户名" :value="username"
+						@input="onUsernameInput" />
+				</view>
+
+				<view class="lg-field">
+					<text class="lg-field-label">密码</text>
+					<input class="lg-input" type="text" :password="true" placeholder="请输入密码" :value="password"
+						@input="onPasswordInput" />
+				</view>
+
+				<view class="lg-submit">
+					<vp-button type="gold" size="lg" block :loading="submitting" text="登 录" @click="onLogin" />
+				</view>
+
+				<view class="lg-register" hover-class="lg-pressed" @click="goRegister">
+					<text class="lg-register-text">还没有账号？去注册</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useAuthStore } from '@/store/auth.uts'
+
+	const auth = useAuthStore()
+
+	const username = ref('')
+	const password = ref('')
+	const statusBarStyle = ref('height: 0px')
+	const submitting = ref(false)
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		auth.restore()
+		if (auth.isLoggedIn) {
+			uni.reLaunch({ url: '/pages/hall/hall' })
+		}
+	})
+
+	const onUsernameInput = (e: UniInputEvent) => {
+		username.value = e.detail.value
+	}
+
+	const onPasswordInput = (e: UniInputEvent) => {
+		password.value = e.detail.value
+	}
+
+	const onLogin = async () => {
+		const name = username.value.trim()
+		const pwd = password.value
+		if (name.length == 0) {
+			uni.showToast({ title: '请输入用户名', icon: 'none' })
+			return
+		}
+		if (pwd.length == 0) {
+			uni.showToast({ title: '请输入密码', icon: 'none' })
+			return
+		}
+		if (submitting.value) {
+			return
+		}
+		submitting.value = true
+		uni.showLoading({ title: '登录中', mask: true })
+		try {
+			const ok = await auth.login(name, pwd)
+			uni.hideLoading()
+			if (ok) {
+				uni.reLaunch({ url: '/pages/hall/hall' })
+			} else {
+				uni.showToast({ title: '登录失败', icon: 'none' })
+			}
+		} catch (err) {
+			uni.hideLoading()
+			console.error('login failed', err)
+		} finally {
+			submitting.value = false
+		}
+	}
+
+	const goRegister = () => {
+		uni.navigateTo({ url: '/pages/register/register' })
+	}
+</script>
+
+<style lang="scss">
+	.lg-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+
+	.lg-statusbar {
+		width: 100%;
+	}
+
+	.lg-body {
+		flex: 1;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		padding: 0 48px;
+	}
+
+	.lg-hero {
+		flex: 1;
+		flex-direction: column;
+		align-items: flex-start;
+		margin-right: 48px;
+	}
+
+	.lg-logo {
+		color: $vp-gold;
+		font-size: 48px;
+		font-weight: bold;
+		letter-spacing: 6px;
+	}
+
+	.lg-slogan {
+		color: $vp-muted;
+		font-size: 14px;
+		margin-top: 12px;
+	}
+
+	.lg-hero-tags {
+		flex-direction: row;
+		margin-top: 20px;
+	}
+
+	.lg-tag {
+		background-color: rgba(212, 175, 55, 0.1);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.28);
+		border-radius: 999px;
+		padding: 4px 12px;
+		margin-right: 10px;
+	}
+
+	.lg-tag-text {
+		color: $vp-gold;
+		font-size: 11px;
+	}
+
+	.lg-hero-tip {
+		color: $vp-faint;
+		font-size: 12px;
+		margin-top: 24px;
+	}
+
+	.lg-form {
+		width: 340px;
+		flex-direction: column;
+		padding: 24px;
+	}
+
+	.lg-form-title {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+		margin-bottom: 18px;
+	}
+
+	.lg-field {
+		flex-direction: column;
+		margin-bottom: 14px;
+	}
+
+	.lg-field-label {
+		color: $vp-muted;
+		font-size: 12px;
+		margin-bottom: 6px;
+	}
+
+	.lg-input {
+		width: 100%;
+		height: 46px;
+		background-color: $vp-surface-2;
+		border-radius: $vp-radius-sm;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		color: $vp-text;
+		font-size: 15px;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.lg-submit {
+		flex-direction: row;
+		margin-top: 6px;
+	}
+
+	.lg-register {
+		height: 34px;
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		margin-top: 12px;
+	}
+
+	.lg-pressed {
+		opacity: 0.75;
+	}
+
+	.lg-register-text {
+		color: $vp-gold;
+		font-size: 13px;
+	}
+</style>

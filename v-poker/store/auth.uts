@@ -1,0 +1,115 @@
+/**
+ * 认证 Store：登录态 + JWT
+ * 真源：本地存储（token / user_id / role），登录走 POST /api/auth/login
+ */
+
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+import { login as apiLogin, register as apiRegister } from '@/utils/http/api/auth.uts'
+import {
+	setToken,
+	setUserId,
+	setUserRole,
+	setUserName,
+	getToken,
+	getUserId,
+	getUserRole,
+	clearAuth
+} from '@/utils/storage.uts'
+import { wsDisconnect } from '@/utils/ws/client.uts'
+
+export const useAuthStore = defineStore('auth', () => {
+	const token = ref<string | null>(getToken())
+	const userId = ref<string>('')
+	const role = ref<string>('player')
+	const nickname = ref<string>('')
+	const loading = ref(false)
+
+	const uid0 = getUserId()
+	userId.value = uid0 == null ? '' : uid0
+	role.value = getUserRole()
+
+	const isLoggedIn = computed((): boolean => {
+		const t = token.value
+		return t != null && t.length > 0
+	})
+
+	const isAgent = computed((): boolean => role.value == 'agent' || role.value == 'admin')
+	const isAdmin = computed((): boolean => role.value == 'admin')
+
+	/** 从本地存储恢复登录态 */
+	const restore = () => {
+		token.value = getToken()
+		const uid = getUserId()
+		userId.value = uid == null ? '' : uid
+		role.value = getUserRole()
+	}
+
+	/** 账号密码登录；失败抛出 Error（由页面提示） */
+	const login = async (username: string, password: string): Promise<boolean> => {
+		loading.value = true
+		try {
+			const data = await apiLogin(username, password)
+			if (data == null) {
+				return false
+			}
+			const accessToken = data.getString('access_token')
+			if (accessToken == null || accessToken.length == 0) {
+				return false
+			}
+			token.value = accessToken
+			setToken(accessToken)
+
+			const user = data.getJSON('user')
+			if (user != null) {
+				const uid = user.getString('user_id')
+				if (uid != null) {
+					userId.value = uid
+					setUserId(uid)
+				}
+				const r = user.getString('role')
+				if (r != null) {
+					role.value = r
+					setUserRole(r)
+				}
+			}
+			nickname.value = username
+			setUserName(username)
+			return true
+		} finally {
+			loading.value = false
+		}
+	}
+
+	/** 注册 */
+	const register = async (username: string, password: string): Promise<boolean> => {
+		const data = await apiRegister(username, password, 'player')
+		return data != null
+	}
+
+	/** 退出登录：断开 WS + 清本地存储 + 跳登录页 */
+	const logout = () => {
+		wsDisconnect()
+		clearAuth()
+		token.value = null
+		userId.value = ''
+		role.value = 'player'
+		nickname.value = ''
+		uni.reLaunch({ url: '/pages/login/login' })
+	}
+
+	return {
+		token,
+		userId,
+		role,
+		nickname,
+		loading,
+		isLoggedIn,
+		isAgent,
+		isAdmin,
+		restore,
+		login,
+		register,
+		logout
+	}
+})

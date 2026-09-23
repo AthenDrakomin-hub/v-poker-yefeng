@@ -1,0 +1,82 @@
+<template>
+	<view class="vpt">
+		<view v-for="tab in tabs" :key="tab.value" class="vpt-item" :class="itemClass(tab.value)"
+			hover-class="vpt-item-pressed" @click="onSelect(tab.value)">
+			<text class="vpt-text" :class="textClass(tab.value)">{{ tab.label }}</text>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	/**
+	 * 胶囊 Tab（迁移自源 PkTab）
+	 * vapor 约束：源 `.item--active .text` 后代选择器拆为两个独立 class
+	 */
+	type TabItem = {
+		label: string
+		value: string
+	}
+
+	type VpTabProps = {
+		tabs: TabItem[]
+		modelValue: string
+	}
+
+	const props = withDefaults(defineProps<VpTabProps>(), {
+		modelValue: ''
+	})
+
+	const emit = defineEmits(['update:modelValue', 'change'])
+
+	const itemClass = (value: string): string => {
+		return value == props.modelValue ? 'vpt-item-active' : ''
+	}
+
+	const textClass = (value: string): string => {
+		return value == props.modelValue ? 'vpt-text-active' : 'vpt-text-normal'
+	}
+
+	const onSelect = (value: string) => {
+		emit('update:modelValue', value)
+		emit('change', value)
+	}
+</script>
+
+<style lang="scss">
+	.vpt {
+		flex-direction: row;
+		align-self: flex-start;
+		background-color: $vp-surface;
+		border-width: 1px;
+		border-style: solid;
+		border-color: $vp-border;
+		border-radius: 999px;
+		padding: 3px;
+	}
+
+	.vpt-item {
+		padding: 6px 18px;
+		border-radius: 999px;
+	}
+
+	.vpt-item-active {
+		background-color: $vp-gold;
+	}
+
+	.vpt-item-pressed {
+		opacity: 0.85;
+	}
+
+	.vpt-text {
+		font-size: 13px;
+	}
+
+	.vpt-text-normal {
+		color: $vp-muted;
+	}
+
+	.vpt-text-active {
+		color: $vp-ink;
+		font-weight: bold;
+	}
+</style>
