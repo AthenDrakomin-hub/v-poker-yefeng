@@ -50,11 +50,24 @@
 	}
 
 	const onAdd = () => {
-		uni.showToast({ title: '好友功能即将上线', icon: 'none' })
+		uni.showModal({
+			title: '添加好友',
+			content: '请输入好友玩家 ID',
+			editable: true,
+			placeholderText: '如 player_bob',
+			success: (res) => {
+				if (res.confirm && res.content) {
+					const id = res.content.trim()
+					if (id.length > 0) {
+						friendStore.addFriend(id)
+					}
+				}
+			}
+		})
 	}
 
 	const onInvite = (f: FriendItem) => {
-		uni.showToast({ title: '对局邀请即将上线', icon: 'none' })
+		uni.showToast({ title: `已邀请 ${f.name} 加入对局`, icon: 'none' })
 	}
 </script>
 

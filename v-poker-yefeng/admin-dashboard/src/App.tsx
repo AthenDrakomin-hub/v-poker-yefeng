@@ -3,6 +3,87 @@ import axios from 'axios'
 
 const BFF_URL = '/api'
 
+function MintForm() {
+  const [userId, setUserId] = useState('')
+  const [amount, setAmount] = useState('')
+  const [reason, setReason] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState('')
+
+  const submit = async () => {
+    if (!userId || !amount) {
+      setResult('请填写玩家ID和金额')
+      return
+    }
+    setLoading(true)
+    setResult('')
+    try {
+      const token = localStorage.getItem('admin_token')
+      const res = await axios.post(`${BFF_URL}/admin/mint`, {
+        user_id: userId,
+        amount: parseInt(amount),
+        reason: reason || 'admin_mint'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setResult(`✅ 成功增发 ${res.data.data?.minted || amount} 筹码至 ${userId}`)
+      setUserId('')
+      setAmount('')
+      setReason('')
+    } catch (err: any) {
+      setResult(`❌ ${err.response?.data?.message || '增发失败'}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '480px' }}>
+      <h3 style={{ color: '#fff', margin: '0 0 20px' }}>向玩家账户增发筹码</h3>
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '6px' }}>玩家 ID</label>
+        <input
+          style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '15px', boxSizing: 'border-box' }}
+          placeholder="如 player_alice"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+        />
+      </div>
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '6px' }}>增发金额（筹码）</label>
+        <input
+          style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '15px', boxSizing: 'border-box' }}
+          type="number"
+          placeholder="如 10000"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </div>
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '6px' }}>备注原因</label>
+        <input
+          style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '15px', boxSizing: 'border-box' }}
+          placeholder="如 活动奖励"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+      <button
+        style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, #d4af37 0%, #b8962e 100%)', color: '#1a1a2e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: '600' }}
+        onClick={submit}
+        disabled={loading}
+      >
+        {loading ? '处理中...' : '确认增发'}
+      </button>
+      {result && (
+        <p style={{ marginTop: '16px', fontSize: '14px', color: result.startsWith('✅') ? 'var(--vp-success)' : 'var(--vp-danger)' }}>
+          {result}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function App() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [adminId, setAdminId] = useState('')
@@ -44,6 +125,8 @@ function App() {
   useEffect(() => {
     if (loggedIn) {
       if (page === 'dashboard') fetchData('/admin/overview')
+      else if (page === 'mint') setData(null)
+      else if (page === 'rooms') fetchData('/admin/rooms')
       else if (page === 'audit') fetchData('/admin/audit')
       else if (page === 'agents') fetchData('/admin/agents')
       else if (page === 'transactions') fetchData('/admin/transactions')
@@ -90,6 +173,8 @@ function App() {
 
   const navItems = [
     { id: 'dashboard', label: '数据概览', icon: '📊' },
+    { id: 'mint', label: '筹码增发', icon: '🏦' },
+    { id: 'rooms', label: '房间管理', icon: '🎮' },
     { id: 'audit', label: '资金审计', icon: '🔍' },
     { id: 'agents', label: '代理管理', icon: '👥' },
     { id: 'transactions', label: '交易流水', icon: '📋' },
@@ -164,6 +249,57 @@ function App() {
                     <div style={styles.statValue}>{data?.transaction_count || 0}</div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {page === 'mint' && (
+            <div>
+              <h2 style={styles.pageTitle}>筹码增发</h2>
+              <div style={styles.tableCard}>
+                <MintForm />
+              </div>
+            </div>
+          )}
+
+          {page === 'rooms' && (
+            <div>
+              <h2 style={styles.pageTitle}>房间管理</h2>
+              <div style={styles.tableCard}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>房号</th>
+                      <th style={styles.th}>游戏类型</th>
+                      <th style={styles.th}>底分</th>
+                      <th style={styles.th}>状态</th>
+                      <th style={styles.th}>创建者</th>
+                      <th style={styles.th}>创建时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.rooms || []).map((room: any, idx: number) => (
+                      <tr key={idx} style={styles.tr}>
+                        <td style={styles.td}>{room.room_id}</td>
+                        <td style={styles.td}>{room.game_type}</td>
+                        <td style={styles.td}>{room.base_score}</td>
+                        <td style={styles.td}>
+                          <span style={{...styles.badge,
+                            background: room.status === 'waiting' ? 'rgba(16,185,129,0.15)' : room.status === 'playing' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: room.status === 'waiting' ? 'var(--vp-success)' : room.status === 'playing' ? 'var(--vp-warning)' : 'var(--vp-danger)'
+                          }}>
+                            {room.status}
+                          </span>
+                        </td>
+                        <td style={styles.td}>{room.created_by}</td>
+                        <td style={styles.td}>{new Date(room.created_at * 1000).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {(data?.rooms || []).length === 0 && (
+                  <p style={styles.emptyText}>暂无房间数据</p>
+                )}
               </div>
             </div>
           )}

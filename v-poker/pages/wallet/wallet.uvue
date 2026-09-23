@@ -27,7 +27,7 @@
 				<view class="wl-panel vp-card wl-transfer-panel">
 					<view class="wl-panel-head">
 						<text class="wl-panel-title">自由转账</text>
-						<text class="wl-note">手续费 0.01%</text>
+						<text class="wl-note">手续费 0.1%</text>
 					</view>
 					<view class="wl-field">
 						<text class="wl-field-label">收款玩家 ID</text>

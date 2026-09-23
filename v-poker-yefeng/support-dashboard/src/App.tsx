@@ -259,6 +259,47 @@ function App() {
                   )
                 })}
               </div>
+
+              <h3 style={styles.sectionTitle}>工单操作</h3>
+              <div style={styles.actionRow}>
+                <button
+                  style={{...styles.actionBtn, background: 'rgba(16,185,129,0.15)', color: 'var(--vp-success)', border: '1px solid rgba(16,185,129,0.3)'}}
+                  onClick={async function() {
+                    try {
+                      const token = localStorage.getItem('support_token')
+                      await axios.patch(`${BFF_URL}/support/tickets/${selectedTicket.ticket_id}`,
+                        { status: 'resolved' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                      )
+                      alert('工单已标记为已解决')
+                      setSelectedTicket(null)
+                      fetchData('/support/tickets')
+                    } catch (err: any) {
+                      alert(err.response?.data?.message || '操作失败')
+                    }
+                  }}
+                >标记已解决</button>
+                <button
+                  style={{...styles.actionBtn, background: 'rgba(245,158,11,0.15)', color: 'var(--vp-warning)', border: '1px solid rgba(245,158,11,0.3)'}}
+                  onClick={async function() {
+                    const amount = prompt('请输入退款金额：')
+                    if (!amount) return
+                    try {
+                      const token = localStorage.getItem('support_token')
+                      await axios.post(`${BFF_URL}/support/refund`, {
+                        user_id: selectedTicket.user_id,
+                        amount: parseInt(amount),
+                        reason: `工单 ${selectedTicket.ticket_id} 退款`
+                      }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                      })
+                      alert(`已退款 ${amount} 筹码至 ${selectedTicket.user_id}`)
+                    } catch (err: any) {
+                      alert(err.response?.data?.message || '退款失败')
+                    }
+                  }}
+                >办理退款</button>
+              </div>
             </div>
           )}
 
@@ -492,6 +533,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '22px',
     fontWeight: '600',
     margin: '0 0 24px',
+  },
+  actionRow: {
+    display: 'flex',
+    gap: '12px',
+    marginTop: '12px',
+  },
+  actionBtn: {
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
   },
   sectionTitle: {
     color: '#fff',
