@@ -1,7 +1,7 @@
 <template>
 	<view class="vp-page lg-page">
 		<!-- 背景图 -->
-		<image class="lg-bg" src="/static/hall-bg.png" mode="aspectFill" />
+		<image class="lg-bg" src="/static/login-bg.png" mode="aspectFill" />
 		<view class="lg-bg-mask" />
 
 		<!-- 顶部装饰光效 -->
