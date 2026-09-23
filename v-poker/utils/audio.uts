@@ -12,8 +12,27 @@ const SOUND_SOURCES: Map<string, string> = new Map<string, string>([
 	['deal_card', '/static/audio/deal_card.mp3'],
 	['win', '/static/audio/win.mp3'],
 	['lose', '/static/audio/lose.mp3'],
-	['flip_card', '/static/audio/flip_card.mp3']
+	['flip_card', '/static/audio/flip_card.mp3'],
+	// 13 款游戏专属胜利音效
+	['win-texas_holdem', '/static/audio/win-texas_holdem.wav'],
+	['win-zha_jin_hua', '/static/audio/win-zha_jin_hua.wav'],
+	['win-niu_niu', '/static/audio/win-niu_niu.wav'],
+	['win-san_gong', '/static/audio/win-san_gong.wav'],
+	['win-squid_game', '/static/audio/win-squid_game.wav'],
+	['win-guandan', '/static/audio/win-guandan.wav'],
+	['win-fight_bomb', '/static/audio/win-fight_bomb.wav'],
+	['win-omaha', '/static/audio/win-omaha.wav'],
+	['win-thirteen_water', '/static/audio/win-thirteen_water.wav'],
+	['win-double_kong', '/static/audio/win-double_kong.wav'],
+	['win-hong_wu', '/static/audio/win-hong_wu.wav'],
+	['win-pineapple', '/static/audio/win-pineapple.wav'],
+	['win-short_deck', '/static/audio/win-short_deck.wav']
 ])
+
+/** 根据游戏类型获取胜利音效名 */
+export function getWinSoundByGameType(gameType: string): string {
+	return 'win-' + gameType
+}
 
 /** 已创建的音频上下文（与名称一一对应） */
 let contextNames: string[] = []

@@ -84,6 +84,18 @@
 			<text class="ts-win-text">你赢啦！</text>
 		</view>
 
+		<!-- 快捷表情面板 -->
+		<view v-if="showEmojiPanel" class="ts-emoji-panel">
+			<view v-for="emoji in emojiList" :key="emoji" class="ts-emoji-item" @click="sendEmoji(emoji)">
+				<text class="ts-emoji-text">{{ emoji }}</text>
+			</view>
+		</view>
+
+		<!-- 表情按钮 -->
+		<view class="ts-emoji-btn" @click="toggleEmojiPanel">
+			<text class="ts-emoji-btn-text">😀</text>
+		</view>
+
 		<vp-dialog :visible="showCompare" title="选择比牌对象" confirm-text="确定" @update:visible="onCompareVisible"
 			@confirm="onCompareConfirm">
 			<view class="ts-compare">
@@ -142,6 +154,17 @@
 	const toastType = ref('info')
 	const toastMessage = ref('')
 	const showWinFx = ref(false)
+	const showEmojiPanel = ref(false)
+	const emojiList = ['😀', '😎', '😂', '🥳', '😤', '😢', '👍', '👎', '💪', '🃏', '💰', '🎉']
+
+	const toggleEmojiPanel = (): void => {
+		showEmojiPanel.value = !showEmojiPanel.value
+	}
+
+	const sendEmoji = (emoji: string): void => {
+		showToast(emoji, 'info')
+		showEmojiPanel.value = false
+	}
 
 	const compareTargets = computed((): CompareTarget[] => {
 		const out: CompareTarget[] = []
@@ -376,11 +399,13 @@
 			}
 			if (won) {
 				showWinFx.value = true
+				playSound(getWinSoundByGameType(props.game_type))
 				showToast('你赢啦！', 'success')
 				setTimeout(() => {
 					showWinFx.value = false
 				}, 2000)
 			} else {
+				playSound('lose')
 				showToast('本局结束', 'info')
 			}
 			wallet.refreshBalance()
@@ -623,5 +648,46 @@
 		font-weight: bold;
 		letter-spacing: 8px;
 		text-shadow: 0 0 24px rgba(212, 175, 55, 0.8), 0 4px 12px rgba(0, 0, 0, 0.6);
+	}
+
+	.ts-emoji-btn {
+		position: absolute;
+		right: 12px;
+		bottom: 120px;
+		width: 44px;
+		height: 44px;
+		border-radius: 22px;
+		background-color: rgba(0, 0, 0, 0.5);
+		align-items: center;
+		justify-content: center;
+		z-index: 5;
+	}
+
+	.ts-emoji-btn-text {
+		font-size: 24px;
+	}
+
+	.ts-emoji-panel {
+		position: absolute;
+		right: 12px;
+		bottom: 170px;
+		width: 200px;
+		padding: 12px;
+		border-radius: 12px;
+		background-color: rgba(20, 20, 30, 0.95);
+		flex-direction: row;
+		flex-wrap: wrap;
+		z-index: 6;
+	}
+
+	.ts-emoji-item {
+		width: 44px;
+		height: 44px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.ts-emoji-text {
+		font-size: 24px;
 	}
 </style>
