@@ -53,6 +53,19 @@ function App() {
     luckyBonus: 50,
     survivorBonus: 50,
   })
+  const [zhaJinHuaConfig, setZhaJinHuaConfig] = useState({
+    blindPlayMode: true,    // 闷注模式（不看牌下注）
+    compareRatio: 1,        // 比牌倍率
+    tongSha: false,         // 通杀模式
+  })
+  const [niuNiuConfig, setNiuNiuConfig] = useState({
+    bankerMode: 'random',   // random/rob/tong_bi 随机/抢庄/通比
+    multiplier: 3,          // 牛牛倍数上限
+  })
+  const [sanGongConfig, setSanGongConfig] = useState({
+    robBanker: true,        // 抢庄模式
+    multiplier: 4,          // 三公倍数
+  })
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,9 +121,15 @@ function App() {
   const handleCreateRoom = async () => {
     try {
       const token = localStorage.getItem('agent_token')
+      const configMap: Record<string, any> = {
+        squid_game: squidConfig,
+        zha_jin_hua: zhaJinHuaConfig,
+        niu_niu: niuNiuConfig,
+        san_gong: sanGongConfig,
+      }
       const payload = {
         ...createForm,
-        config: createForm.game_type === 'squid_game' ? squidConfig : undefined,
+        config: configMap[createForm.game_type] || undefined,
       }
       await axios.post(`${BFF_URL}/rooms/create`, payload, {
         headers: { Authorization: `Bearer ${token}` }
@@ -659,6 +678,85 @@ function App() {
                       <option value="25">25%</option>
                       <option value="50">50%</option>
                       <option value="100">100%</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 炸金花特殊配置 */}
+            {createForm.game_type === 'zha_jin_hua' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>闷注模式</label>
+                    <select style={styles.formInput} value={zhaJinHuaConfig.blindPlayMode ? '1' : '0'} onChange={(e) => setZhaJinHuaConfig({ ...zhaJinHuaConfig, blindPlayMode: e.target.value === '1' })}>
+                      <option value="1">开启（不看牌下注）</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>比牌倍率</label>
+                    <select style={styles.formInput} value={zhaJinHuaConfig.compareRatio} onChange={(e) => setZhaJinHuaConfig({ ...zhaJinHuaConfig, compareRatio: parseInt(e.target.value) })}>
+                      <option value="1">1倍</option>
+                      <option value="2">2倍</option>
+                      <option value="3">3倍</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>通杀模式</label>
+                    <select style={styles.formInput} value={zhaJinHuaConfig.tongSha ? '1' : '0'} onChange={(e) => setZhaJinHuaConfig({ ...zhaJinHuaConfig, tongSha: e.target.value === '1' })}>
+                      <option value="0">关闭</option>
+                      <option value="1">开启（赢家通杀全桌）</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 牛牛特殊配置 */}
+            {createForm.game_type === 'niu_niu' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>庄家模式</label>
+                    <select style={styles.formInput} value={niuNiuConfig.bankerMode} onChange={(e) => setNiuNiuConfig({ ...niuNiuConfig, bankerMode: e.target.value })}>
+                      <option value="random">随机庄家</option>
+                      <option value="rob">抢庄模式</option>
+                      <option value="tong_bi">通比模式</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>倍数上限</label>
+                    <select style={styles.formInput} value={niuNiuConfig.multiplier} onChange={(e) => setNiuNiuConfig({ ...niuNiuConfig, multiplier: parseInt(e.target.value) })}>
+                      <option value="1">1倍</option>
+                      <option value="2">2倍</option>
+                      <option value="3">3倍</option>
+                      <option value="4">4倍</option>
+                      <option value="5">5倍（牛牛封顶）</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 三公特殊配置 */}
+            {createForm.game_type === 'san_gong' && (
+              <div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>抢庄模式</label>
+                    <select style={styles.formInput} value={sanGongConfig.robBanker ? '1' : '0'} onChange={(e) => setSanGongConfig({ ...sanGongConfig, robBanker: e.target.value === '1' })}>
+                      <option value="1">开启（轮流抢庄）</option>
+                      <option value="0">关闭（固定庄家）</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>三公倍数</label>
+                    <select style={styles.formInput} value={sanGongConfig.multiplier} onChange={(e) => setSanGongConfig({ ...sanGongConfig, multiplier: parseInt(e.target.value) })}>
+                      <option value="2">2倍</option>
+                      <option value="3">3倍</option>
+                      <option value="4">4倍</option>
                     </select>
                   </div>
                 </div>
