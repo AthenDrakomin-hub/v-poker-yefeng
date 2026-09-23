@@ -1,37 +1,28 @@
 <template>
 	<view class="sp-page">
-		<image class="sp-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<!-- 高端俱乐部背景 -->
+		<image class="sp-bg" src="/static/splash-bg.png" mode="aspectFill" />
 		<view class="sp-bg-mask" />
 
-		<!-- 节日灯笼 -->
-		<view class="sp-lantern sp-lantern-left">
-			<view class="sp-lantern-rope" />
-			<view class="sp-lantern-body">
-				<text class="sp-lantern-fu">福</text>
-			</view>
-			<view class="sp-lantern-tassel" />
-		</view>
-		<view class="sp-lantern sp-lantern-right">
-			<view class="sp-lantern-rope" />
-			<view class="sp-lantern-body">
-				<text class="sp-lantern-fu">春</text>
-			</view>
-			<view class="sp-lantern-tassel" />
-		</view>
-
 		<view class="sp-body">
-			<!-- 品牌徽章 Logo：盾牌 + 黑桃 -->
-			<view class="sp-badge">
-				<text class="sp-badge-spade">♠</text>
-			</view>
-			<text class="sp-brand">V-POKER</text>
-			<text class="sp-club">金 樽 俱 乐 部</text>
-			<text class="sp-slogan">一手牌 · 一世界</text>
+			<!-- 金色皇冠 Logo -->
+			<image class="sp-logo animate-zoom-in" src="/static/logo-gold.png" mode="aspectFit" />
 
-			<view class="sp-bar">
+			<view class="sp-text-group animate-slide-up delay-200">
+				<text class="sp-brand">V-POKER</text>
+				<text class="sp-club">金 樽 俱 乐 部</text>
+				<view class="sp-divider">
+					<view class="sp-divider-line" />
+					<text class="sp-divider-dot">♠</text>
+					<view class="sp-divider-line" />
+				</view>
+				<text class="sp-slogan">一手牌 · 一世界</text>
+			</view>
+
+			<view class="sp-bar animate-fade-in delay-400">
 				<view class="sp-bar-inner" :style="barStyle"></view>
 			</view>
-			<text class="sp-tip">{{ tip }}</text>
+			<text class="sp-tip animate-pulse">{{ tip }}</text>
 		</view>
 	</view>
 </template>
@@ -41,25 +32,22 @@
 	import { useAuthStore } from '@/store/auth.uts'
 
 	const auth = useAuthStore()
-
-	const tip = ref('正在启动…')
+	const tip = ref('正在进入金樽俱乐部…')
 	const barStyle = ref('width: 10%;')
 
 	onLoad(() => {
 		let progress = 10
 		const timer = setInterval(() => {
 			progress += 20
-			if (progress > 100) {
-				progress = 100
-			}
+			if (progress > 100) { progress = 100 }
 			barStyle.value = `width: ${progress}%;`
 			if (progress >= 100) {
 				clearInterval(timer)
 				auth.restore()
-				tip.value = '进入游戏…'
+				tip.value = '欢迎光临'
 				setTimeout(() => {
 					uni.reLaunch({ url: auth.isLoggedIn ? '/pages/hall/hall' : '/pages/login/login' })
-				}, 300)
+				}, 400)
 			}
 		}, 180)
 	})
@@ -81,7 +69,7 @@
 		position: absolute;
 		width: 100%;
 		height: 100%;
-		background: linear-gradient(180deg, rgba(10, 14, 20, 0.55) 0%, rgba(10, 14, 20, 0.82) 100%);
+		background: linear-gradient(180deg, rgba(10, 14, 20, 0.3) 0%, rgba(10, 14, 20, 0.7) 100%);
 	}
 
 	.sp-body {
@@ -91,114 +79,74 @@
 		justify-content: center;
 	}
 
-	/* 节日灯笼 */
-	.sp-lantern {
-		position: absolute;
-		top: 0;
-		width: 56px;
+	.sp-logo {
+		width: 140px;
+		height: 140px;
+		margin-bottom: 32px;
+	}
+
+	.sp-text-group {
 		align-items: center;
-		z-index: 5;
-	}
-
-	.sp-lantern-left {
-		left: 24px;
-	}
-
-	.sp-lantern-right {
-		right: 24px;
-	}
-
-	.sp-lantern-rope {
-		width: 2px;
-		height: 30px;
-		background-color: #8b7355;
-	}
-
-	.sp-lantern-body {
-		width: 54px;
-		height: 62px;
-		background: radial-gradient(ellipse at center, #e8443a 0%, #c0201a 60%, #8a1008 100%);
-		border-radius: 50% / 45%;
-		align-items: center;
-		justify-content: center;
-		border-width: 2px;
-		border-style: solid;
-		border-color: #d4af37;
-		box-shadow: 0 0 24px rgba(232, 68, 58, 0.5);
-	}
-
-	.sp-lantern-fu {
-		color: #ffd700;
-		font-size: 24px;
-		font-weight: bold;
-	}
-
-	.sp-lantern-tassel {
-		width: 4px;
-		height: 18px;
-		background-color: #d4af37;
-		margin-top: 2px;
-	}
-
-	/* 盾牌徽章 */
-	.sp-badge {
-		width: 72px;
-		height: 80px;
-		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
-		border-width: 2px;
-		border-style: solid;
-		border-color: $vp-gold;
-		border-radius: 10px 10px 36px 36px;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 18px;
-	}
-
-	.sp-badge-spade {
-		color: $vp-gold;
-		font-size: 36px;
-		font-weight: bold;
 	}
 
 	.sp-brand {
 		color: $vp-gold;
-		font-size: 44px;
+		font-size: 42px;
 		font-weight: bold;
-		letter-spacing: 6px;
+		letter-spacing: 8px;
 	}
 
 	.sp-club {
 		color: $vp-text;
 		font-size: 18px;
-		letter-spacing: 8px;
-		margin-top: 6px;
+		letter-spacing: 10px;
+		margin-top: 8px;
+	}
+
+	.sp-divider {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 16px;
+	}
+
+	.sp-divider-line {
+		width: 60px;
+		height: 1px;
+		background: linear-gradient(90deg, transparent, $vp-gold, transparent);
+	}
+
+	.sp-divider-dot {
+		color: $vp-gold;
+		font-size: 12px;
+		margin: 0 12px;
 	}
 
 	.sp-slogan {
 		color: $vp-muted;
 		font-size: 14px;
-		margin-top: 14px;
-		letter-spacing: 2px;
+		margin-top: 12px;
+		letter-spacing: 3px;
 	}
 
 	.sp-bar {
-		width: 220px;
-		height: 6px;
-		background-color: $vp-surface-2;
-		border-radius: 3px;
-		margin-top: 40px;
+		width: 200px;
+		height: 3px;
+		background-color: rgba(212, 175, 55, 0.2);
+		border-radius: 2px;
+		margin-top: 48px;
 		flex-direction: row;
 	}
 
 	.sp-bar-inner {
-		height: 6px;
-		background-color: $vp-gold;
-		border-radius: 3px;
+		height: 3px;
+		background: linear-gradient(90deg, #b8962e, #d4af37, #e6c85a);
+		border-radius: 2px;
 	}
 
 	.sp-tip {
-		color: $vp-muted;
+		color: $vp-faint;
 		font-size: 12px;
-		margin-top: 14px;
+		margin-top: 16px;
+		letter-spacing: 2px;
 	}
 </style>
