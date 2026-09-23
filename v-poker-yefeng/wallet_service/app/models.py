@@ -102,10 +102,16 @@ class Room(Base):
     room_id = Column(String(16), primary_key=True, index=True)  # 6 位数字房号
     room_name = Column(String(64), nullable=True)  # 房间名称
     room_password = Column(String(8), nullable=True, default="")  # 0-4 位数字密码，空为公开房
-    game_type = Column(String(32), nullable=False, index=True)  # texas_holdem / zha_jin_hua / niu_niu / san_gong
-    mode = Column(String(32), nullable=False, default="cash")  # cash / sng /抢庄/通比
-    total_rounds = Column(Integer, nullable=False, default=10)  # 总局数
-    base_score = Column(BigInteger, nullable=False, default=100)  # 底分
+    game_type = Column(String(32), nullable=False, index=True)  # 13种游戏
+    room_level = Column(String(16), nullable=False, default="low")  # low/mid/high
+    blind_small = Column(BigInteger, nullable=False, default=5)  # 小盲
+    blind_big = Column(BigInteger, nullable=False, default=10)  # 大盲
+    ante = Column(BigInteger, nullable=False, default=0)  # 前注
+    variant = Column(String(16), nullable=False, default="normal")  # normal/aof
+    mode = Column(String(32), nullable=False, default="cash")
+    total_rounds = Column(Integer, nullable=False, default=10)
+    base_score = Column(BigInteger, nullable=False, default=100)
+    action_time = Column(Integer, nullable=False, default=20)  # 行动时间(秒)
     platform_fee_rate = Column(Numeric(6, 4), nullable=False, default=0.0500)  # 平台抽水率
     agent_commission_rate = Column(Numeric(6, 4), nullable=False, default=0.0300)  # 代理返佣率
     min_players = Column(Integer, nullable=False, default=2)  # 最低开局人数
