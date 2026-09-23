@@ -1,12 +1,17 @@
 <template>
 	<view class="vp-page rg-page">
+		<image class="rg-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<view class="rg-bg-mask" />
 		<view class="rg-statusbar" :style="statusBarStyle"></view>
 
 		<view class="rg-body">
 			<view class="rg-hero">
+				<view class="rg-badge">
+					<text class="rg-badge-spade">♠</text>
+				</view>
 				<text class="rg-logo">V-POKER</text>
-				<text class="rg-slogan">创建你的竞技账号</text>
-				<text class="rg-hero-tip">注册后即可领取体验筹码，进入任意玩法</text>
+				<text class="rg-club">金樽俱乐部</text>
+				<text class="rg-slogan">创建你的专属对局</text>
 			</view>
 
 			<view class="rg-form vp-card">
@@ -121,6 +126,19 @@
 		background-color: $vp-ink;
 	}
 
+	.rg-bg {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+	}
+
+	.rg-bg-mask {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(135deg, rgba(10, 14, 20, 0.75) 0%, rgba(10, 14, 20, 0.55) 50%, rgba(10, 14, 20, 0.8) 100%);
+	}
+
 	.rg-statusbar {
 		width: 100%;
 	}
@@ -140,6 +158,25 @@
 		margin-right: 48px;
 	}
 
+	.rg-badge {
+		width: 56px;
+		height: 64px;
+		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
+		border-width: 2px;
+		border-style: solid;
+		border-color: $vp-gold;
+		border-radius: 7px 7px 28px 28px;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 14px;
+	}
+
+	.rg-badge-spade {
+		color: $vp-gold;
+		font-size: 28px;
+		font-weight: bold;
+	}
+
 	.rg-logo {
 		color: $vp-gold;
 		font-size: 42px;
@@ -147,9 +184,16 @@
 		letter-spacing: 6px;
 	}
 
-	.rg-slogan {
+	.rg-club {
 		color: $vp-text;
-		font-size: 16px;
+		font-size: 15px;
+		letter-spacing: 6px;
+		margin-top: 4px;
+	}
+
+	.rg-slogan {
+		color: $vp-muted;
+		font-size: 14px;
 		margin-top: 12px;
 	}
 

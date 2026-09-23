@@ -1,16 +1,25 @@
 <template>
 	<view class="vp-page lg-page">
+		<!-- 背景图 + 暗化叠加 -->
+		<image class="lg-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<view class="lg-bg-mask" />
+
 		<view class="lg-statusbar" :style="statusBarStyle"></view>
 
 		<view class="lg-body">
 			<view class="lg-hero">
-				<text class="lg-logo">V-POKER</text>
-				<text class="lg-slogan">德州扑克 · 牛牛 · 三公 · 炸金花</text>
-				<view class="lg-hero-tags">
-					<view class="lg-tag"><text class="lg-tag-text">服务端权威结算</text></view>
-					<view class="lg-tag"><text class="lg-tag-text">能量守恒账本</text></view>
+				<!-- 盾牌徽章 Logo -->
+				<view class="lg-badge">
+					<text class="lg-badge-spade">♠</text>
 				</view>
-				<text class="lg-hero-tip">测试账号：player_alice / test</text>
+				<text class="lg-logo">V-POKER</text>
+				<text class="lg-club">金 樽 俱 乐 部</text>
+				<text class="lg-slogan">一手牌 · 一世界</text>
+				<view class="lg-hero-tags">
+					<view class="lg-tag"><text class="lg-tag-text">私密对局</text></view>
+					<view class="lg-tag"><text class="lg-tag-text">安全结算</text></view>
+					<view class="lg-tag"><text class="lg-tag-text">即来即玩</text></view>
+				</view>
 			</view>
 
 			<view class="lg-form vp-card">
@@ -114,6 +123,20 @@
 		background-color: $vp-ink;
 	}
 
+	/* 背景图 */
+	.lg-bg {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+	}
+
+	.lg-bg-mask {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(135deg, rgba(10, 14, 20, 0.75) 0%, rgba(10, 14, 20, 0.55) 50%, rgba(10, 14, 20, 0.8) 100%);
+	}
+
 	.lg-statusbar {
 		width: 100%;
 	}
@@ -133,17 +156,45 @@
 		margin-right: 48px;
 	}
 
+	/* 盾牌徽章 */
+	.lg-badge {
+		width: 64px;
+		height: 72px;
+		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
+		border-width: 2px;
+		border-style: solid;
+		border-color: $vp-gold;
+		border-radius: 8px 8px 32px 32px;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 16px;
+	}
+
+	.lg-badge-spade {
+		color: $vp-gold;
+		font-size: 32px;
+		font-weight: bold;
+	}
+
 	.lg-logo {
 		color: $vp-gold;
-		font-size: 48px;
+		font-size: 44px;
 		font-weight: bold;
 		letter-spacing: 6px;
+	}
+
+	.lg-club {
+		color: $vp-text;
+		font-size: 16px;
+		letter-spacing: 6px;
+		margin-top: 4px;
 	}
 
 	.lg-slogan {
 		color: $vp-muted;
 		font-size: 14px;
-		margin-top: 12px;
+		margin-top: 14px;
+		letter-spacing: 2px;
 	}
 
 	.lg-hero-tags {
@@ -166,16 +217,12 @@
 		font-size: 11px;
 	}
 
-	.lg-hero-tip {
-		color: $vp-faint;
-		font-size: 12px;
-		margin-top: 24px;
-	}
-
 	.lg-form {
 		width: 340px;
 		flex-direction: column;
 		padding: 24px;
+		background-color: rgba(20, 25, 34, 0.92);
+		backdrop-filter: blur(10px);
 	}
 
 	.lg-form-title {

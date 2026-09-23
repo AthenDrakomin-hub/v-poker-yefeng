@@ -50,7 +50,7 @@
 		<view class="ts-footer">
 			<view v-if="roomStore.canReady" class="ts-ready">
 				<vp-button type="gold" :text="readyText" @click="toggleReady" />
-				<text class="ts-ready-hint">已准备 {{ roomStore.readyCount }} 人</text>
+				<text class="ts-ready-hint">已入座 {{ roomStore.readyCount }} 人</text>
 			</view>
 			<view v-else-if="game_type == 'texas_holdem'" class="ts-actions">
 				<text class="ts-hint">{{ actionHint }}</text>
@@ -77,6 +77,11 @@
 			:value="roomStore.minRaise" :pot="roomStore.pot" @confirm="onRaiseConfirm" @cancel="onRaiseCancel" />
 
 		<vp-toast :visible="toastVisible" :type="toastType" :message="toastMessage" @close="closeToast" />
+
+		<!-- 获胜金色特效浮层 -->
+		<view v-if="showWinFx" class="ts-win-fx">
+			<text class="ts-win-text">你赢啦！</text>
+		</view>
 
 		<vp-dialog :visible="showCompare" title="选择比牌对象" confirm-text="确定" @update:visible="onCompareVisible"
 			@confirm="onCompareConfirm">
@@ -135,6 +140,7 @@
 	const toastVisible = ref(false)
 	const toastType = ref('info')
 	const toastMessage = ref('')
+	const showWinFx = ref(false)
 
 	const compareTargets = computed((): CompareTarget[] => {
 		const out: CompareTarget[] = []
@@ -151,7 +157,7 @@
 	const phaseText = computed((): string => phaseLabel(roomStore.phase))
 	const balanceText = computed((): string => `筹码 ${formatAmount(wallet.balance)}`)
 	const tableWrapStyle = computed((): string => `width:${tableW.value}px;height:${tableH.value}px;`)
-	const readyText = computed((): string => roomStore.isReady ? '已准备' : '准备')
+	const readyText = computed((): string => roomStore.isReady ? '已入座' : '入座')
 
 	const actionHint = computed((): string => {
 		if (roomStore.isMyTurn) {
@@ -338,7 +344,26 @@
 
 	watch((): string => roomStore.phase, (v: string) => {
 		if (v == 'FINISHED') {
-			showToast('本局结束', 'success')
+			// 检测是否获胜
+			const results = roomStore.lastResult
+			let won = false
+			for (let i = 0; i < results.length; i++) {
+				const uid = results[i].getString('user_id')
+				const net = results[i].getNumber('net_amount')
+				if (uid == auth.userId && net != null && net > 0) {
+					won = true
+					break
+				}
+			}
+			if (won) {
+				showWinFx.value = true
+				showToast('你赢啦！', 'success')
+				setTimeout(() => {
+					showWinFx.value = false
+				}, 2000)
+			} else {
+				showToast('本局结束', 'info')
+			}
 			wallet.refreshBalance()
 		}
 	})
@@ -348,6 +373,7 @@
 	.ts-page {
 		flex: 1;
 		background-color: $vp-ink;
+		background: radial-gradient(ellipse at center, #1a2535 0%, #0a0e14 70%);
 	}
 
 	.ts-statusbar {
@@ -547,5 +573,26 @@
 		color: $vp-muted;
 		font-size: 13px;
 		text-align: center;
+	}
+
+	/* 获胜金色特效浮层 */
+	.ts-win-fx {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.35);
+		z-index: 10;
+	}
+
+	.ts-win-text {
+		color: #e6c85a;
+		font-size: 52px;
+		font-weight: bold;
+		letter-spacing: 8px;
+		text-shadow: 0 0 24px rgba(212, 175, 55, 0.8), 0 4px 12px rgba(0, 0, 0, 0.6);
 	}
 </style>

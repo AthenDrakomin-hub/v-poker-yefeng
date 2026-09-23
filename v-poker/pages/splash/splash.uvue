@@ -1,8 +1,32 @@
 <template>
-	<view class="vp-page sp-page">
+	<view class="sp-page">
+		<image class="sp-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<view class="sp-bg-mask" />
+
+		<!-- 节日灯笼 -->
+		<view class="sp-lantern sp-lantern-left">
+			<view class="sp-lantern-rope" />
+			<view class="sp-lantern-body">
+				<text class="sp-lantern-fu">福</text>
+			</view>
+			<view class="sp-lantern-tassel" />
+		</view>
+		<view class="sp-lantern sp-lantern-right">
+			<view class="sp-lantern-rope" />
+			<view class="sp-lantern-body">
+				<text class="sp-lantern-fu">春</text>
+			</view>
+			<view class="sp-lantern-tassel" />
+		</view>
+
 		<view class="sp-body">
-			<text class="sp-logo">V-POKER</text>
-			<text class="sp-slogan">德州扑克 · 牛牛 · 三公 · 炸金花</text>
+			<!-- 品牌徽章 Logo：盾牌 + 黑桃 -->
+			<view class="sp-badge">
+				<text class="sp-badge-spade">♠</text>
+			</view>
+			<text class="sp-brand">V-POKER</text>
+			<text class="sp-club">金 樽 俱 乐 部</text>
+			<text class="sp-slogan">一手牌 · 一世界</text>
 
 			<view class="sp-bar">
 				<view class="sp-bar-inner" :style="barStyle"></view>
@@ -47,6 +71,19 @@
 		background-color: $vp-ink;
 	}
 
+	.sp-bg {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+	}
+
+	.sp-bg-mask {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(180deg, rgba(10, 14, 20, 0.55) 0%, rgba(10, 14, 20, 0.82) 100%);
+	}
+
 	.sp-body {
 		flex: 1;
 		flex-direction: column;
@@ -54,17 +91,94 @@
 		justify-content: center;
 	}
 
-	.sp-logo {
-		color: $vp-gold;
-		font-size: 52px;
+	/* 节日灯笼 */
+	.sp-lantern {
+		position: absolute;
+		top: 0;
+		width: 56px;
+		align-items: center;
+		z-index: 5;
+	}
+
+	.sp-lantern-left {
+		left: 24px;
+	}
+
+	.sp-lantern-right {
+		right: 24px;
+	}
+
+	.sp-lantern-rope {
+		width: 2px;
+		height: 30px;
+		background-color: #8b7355;
+	}
+
+	.sp-lantern-body {
+		width: 54px;
+		height: 62px;
+		background: radial-gradient(ellipse at center, #e8443a 0%, #c0201a 60%, #8a1008 100%);
+		border-radius: 50% / 45%;
+		align-items: center;
+		justify-content: center;
+		border-width: 2px;
+		border-style: solid;
+		border-color: #d4af37;
+		box-shadow: 0 0 24px rgba(232, 68, 58, 0.5);
+	}
+
+	.sp-lantern-fu {
+		color: #ffd700;
+		font-size: 24px;
 		font-weight: bold;
+	}
+
+	.sp-lantern-tassel {
+		width: 4px;
+		height: 18px;
+		background-color: #d4af37;
+		margin-top: 2px;
+	}
+
+	/* 盾牌徽章 */
+	.sp-badge {
+		width: 72px;
+		height: 80px;
+		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
+		border-width: 2px;
+		border-style: solid;
+		border-color: $vp-gold;
+		border-radius: 10px 10px 36px 36px;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 18px;
+	}
+
+	.sp-badge-spade {
+		color: $vp-gold;
+		font-size: 36px;
+		font-weight: bold;
+	}
+
+	.sp-brand {
+		color: $vp-gold;
+		font-size: 44px;
+		font-weight: bold;
+		letter-spacing: 6px;
+	}
+
+	.sp-club {
+		color: $vp-text;
+		font-size: 18px;
 		letter-spacing: 8px;
+		margin-top: 6px;
 	}
 
 	.sp-slogan {
 		color: $vp-muted;
 		font-size: 14px;
-		margin-top: 12px;
+		margin-top: 14px;
+		letter-spacing: 2px;
 	}
 
 	.sp-bar {

@@ -74,7 +74,7 @@
 	const status_text = computed((): string => {
 		const s = props.status
 		if (s == 'ready') {
-			return '已准备'
+			return '已入座'
 		}
 		if (s == 'waiting') {
 			return '等待'
@@ -163,32 +163,34 @@
 
 	.vps-plate {
 		width: 100%;
-		background-color: rgba(10, 14, 20, 0.86);
-		border-radius: $vp-radius-sm;
+		background: linear-gradient(180deg, #2a323e 0%, #1a1f28 100%);
+		border-radius: 12px;
 		border-width: 1px;
 		border-style: solid;
-		border-color: $vp-border-strong;
-		padding-top: 4px;
-		padding-bottom: 4px;
-		padding-left: 5px;
-		padding-right: 5px;
+		border-color: #3a4658;
+		padding-top: 6px;
+		padding-bottom: 6px;
+		padding-left: 6px;
+		padding-right: 6px;
 		flex-direction: column;
 		align-items: center;
+		box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 	}
 
 	.vps-plate-empty {
-		background-color: rgba(10, 14, 20, 0.6);
-		border-color: $vp-border;
-		opacity: 0.7;
+		background: linear-gradient(180deg, rgba(30, 36, 46, 0.6) 0%, rgba(15, 18, 24, 0.6) 100%);
+		border-color: rgba(58, 70, 88, 0.4);
+		opacity: 0.6;
 	}
 
 	.vps-plate-self {
-		background-color: rgba(212, 175, 55, 0.16);
+		background: linear-gradient(180deg, rgba(212, 175, 55, 0.22) 0%, rgba(184, 150, 46, 0.12) 100%);
 	}
 
 	.vps-plate-turn {
 		border-color: $vp-gold;
 		border-width: 2px;
+		box-shadow: 0 0 16px rgba(212, 175, 55, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 	}
 
 	.vps-name-row {

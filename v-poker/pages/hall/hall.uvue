@@ -1,11 +1,36 @@
 <template>
 	<view class="vp-page hall-page">
+		<!-- 远景背景：城市夜景 + 暗化叠加 -->
+		<image class="hall-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<view class="hall-bg-mask" />
+
 		<view class="hall-statusbar" :style="statusBarStyle"></view>
+
+		<!-- 节日灯笼装饰：左右各一 -->
+		<view class="hall-lantern hall-lantern-left">
+			<view class="hall-lantern-rope" />
+			<view class="hall-lantern-body">
+				<text class="hall-lantern-fu">福</text>
+			</view>
+			<view class="hall-lantern-tassel" />
+		</view>
+		<view class="hall-lantern hall-lantern-right">
+			<view class="hall-lantern-rope" />
+			<view class="hall-lantern-body">
+				<text class="hall-lantern-fu">春</text>
+			</view>
+			<view class="hall-lantern-tassel" />
+		</view>
 
 		<view class="hall-topbar">
 			<view class="hall-brand">
-				<text class="hall-brand-text">V-POKER</text>
-				<text class="hall-brand-sub">棋牌竞技</text>
+				<view class="hall-brand-badge">
+					<text class="hall-brand-spade">♠</text>
+				</view>
+				<view class="hall-brand-text-wrap">
+					<text class="hall-brand-text">V-POKER</text>
+					<text class="hall-brand-sub">金樽俱乐部</text>
+				</view>
 			</view>
 			<view class="hall-notice">
 				<text class="hall-notice-text">{{ notice }}</text>
@@ -46,7 +71,7 @@
 								<text class="hall-game-suit-text" :class="suitTextClass(g.game_type)">{{ g.icon }}</text>
 							</view>
 							<view class="hall-game-badge">
-								<text class="hall-game-badge-text">可加入</text>
+								<text class="hall-game-badge-text">立即入局</text>
 							</view>
 						</view>
 						<text class="hall-game-name">{{ g.name }}</text>
@@ -56,7 +81,7 @@
 						</view>
 						<view class="hall-game-foot">
 							<text class="hall-game-code">{{ g.game_type }}</text>
-							<text class="hall-game-enter">进入 ›</text>
+							<text class="hall-game-enter">入局 ›</text>
 						</view>
 					</view>
 				</view>
@@ -109,7 +134,7 @@
 	const lobby = useLobbyStore()
 
 	const statusBarStyle = ref('height: 0px')
-	const notice = ref('欢迎来到 V-POKER · 房间由服务端权威结算，前端不参与分账')
+	const notice = ref('私密对局 · 安全结算 · 即来即玩')
 	const games = GAME_ENTRIES
 	const joinId = ref('')
 	const joinPassword = ref('')
@@ -209,8 +234,71 @@
 		background-color: $vp-ink;
 	}
 
+	/* 远景背景图 */
+	.hall-bg {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+	}
+
+	.hall-bg-mask {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(180deg, rgba(10, 14, 20, 0.65) 0%, rgba(10, 14, 20, 0.88) 100%);
+	}
+
 	.hall-statusbar {
 		width: 100%;
+	}
+
+	/* === 节日灯笼装饰 === */
+	.hall-lantern {
+		position: absolute;
+		top: 0;
+		width: 50px;
+		align-items: center;
+		z-index: 5;
+	}
+
+	.hall-lantern-left {
+		left: 16px;
+	}
+
+	.hall-lantern-right {
+		right: 16px;
+	}
+
+	.hall-lantern-rope {
+		width: 2px;
+		height: 24px;
+		background-color: #8b7355;
+	}
+
+	.hall-lantern-body {
+		width: 48px;
+		height: 56px;
+		background: radial-gradient(ellipse at center, #e8443a 0%, #c0201a 60%, #8a1008 100%);
+		border-radius: 50% / 45%;
+		align-items: center;
+		justify-content: center;
+		border-width: 2px;
+		border-style: solid;
+		border-color: #d4af37;
+		box-shadow: 0 0 20px rgba(232, 68, 58, 0.5);
+	}
+
+	.hall-lantern-fu {
+		color: #ffd700;
+		font-size: 22px;
+		font-weight: bold;
+	}
+
+	.hall-lantern-tassel {
+		width: 4px;
+		height: 16px;
+		background-color: #d4af37;
+		margin-top: 2px;
 	}
 
 	.hall-topbar {
@@ -227,7 +315,30 @@
 
 	.hall-brand {
 		flex-direction: row;
-		align-items: flex-end;
+		align-items: center;
+	}
+
+	.hall-brand-badge {
+		width: 36px;
+		height: 40px;
+		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
+		border-width: 1.5px;
+		border-style: solid;
+		border-color: $vp-gold;
+		border-radius: 5px 5px 18px 18px;
+		align-items: center;
+		justify-content: center;
+		margin-right: 8px;
+	}
+
+	.hall-brand-spade {
+		color: $vp-gold;
+		font-size: 18px;
+		font-weight: bold;
+	}
+
+	.hall-brand-text-wrap {
+		flex-direction: column;
 	}
 
 	.hall-brand-text {
