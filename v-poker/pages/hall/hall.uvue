@@ -1,7 +1,7 @@
 <template>
 	<view class="vp-page hall-page">
 		<!-- 远景背景：城市夜景 + 暗化叠加 -->
-		<image class="hall-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<image class="hall-bg" src="/static/hall-bg.png" mode="aspectFill" />
 		<view class="hall-bg-mask" />
 
 		<view class="hall-statusbar" :style="statusBarStyle"></view>

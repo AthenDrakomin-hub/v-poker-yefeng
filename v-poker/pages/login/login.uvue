@@ -1,7 +1,7 @@
 <template>
 	<view class="vp-page lg-page">
 		<!-- 背景图 + 暗化叠加 -->
-		<image class="lg-bg" src="/static/bg/lobby-bg.png" mode="aspectFill" />
+		<image class="lg-bg" src="/static/hall-bg.png" mode="aspectFill" />
 		<view class="lg-bg-mask" />
 
 		<view class="lg-statusbar" :style="statusBarStyle"></view>
