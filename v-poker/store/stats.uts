@@ -1,0 +1,72 @@
+/**
+ * 个人战绩 Store
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import { getUserStats } from '@/utils/http/api/stats.uts'
+import { useAuthStore } from './auth.uts'
+
+export type GameStat = {
+	gameType: string
+	games: number
+	winRate: number
+}
+
+export const useStatsStore = defineStore('stats', () => {
+	const totalGames = ref(0)
+	const winRate = ref(0)
+	const totalProfit = ref(0)
+	const bestPot = ref(0)
+	const bestHand = ref('—')
+	const maxStreak = ref(0)
+	const gameStats = ref<GameStat[]>([])
+	const loading = ref(false)
+	const errorMessage = ref('')
+
+	const loadStats = async () => {
+		const auth = useAuthStore()
+		if (auth.userId.length == 0) return
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const data = await getUserStats(auth.userId)
+			if (data != null) {
+				const tg = data.getNumber('total_games')
+				totalGames.value = tg == null ? 0 : tg
+				const wr = data.getNumber('win_rate')
+				winRate.value = wr == null ? 0 : wr
+				const tp = data.getNumber('total_profit')
+				totalProfit.value = tp == null ? 0 : tp
+				const bp = data.getNumber('best_pot')
+				bestPot.value = bp == null ? 0 : bp
+				const bh = data.getString('best_hand')
+				bestHand.value = bh == null ? '—' : bh
+				const ms = data.getNumber('max_streak')
+				maxStreak.value = ms == null ? 0 : ms
+			}
+		} catch (e) {
+			errorMessage.value = '战绩加载失败'
+			console.error('loadStats failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	const reset = () => {
+		totalGames.value = 0
+		winRate.value = 0
+		totalProfit.value = 0
+		bestPot.value = 0
+		bestHand.value = '—'
+		maxStreak.value = 0
+		gameStats.value = []
+		errorMessage.value = ''
+	}
+
+	return {
+		totalGames, winRate, totalProfit, bestPot, bestHand, maxStreak,
+		gameStats, loading, errorMessage,
+		loadStats, reset
+	}
+})

@@ -1,0 +1,21 @@
+/**
+ * 好友接口
+ * GET  /api/friends/:user_id
+ * POST /api/friends/add
+ */
+
+import { httpGet, httpGetList, httpPost } from '../client.uts'
+
+/** 获取好友列表 */
+export function listFriends(userId: string): Promise<UTSJSONObject[]> {
+	return httpGetList(`/api/friends/${userId}`, null)
+}
+
+/** 添加好友 */
+export function addFriend(userId: string, friendId: string): Promise<UTSJSONObject | null> {
+	const data: UTSJSONObject = {
+		user_id: userId,
+		friend_id: friendId
+	}
+	return httpPost('/api/friends/add', data)
+}

@@ -88,13 +88,13 @@
 
 				<view class="hall-panel vp-card">
 					<view class="hall-panel-head">
-						<text class="hall-panel-title">房间管理</text>
-						<text class="hall-section-note">创建后可加入机器人陪练</text>
+						<text class="hall-panel-title">我的对局</text>
+						<text class="hall-section-note">加入代理创建的房间</text>
 					</view>
 					<view class="hall-actions">
-						<vp-button type="gold" text="+ 创建房间" @click="goCreateRoom" />
+						<vp-button type="gold" text="我的房间" @click="goMyRooms" />
 						<view class="hall-gap"></view>
-						<vp-button type="gray" text="我的房间" @click="goMyRooms" />
+						<vp-button type="ghost" text="房间列表" @click="goRoomList" />
 						<view class="hall-gap"></view>
 						<vp-button v-if="auth.isAgent" type="ghost" text="代理中心" @click="goAgent" />
 					</view>
@@ -207,8 +207,8 @@
 		}
 	}
 
-	const goCreateRoom = () => {
-		uni.navigateTo({ url: '/pages/create-room/create-room' })
+	const goRoomList = () => {
+		uni.navigateTo({ url: '/pages/room-list/room-list' })
 	}
 
 	const goMyRooms = () => {

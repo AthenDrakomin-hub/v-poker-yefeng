@@ -1,0 +1,63 @@
+/**
+ * 消息 Store
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import { listMessages } from '@/utils/http/api/message.uts'
+import { useAuthStore } from './auth.uts'
+
+export type MessageEntry = {
+	id: string
+	title: string
+	content: string
+	type: string
+	read: boolean
+	createdAt: number
+}
+
+export const useMessageStore = defineStore('message', () => {
+	const list = ref<MessageEntry[]>([])
+	const loading = ref(false)
+	const unreadCount = ref(0)
+	const errorMessage = ref('')
+
+	const loadMessages = async () => {
+		const auth = useAuthStore()
+		if (auth.userId.length == 0) return
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const raw = await listMessages(auth.userId, 20, 0)
+			const entries: MessageEntry[] = []
+			let unread = 0
+			for (let i = 0; i < raw.length; i++) {
+				const id = raw[i].getString('id')
+				const title = raw[i].getString('title')
+				const content = raw[i].getString('content')
+				const type = raw[i].getString('type')
+				const read = raw[i].getBoolean('read')
+				const createdAt = raw[i].getNumber('created_at')
+				const isRead = read == null ? false : read
+				if (!isRead) unread++
+				entries.push({
+					id: id == null ? '' : id,
+					title: title == null ? '' : title,
+					content: content == null ? '' : content,
+					type: type == null ? 'system' : type,
+					read: isRead,
+					createdAt: createdAt == null ? 0 : createdAt
+				})
+			}
+			list.value = entries
+			unreadCount.value = unread
+		} catch (e) {
+			errorMessage.value = '消息加载失败'
+			console.error('loadMessages failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	return { list, loading, unreadCount, errorMessage, loadMessages }
+})

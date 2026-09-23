@@ -1,0 +1,110 @@
+<template>
+	<view class="vp-page rk-page">
+		<view class="rk-statusbar" :style="statusBarStyle"></view>
+		<view class="rk-topbar">
+			<view class="rk-back" hover-class="rk-pressed" @click="goBack">
+				<text class="rk-back-text">← 返回</text>
+			</view>
+			<text class="rk-title">排行榜</text>
+		</view>
+
+		<view class="rk-tabs">
+			<view class="rk-tab" :class="rankStore.period == 'week' ? 'rk-tab-active' : ''" hover-class="rk-pressed" @click="switchTab('week')">
+				<text class="rk-tab-text" :class="rankStore.period == 'week' ? 'rk-tab-text-active' : ''">本周</text>
+			</view>
+			<view class="rk-tab" :class="rankStore.period == 'month' ? 'rk-tab-active' : ''" hover-class="rk-pressed" @click="switchTab('month')">
+				<text class="rk-tab-text" :class="rankStore.period == 'month' ? 'rk-tab-text-active' : ''">本月</text>
+			</view>
+			<view class="rk-tab" :class="rankStore.period == 'all' ? 'rk-tab-active' : ''" hover-class="rk-pressed" @click="switchTab('all')">
+				<text class="rk-tab-text" :class="rankStore.period == 'all' ? 'rk-tab-text-active' : ''">总榜</text>
+			</view>
+		</view>
+
+		<view class="rk-body">
+			<vp-empty v-if="rankStore.list.length == 0 && !rankStore.loading" title="暂无排行数据" description="排行榜将在对局结束后自动统计" />
+
+			<view v-for="(r, i) in rankStore.list" :key="i" class="rk-item vp-card">
+				<view class="rk-rank" :class="rankClass(i)">
+					<text class="rk-rank-text">{{ i + 1 }}</text>
+				</view>
+				<vp-avatar :name="r.name" :size="36" />
+				<view class="rk-item-meta">
+					<text class="rk-item-name">{{ r.name }}</text>
+					<text class="rk-item-score">盈利 {{ r.score }}</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useRankStore } from '@/store/rank.uts'
+
+	const rankStore = useRankStore()
+	const statusBarStyle = ref('height: 0px')
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+		rankStore.loadRank('week')
+	})
+
+	const rankClass = (i: number): string => {
+		if (i == 0) return 'rk-rank-gold'
+		if (i == 1) return 'rk-rank-silver'
+		if (i == 2) return 'rk-rank-bronze'
+		return ''
+	}
+
+	const switchTab = (p: string) => {
+		if (rankStore.period != p) {
+			rankStore.loadRank(p)
+		}
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.rk-page { flex: 1; background-color: $vp-ink; }
+	.rk-statusbar { width: 100%; }
+	.rk-topbar {
+		flex-direction: row; align-items: center; height: 52px;
+		padding-left: 16px; padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.rk-back { height: 32px; flex-direction: row; align-items: center; }
+	.rk-pressed { opacity: 0.75; }
+	.rk-back-text { color: $vp-text; font-size: 14px; }
+	.rk-title { color: $vp-text; font-size: 16px; font-weight: bold; margin-left: 16px; }
+	.rk-tabs {
+		flex-direction: row; height: 44px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.rk-tab { flex: 1; align-items: center; justify-content: center; }
+	.rk-tab-active { border-bottom-width: 2px; border-bottom-style: solid; border-bottom-color: $vp-gold; }
+	.rk-tab-text { color: $vp-muted; font-size: 14px; }
+	.rk-tab-text-active { color: $vp-gold; font-weight: bold; }
+	.rk-body { flex: 1; padding: 14px 16px; }
+	.rk-item {
+		flex-direction: row; align-items: center;
+		padding: 12px 16px; margin-bottom: 10px;
+	}
+	.rk-rank {
+		width: 28px; height: 28px; border-radius: 14px;
+		align-items: center; justify-content: center;
+		background-color: $vp-surface-2; margin-right: 12px;
+	}
+	.rk-rank-gold { background-color: #d4af37; }
+	.rk-rank-silver { background-color: #a8b0bc; }
+	.rk-rank-bronze { background-color: #b87333; }
+	.rk-rank-text { color: #fff; font-size: 13px; font-weight: bold; }
+	.rk-item-meta { flex: 1; flex-direction: column; margin-left: 12px; }
+	.rk-item-name { color: $vp-text; font-size: 15px; }
+	.rk-item-score { color: $vp-gold; font-size: 12px; margin-top: 2px; }
+</style>

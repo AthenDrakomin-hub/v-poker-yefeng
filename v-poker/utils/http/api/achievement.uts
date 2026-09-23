@@ -1,0 +1,11 @@
+/**
+ * 成就接口
+ * GET /api/achievements/:user_id
+ */
+
+import { httpGetList } from '../client.uts'
+
+/** 获取成就列表及解锁状态 */
+export function listAchievements(userId: string): Promise<UTSJSONObject[]> {
+	return httpGetList(`/api/achievements/${userId}`, null)
+}

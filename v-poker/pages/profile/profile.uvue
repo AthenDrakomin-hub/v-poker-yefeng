@@ -17,6 +17,7 @@
 		</view>
 
 		<view class="pf-body">
+			<!-- 用户信息卡 -->
 			<view class="pf-user vp-card">
 				<vp-avatar :name="displayName" :size="52" :online="true" />
 				<view class="pf-user-meta">
@@ -25,6 +26,48 @@
 				</view>
 			</view>
 
+			<!-- 战绩数据卡 -->
+			<view class="pf-stats vp-card">
+				<view class="pf-stat">
+					<text class="pf-stat-value">{{ statsStore.totalGames }}</text>
+					<text class="pf-stat-label">总对局</text>
+				</view>
+				<view class="pf-stat-divider" />
+				<view class="pf-stat">
+					<text class="pf-stat-value pf-stat-gold">{{ statsStore.winRate }}%</text>
+					<text class="pf-stat-label">胜率</text>
+				</view>
+				<view class="pf-stat-divider" />
+				<view class="pf-stat">
+					<text class="pf-stat-value">{{ statsStore.bestHand }}</text>
+					<text class="pf-stat-label">最佳牌型</text>
+				</view>
+			</view>
+
+			<!-- 菜单：社交与荣誉 -->
+			<view class="pf-menu vp-card">
+				<view class="pf-item" hover-class="pf-pressed" @click="goStats">
+					<text class="pf-item-text">个人战绩</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goFriends">
+					<text class="pf-item-text">好友</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goRank">
+					<text class="pf-item-text">排行榜</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goAchievement">
+					<text class="pf-item-text">成就墙</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+			</view>
+
+			<!-- 菜单：资金与设置 -->
 			<view class="pf-menu vp-card">
 				<view class="pf-item" hover-class="pf-pressed" @click="goWallet">
 					<text class="pf-item-text">钱包</text>
@@ -38,6 +81,16 @@
 				<view v-if="auth.isAgent" class="pf-divider"></view>
 				<view v-if="auth.isAgent" class="pf-item" hover-class="pf-pressed" @click="goAgent">
 					<text class="pf-item-text">代理中心</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goRules">
+					<text class="pf-item-text">玩法规则</text>
+					<text class="pf-item-arrow">›</text>
+				</view>
+				<view class="pf-divider"></view>
+				<view class="pf-item" hover-class="pf-pressed" @click="goMessage">
+					<text class="pf-item-text">消息中心</text>
 					<text class="pf-item-arrow">›</text>
 				</view>
 				<view class="pf-divider"></view>
@@ -59,10 +112,12 @@
 	import { ref, computed } from 'vue'
 	import { useAuthStore } from '@/store/auth.uts'
 	import { useWalletStore } from '@/store/wallet.uts'
+	import { useStatsStore } from '@/store/stats.uts'
 	import { formatAmount } from '@/utils/format.uts'
 
 	const auth = useAuthStore()
 	const wallet = useWalletStore()
+	const statsStore = useStatsStore()
 
 	const statusBarStyle = ref('height: 0px')
 
@@ -97,6 +152,7 @@
 			return
 		}
 		wallet.refreshBalance()
+		statsStore.loadStats()
 	})
 
 	const goBack = () => {
@@ -117,6 +173,30 @@
 
 	const goSetting = () => {
 		uni.navigateTo({ url: '/pages/setting/setting' })
+	}
+
+	const goStats = () => {
+		uni.navigateTo({ url: '/pages/stats/stats' })
+	}
+
+	const goFriends = () => {
+		uni.navigateTo({ url: '/pages/friend/friend' })
+	}
+
+	const goRank = () => {
+		uni.navigateTo({ url: '/pages/rank/rank' })
+	}
+
+	const goAchievement = () => {
+		uni.navigateTo({ url: '/pages/achievement/achievement' })
+	}
+
+	const goRules = () => {
+		uni.navigateTo({ url: '/pages/rules/rules' })
+	}
+
+	const goMessage = () => {
+		uni.navigateTo({ url: '/pages/message/message' })
 	}
 
 	const onLogout = () => {
@@ -238,10 +318,48 @@
 		margin-top: 4px;
 	}
 
+	/* 战绩数据卡 */
+	.pf-stats {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-around;
+		padding: 16px 0;
+		margin-bottom: 12px;
+	}
+
+	.pf-stat {
+		flex: 1;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.pf-stat-divider {
+		width: 1px;
+		height: 30px;
+		background-color: $vp-border;
+	}
+
+	.pf-stat-value {
+		color: $vp-text;
+		font-size: 18px;
+		font-weight: bold;
+	}
+
+	.pf-stat-gold {
+		color: $vp-gold;
+	}
+
+	.pf-stat-label {
+		color: $vp-muted;
+		font-size: 11px;
+		margin-top: 4px;
+	}
+
 	.pf-menu {
 		flex-direction: column;
 		padding-left: 16px;
 		padding-right: 16px;
+		margin-bottom: 12px;
 	}
 
 	.pf-item {

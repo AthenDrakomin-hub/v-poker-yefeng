@@ -1,0 +1,11 @@
+/**
+ * 个人战绩接口
+ * GET /api/stats/:user_id
+ */
+
+import { httpGet } from '../client.uts'
+
+/** 获取个人战绩统计 */
+export function getUserStats(userId: string): Promise<UTSJSONObject | null> {
+	return httpGet(`/api/stats/${userId}`, null)
+}

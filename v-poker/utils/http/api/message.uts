@@ -1,0 +1,15 @@
+/**
+ * 消息接口
+ * GET /api/messages/:user_id
+ */
+
+import { httpGetList } from '../client.uts'
+
+/** 获取消息列表 */
+export function listMessages(userId: string, limit: number = 20, offset: number = 0): Promise<UTSJSONObject[]> {
+	const params: UTSJSONObject = {
+		limit: limit,
+		offset: offset
+	}
+	return httpGetList(`/api/messages/${userId}`, params)
+}

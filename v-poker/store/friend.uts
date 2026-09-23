@@ -1,0 +1,64 @@
+/**
+ * 好友 Store
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import { listFriends, addFriend as apiAddFriend } from '@/utils/http/api/friend.uts'
+import { useAuthStore } from './auth.uts'
+
+export type FriendItem = {
+	userId: string
+	name: string
+	online: boolean
+	lastSeen: number
+}
+
+export const useFriendStore = defineStore('friend', () => {
+	const friends = ref<FriendItem[]>([])
+	const loading = ref(false)
+	const errorMessage = ref('')
+
+	const loadFriends = async () => {
+		const auth = useAuthStore()
+		if (auth.userId.length == 0) return
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const raw = await listFriends(auth.userId)
+			const list: FriendItem[] = []
+			for (let i = 0; i < raw.length; i++) {
+				const uid = raw[i].getString('user_id')
+				const name = raw[i].getString('name')
+				const online = raw[i].getBoolean('online')
+				const lastSeen = raw[i].getNumber('last_seen')
+				list.push({
+					userId: uid == null ? '' : uid,
+					name: name == null ? '' : name,
+					online: online == null ? false : online,
+					lastSeen: lastSeen == null ? 0 : lastSeen
+				})
+			}
+			friends.value = list
+		} catch (e) {
+			errorMessage.value = '好友列表加载失败'
+			console.error('loadFriends failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	const addFriend = async (friendId: string): Promise<boolean> => {
+		const auth = useAuthStore()
+		try {
+			await apiAddFriend(auth.userId, friendId)
+			await loadFriends()
+			return true
+		} catch (e) {
+			console.error('addFriend failed', e)
+			return false
+		}
+	}
+
+	return { friends, loading, errorMessage, loadFriends, addFriend }
+})

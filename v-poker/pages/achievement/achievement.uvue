@@ -1,0 +1,81 @@
+<template>
+	<view class="vp-page ac-page">
+		<view class="ac-statusbar" :style="statusBarStyle"></view>
+		<view class="ac-topbar">
+			<view class="ac-back" hover-class="ac-pressed" @click="goBack">
+				<text class="ac-back-text">← 返回</text>
+			</view>
+			<text class="ac-title">成就墙</text>
+		</view>
+
+		<view class="ac-body">
+			<view class="ac-grid">
+				<view v-for="(a, i) in achievementStore.list" :key="i" class="ac-card vp-card">
+					<view class="ac-badge" :class="a.unlocked ? 'ac-badge-unlocked' : 'ac-badge-locked'">
+						<text class="ac-badge-icon">{{ a.icon }}</text>
+					</view>
+					<text class="ac-name">{{ a.name }}</text>
+					<text class="ac-desc">{{ a.desc }}</text>
+				</view>
+			</view>
+			<vp-empty v-if="achievementStore.list.length == 0 && !achievementStore.loading" title="暂无成就" description="完成对局解锁成就" />
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useAchievementStore } from '@/store/achievement.uts'
+
+	const achievementStore = useAchievementStore()
+	const statusBarStyle = ref('height: 0px')
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		achievementStore.loadAchievements()
+	})
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.ac-page { flex: 1; background-color: $vp-ink; }
+	.ac-statusbar { width: 100%; }
+	.ac-topbar {
+		flex-direction: row; align-items: center; height: 52px;
+		padding-left: 16px; padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.ac-back { height: 32px; flex-direction: row; align-items: center; }
+	.ac-pressed { opacity: 0.75; }
+	.ac-back-text { color: $vp-text; font-size: 14px; }
+	.ac-title { color: $vp-text; font-size: 16px; font-weight: bold; margin-left: 16px; }
+	.ac-body { flex: 1; padding: 14px 12px; }
+	.ac-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+	.ac-card {
+		width: 48%; align-items: center;
+		padding: 16px 10px; margin-bottom: 12px;
+	}
+	.ac-badge {
+		width: 56px; height: 56px; border-radius: 28px;
+		align-items: center; justify-content: center;
+		margin-bottom: 10px;
+	}
+	.ac-badge-unlocked {
+		background: linear-gradient(180deg, #e6c85a 0%, #b8962e 100%);
+	}
+	.ac-badge-locked {
+		background-color: $vp-surface-2;
+	}
+	.ac-badge-icon { color: #fff; font-size: 24px; }
+	.ac-badge-locked .ac-badge-icon { color: $vp-faint; }
+	.ac-name { color: $vp-text; font-size: 13px; font-weight: bold; }
+	.ac-desc { color: $vp-muted; font-size: 11px; margin-top: 4px; text-align: center; }
+</style>

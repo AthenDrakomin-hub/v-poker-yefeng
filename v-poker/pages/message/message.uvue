@@ -1,0 +1,79 @@
+<template>
+	<view class="vp-page ms-page">
+		<view class="ms-statusbar" :style="statusBarStyle"></view>
+		<view class="ms-topbar">
+			<view class="ms-back" hover-class="ms-pressed" @click="goBack">
+				<text class="ms-back-text">← 返回</text>
+			</view>
+			<text class="ms-title">消息中心</text>
+		</view>
+
+		<view class="ms-body">
+			<vp-empty v-if="messageStore.list.length == 0 && !messageStore.loading" title="暂无消息" description="系统通知和对局邀请将显示在这里" />
+
+			<view v-for="(m, i) in messageStore.list" :key="i" class="ms-item vp-card">
+				<view class="ms-item-head">
+					<text class="ms-item-title">{{ m.title }}</text>
+					<text class="ms-item-time">{{ formatTime(m.createdAt) }}</text>
+				</view>
+				<text class="ms-item-content">{{ m.content }}</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useMessageStore } from '@/store/message.uts'
+
+	const messageStore = useMessageStore()
+	const statusBarStyle = ref('height: 0px')
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		messageStore.loadMessages()
+	})
+
+	const formatTime = (ts: number): string => {
+		if (ts == 0) return ''
+		const d = new Date(ts)
+		const month = d.getMonth() + 1
+		const day = d.getDate()
+		const hour = d.getHours()
+		const min = d.getMinutes()
+		const mm = month < 10 ? '0' + month : '' + month
+		const dd = day < 10 ? '0' + day : '' + day
+		const hh = hour < 10 ? '0' + hour : '' + hour
+		const mi = min < 10 ? '0' + min : '' + min
+		return `${mm}-${dd} ${hh}:${mi}`
+	}
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.ms-page { flex: 1; background-color: $vp-ink; }
+	.ms-statusbar { width: 100%; }
+	.ms-topbar {
+		flex-direction: row; align-items: center; height: 52px;
+		padding-left: 16px; padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.ms-back { height: 32px; flex-direction: row; align-items: center; }
+	.ms-pressed { opacity: 0.75; }
+	.ms-back-text { color: $vp-text; font-size: 14px; }
+	.ms-title { color: $vp-text; font-size: 16px; font-weight: bold; margin-left: 16px; }
+	.ms-body { flex: 1; padding: 14px 16px; }
+	.ms-item { padding: 14px 16px; margin-bottom: 10px; }
+	.ms-item-head { flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+	.ms-item-title { color: $vp-text; font-size: 14px; font-weight: bold; }
+	.ms-item-time { color: $vp-faint; font-size: 11px; }
+	.ms-item-content { color: $vp-muted; font-size: 13px; line-height: 18px; }
+</style>

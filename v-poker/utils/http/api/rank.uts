@@ -1,0 +1,14 @@
+/**
+ * 排行榜接口
+ * GET /api/rank?period=week|month|all
+ */
+
+import { httpGetList } from '../client.uts'
+
+/** 获取排行榜 */
+export function getLeaderboard(period: string): Promise<UTSJSONObject[]> {
+	const params: UTSJSONObject = {
+		period: period
+	}
+	return httpGetList('/api/rank', params)
+}

@@ -25,3 +25,4 @@ __pycache__/
 # 系统 / 编辑器
 .DS_Store
 Thumbs.db
+v-poker/static/audio/_backup/

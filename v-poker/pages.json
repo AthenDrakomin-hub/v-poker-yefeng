@@ -117,6 +117,48 @@
 			}
 		},
 		{
+			"path": "pages/stats/stats",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/friend/friend",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/rank/rank",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/achievement/achievement",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/rules/rules",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationStyle": "custom",
+				"backgroundColorContent": "#0a0e14"
+			}
+		},
+		{
 			"path": "pages/error/error",
 			"style": {
 				"navigationStyle": "custom",

@@ -42,7 +42,7 @@
 
 				<vp-empty v-if="filteredRooms.length == 0 && !loading" title="暂无房间"
 					:description="filter == 'playing' ? '当前没有进行中的房间' : '暂无已结束的房间'"
-					action-text="创建房间" @action="goCreate" />
+					action-text="去大厅找房间" @action="goCreate" />
 			</scroll-view>
 		</view>
 	</view>
@@ -158,7 +158,7 @@
 	}
 
 	const goCreate = () => {
-		uni.navigateTo({ url: '/pages/create-room/create-room' })
+		uni.reLaunch({ url: '/pages/hall/hall' })
 	}
 
 	const goBack = () => {

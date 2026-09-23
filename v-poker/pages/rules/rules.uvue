@@ -1,0 +1,89 @@
+<template>
+	<view class="vp-page ru-page">
+		<view class="ru-statusbar" :style="statusBarStyle"></view>
+		<view class="ru-topbar">
+			<view class="ru-back" hover-class="ru-pressed" @click="goBack">
+				<text class="ru-back-text">← 返回</text>
+			</view>
+			<text class="ru-title">玩法规则</text>
+		</view>
+
+		<view class="ru-body">
+			<view class="ru-section vp-card">
+				<text class="ru-section-title">德州扑克</text>
+				<text class="ru-text">每局 2 张底牌 + 5 张公共牌，凑成最大 5 张牌型获胜。</text>
+				<text class="ru-subtitle">牌型大小（从大到小）：</text>
+				<text class="ru-text">皇家同花顺 > 同花顺 > 四条 > 葫芦 > 同花 > 顺子 > 三条 > 两对 > 一对 > 高牌</text>
+				<text class="ru-subtitle">下注轮次：</text>
+				<text class="ru-text">翻前 → 翻牌 → 转牌 → 河牌，每轮可弃牌/过牌/跟注/加注/全下。</text>
+			</view>
+
+			<view class="ru-section vp-card">
+				<text class="ru-section-title">炸金花</text>
+				<text class="ru-text">每人 3 张牌，比牌型大小。可闷牌下注或看牌后下注。</text>
+				<text class="ru-subtitle">牌型大小：</text>
+				<text class="ru-text">豹子（三张同点）> 顺金（同花顺）> 金花（同花）> 顺子 > 对子 > 单张</text>
+			</view>
+
+			<view class="ru-section vp-card">
+				<text class="ru-section-title">牛牛</text>
+				<text class="ru-text">5 张牌中选 3 张凑 10 的倍数，剩余 2 张点数之和取个位数为牛数。</text>
+				<text class="ru-subtitle">牌型倍率：</text>
+				<text class="ru-text">牛牛（4倍）> 牛九（3倍）> 牛八（2倍）> 牛七及以下（1倍）> 无牛（输）</text>
+			</view>
+
+			<view class="ru-section vp-card">
+				<text class="ru-section-title">三公</text>
+				<text class="ru-text">每人 3 张牌，J/Q/K 为公牌，点数之和最大者获胜。</text>
+				<text class="ru-subtitle">公牌计算：</text>
+				<text class="ru-text">J/Q/K 各算 10 点，A 算 1 点，其余按面值。三公（三张公牌）最大。</text>
+			</view>
+
+			<view class="ru-section vp-card">
+				<text class="ru-section-title">通用规则</text>
+				<text class="ru-text">· 所有牌局由服务端权威结算，前端不参与分账</text>
+				<text class="ru-text">· 筹码为整数最小单位，不可拆分</text>
+				<text class="ru-text">· 断线后系统自动续局，重连可恢复座位</text>
+				<text class="ru-text">· 超时未操作自动弃牌</text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+
+	const statusBarStyle = ref('height: 0px')
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+</script>
+
+<style lang="scss">
+	.ru-page {
+		flex: 1;
+		background-color: $vp-ink;
+	}
+	.ru-statusbar { width: 100%; }
+	.ru-topbar {
+		flex-direction: row; align-items: center; height: 52px;
+		padding-left: 16px; padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.ru-back { height: 32px; flex-direction: row; align-items: center; }
+	.ru-pressed { opacity: 0.75; }
+	.ru-back-text { color: $vp-text; font-size: 14px; }
+	.ru-title { color: $vp-text; font-size: 16px; font-weight: bold; margin-left: 16px; }
+	.ru-body { flex: 1; padding: 14px 16px; }
+	.ru-section { padding: 16px; margin-bottom: 12px; }
+	.ru-section-title { color: $vp-gold; font-size: 16px; font-weight: bold; margin-bottom: 10px; }
+	.ru-subtitle { color: $vp-text; font-size: 13px; font-weight: bold; margin-top: 10px; margin-bottom: 4px; }
+	.ru-text { color: $vp-muted; font-size: 13px; line-height: 20px; margin-bottom: 4px; }
+</style>

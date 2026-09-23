@@ -14,7 +14,7 @@
 		</view>
 
 		<view v-if="current_bet > 0" class="vps-bet">
-			<text class="vps-bet-text">下注 {{ bet_text }}</text>
+			<vp-chip-stack :amount="bet_text" color="red" :size="24" :layers="2" />
 		</view>
 
 		<text v-if="show_status" class="vps-status">{{ status_text }}</text>

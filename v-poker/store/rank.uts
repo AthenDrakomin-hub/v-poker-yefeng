@@ -1,0 +1,50 @@
+/**
+ * 排行榜 Store
+ */
+
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import { getLeaderboard } from '@/utils/http/api/rank.uts'
+
+export type RankEntry = {
+	userId: string
+	name: string
+	score: number
+	rank: number
+}
+
+export const useRankStore = defineStore('rank', () => {
+	const list = ref<RankEntry[]>([])
+	const period = ref('week')
+	const loading = ref(false)
+	const errorMessage = ref('')
+
+	const loadRank = async (p: string = 'week') => {
+		period.value = p
+		loading.value = true
+		errorMessage.value = ''
+		try {
+			const raw = await getLeaderboard(p)
+			const entries: RankEntry[] = []
+			for (let i = 0; i < raw.length; i++) {
+				const uid = raw[i].getString('user_id')
+				const name = raw[i].getString('name')
+				const score = raw[i].getNumber('score')
+				entries.push({
+					userId: uid == null ? '' : uid,
+					name: name == null ? '' : '',
+					score: score == null ? 0 : score,
+					rank: i + 1
+				})
+			}
+			list.value = entries
+		} catch (e) {
+			errorMessage.value = '排行榜加载失败'
+			console.error('loadRank failed', e)
+		} finally {
+			loading.value = false
+		}
+	}
+
+	return { list, period, loading, errorMessage, loadRank }
+})

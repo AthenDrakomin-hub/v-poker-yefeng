@@ -11,6 +11,7 @@
 			<text class="vpt-phase">{{ phase_text }}</text>
 
 			<view class="vpt-pot">
+				<vp-chip-stack v-if="pot > 0" :amount="pot_text" color="gold" :size="36" :layers="4" />
 				<text class="vpt-pot-label">底池</text>
 				<text class="vpt-pot-value">{{ pot_text }}</text>
 			</view>

@@ -1,0 +1,88 @@
+<template>
+	<view class="vp-page fr-page">
+		<view class="fr-statusbar" :style="statusBarStyle"></view>
+		<view class="fr-topbar">
+			<view class="fr-back" hover-class="fr-pressed" @click="goBack">
+				<text class="fr-back-text">← 返回</text>
+			</view>
+			<text class="fr-title">好友</text>
+			<view class="fr-spacer" />
+			<view class="fr-add" hover-class="fr-pressed" @click="onAdd">
+				<text class="fr-add-text">+ 添加</text>
+			</view>
+		</view>
+
+		<view class="fr-body">
+			<vp-empty v-if="friendStore.friends.length == 0 && !friendStore.loading" title="暂无好友" description="通过 ID 添加好友，邀请好友一起对局" />
+
+			<view v-for="(f, i) in friendStore.friends" :key="i" class="fr-item vp-card">
+				<vp-avatar :name="f.name" :size="40" :online="f.online" />
+				<view class="fr-item-meta">
+					<text class="fr-item-name">{{ f.name }}</text>
+					<text class="fr-item-status" :class="f.online ? 'fr-online' : 'fr-offline'">{{ f.online ? '在线' : '离线' }}</text>
+				</view>
+				<view class="fr-item-actions">
+					<vp-button size="sm" type="gold" text="邀请" @click="onInvite(f)" />
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup lang="uts">
+	import { ref } from 'vue'
+	import { useFriendStore, FriendItem } from '@/store/friend.uts'
+
+	const friendStore = useFriendStore()
+	const statusBarStyle = ref('height: 0px')
+
+	onLoad(() => {
+		const info = uni.getWindowInfo()
+		statusBarStyle.value = `height: ${info.statusBarHeight}px`
+	})
+
+	onShow(() => {
+		friendStore.loadFriends()
+	})
+
+	const goBack = () => {
+		uni.navigateBack()
+	}
+
+	const onAdd = () => {
+		uni.showToast({ title: '好友功能即将上线', icon: 'none' })
+	}
+
+	const onInvite = (f: FriendItem) => {
+		uni.showToast({ title: '对局邀请即将上线', icon: 'none' })
+	}
+</script>
+
+<style lang="scss">
+	.fr-page { flex: 1; background-color: $vp-ink; }
+	.fr-statusbar { width: 100%; }
+	.fr-topbar {
+		flex-direction: row; align-items: center; height: 52px;
+		padding-left: 16px; padding-right: 16px;
+		background-color: $vp-surface;
+		border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: $vp-border;
+	}
+	.fr-back { height: 32px; flex-direction: row; align-items: center; }
+	.fr-pressed { opacity: 0.75; }
+	.fr-back-text { color: $vp-text; font-size: 14px; }
+	.fr-title { color: $vp-text; font-size: 16px; font-weight: bold; margin-left: 16px; }
+	.fr-spacer { flex: 1; }
+	.fr-add { height: 32px; flex-direction: row; align-items: center; }
+	.fr-add-text { color: $vp-gold; font-size: 14px; }
+	.fr-body { flex: 1; padding: 14px 16px; }
+	.fr-item {
+		flex-direction: row; align-items: center;
+		padding: 12px 16px; margin-bottom: 10px;
+	}
+	.fr-item-meta { flex: 1; flex-direction: column; margin-left: 12px; }
+	.fr-item-name { color: $vp-text; font-size: 15px; }
+	.fr-item-status { font-size: 11px; margin-top: 2px; }
+	.fr-online { color: $vp-success; }
+	.fr-offline { color: $vp-muted; }
+	.fr-item-actions { flex-direction: row; }
+</style>
