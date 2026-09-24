@@ -1,320 +1,411 @@
 <template>
 	<view class="vp-page mr-page">
-		<view class="mr-statusbar" :style="statusBarStyle"></view>
+		<view class="mr-container">
+			<!-- 左侧边栏（复用大厅风格） -->
+			<view class="mr-sidebar">
+				<view class="mr-logo">
+					<view class="mr-logo-icon">
+						<text class="mr-logo-spade">♠</text>
+					</view>
+					<text class="mr-logo-title">V-POKER</text>
+				</view>
+				<view class="mr-nav">
+					<view class="mr-nav-item" hover-class="mr-pressed" @click="goHall">
+						<text class="mr-nav-icon">◉</text>
+						<text class="mr-nav-label">大厅</text>
+					</view>
+					<view class="mr-nav-item mr-nav-active">
+						<text class="mr-nav-icon">▦</text>
+						<text class="mr-nav-label">我的房间</text>
+					</view>
+					<view class="mr-nav-item" hover-class="mr-pressed" @click="goRoomList">
+						<text class="mr-nav-icon">☰</text>
+						<text class="mr-nav-label">房间列表</text>
+					</view>
+					<view class="mr-nav-item" hover-class="mr-pressed" @click="goWallet">
+						<text class="mr-nav-icon">◈</text>
+						<text class="mr-nav-label">钱包</text>
+					</view>
+				</view>
+				<view class="mr-user">
+					<view class="mr-avatar">
+						<text class="mr-avatar-text">玩</text>
+					</view>
+				</view>
+			</view>
 
-		<view class="mr-topbar">
-			<view class="mr-back" hover-class="mr-pressed" @click="goBack">
-				<text class="mr-back-text">← 返回</text>
-			</view>
-			<view class="mr-brand">
-				<text class="mr-brand-text">我的房间</text>
-				<text class="mr-brand-sub">仅显示我创建的房间</text>
-			</view>
-			<view class="mr-spacer"></view>
-			<view class="mr-refresh" hover-class="mr-pressed" @click="loadRooms">
-				<text class="mr-refresh-text">刷新</text>
-			</view>
-		</view>
+			<!-- 右侧主内容 -->
+			<view class="mr-main">
+				<view class="mr-header">
+					<text class="mr-title">我的房间</text>
+					<view class="mr-divider" />
+					<text class="mr-count">{{ rooms.length }} 个房间</text>
+				</view>
 
-		<view class="mr-body">
-			<view class="mr-filter">
-				<vp-tab v-model="filter" :tabs="tabs" @change="onFilterChange" />
-			</view>
-
-			<scroll-view class="mr-list" direction="vertical">
-				<view class="mr-grid">
-					<view v-for="r in filteredRooms" :key="r.room_id" class="mr-card vp-card">
-						<view class="mr-card-top">
-							<text class="mr-no">{{ r.room_name }}</text>
-							<view class="mr-status" :class="statusClass(r.status)">
-								<text class="mr-status-text">{{ statusText(r.status) }}</text>
+				<!-- 房间列表 -->
+				<view v-if="rooms.length > 0" class="mr-list">
+					<view v-for="room in rooms" :key="room.room_id" class="mr-room-card"
+						hover-class="mr-room-hover" @click="enterRoom(room)">
+						<view class="mr-room-icon">
+							<text class="mr-room-icon-text">🎮</text>
+						</view>
+						<view class="mr-room-info">
+							<text class="mr-room-name">{{ room.room_name || '未命名房间' }}</text>
+							<view class="mr-room-meta">
+								<text class="mr-room-tag">{{ gameName(room.game_type) }}</text>
+								<text class="mr-room-dot">·</text>
+								<text class="mr-room-tag">第 {{ room.current_round || 0 }}/{{ room.total_rounds }} 局</text>
 							</view>
 						</view>
-						<text class="mr-meta">{{ gameTypeIcon(r.game_type) }} {{ gameTypeName(r.game_type) }} · 房号 {{ r.room_id }}</text>
-						<text class="mr-meta">第 {{ r.current_round }}/{{ r.total_rounds }} 局 · 上限 {{ r.max_players }} 人 · 底分 {{ r.base_score }}</text>
-						<view class="mr-btns">
-							<vp-button size="sm" type="blue" text="旁观" @click="spectate(r)" />
-							<view class="mr-btn-gap"></view>
-							<vp-button size="sm" type="gold" text="进入" @click="enter(r)" />
+						<view class="mr-room-status" :class="statusClass(room.status)">
+							<text class="mr-room-status-text">{{ statusText(room.status) }}</text>
+						</view>
+						<view class="mr-room-enter">
+							<text class="mr-room-enter-text">进入 ›</text>
 						</view>
 					</view>
 				</view>
 
-				<vp-empty v-if="filteredRooms.length == 0 && !loading" title="暂无房间"
-					:description="filter == 'playing' ? '当前没有进行中的房间' : '暂无已结束的房间'"
-					action-text="去大厅找房间" @action="goCreate" />
-			</scroll-view>
+				<!-- 空状态 -->
+				<view v-else class="mr-empty">
+					<text class="mr-empty-icon">🎮</text>
+					<text class="mr-empty-text">暂无进行中的房间</text>
+					<text class="mr-empty-sub">从大厅选择游戏加入对局</text>
+					<view class="mr-empty-btn" hover-class="mr-pressed" @click="goHall">
+						<text class="mr-empty-btn-text">去大厅</text>
+					</view>
+				</view>
+			</view>
 		</view>
 	</view>
 </template>
 
 <script setup lang="uts">
 	import { ref, computed } from 'vue'
-	import { useAuthStore } from '@/store/auth.uts'
-	import { listRooms } from '@/utils/http/api/room.uts'
-	import { RoomItem } from '@/store/lobby.uts'
-	import { gameTypeName, gameTypeIcon, gameTypeRoute, roomStatusText } from '@/utils/games.uts'
+	import { useRoomStore } from '@/store/room.uts'
 
-	type TabItem = {
-		label: string
-		value: string
-	}
+	const roomStore = useRoomStore()
 
-	const auth = useAuthStore()
+	const rooms = ref([
+		// 模拟数据
+		{ room_id: '000001', room_name: '高级德州局', game_type: 'texas_holdem', status: 'playing', current_round: 5, total_rounds: 10 },
+	])
 
-	const statusBarStyle = ref('height: 0px')
-	const filter = ref('playing')
-	const loading = ref(false)
-	const allRooms = ref<RoomItem[]>([])
-
-	const tabs: TabItem[] = [
-		{ label: '进行中', value: 'playing' },
-		{ label: '已结束', value: 'finished' }
-	]
-
-	/** 我的房间 = 全量列表中 created_by == 当前用户 */
-	const filteredRooms = computed((): RoomItem[] => {
-		const out: RoomItem[] = []
-		for (let i = 0; i < allRooms.value.length; i++) {
-			const r = allRooms.value[i]
-			if (r.created_by == auth.userId && r.status == filter.value) {
-				out.push(r)
-			}
+	const gameName = (gt: string): string => {
+		const map: Record<string, string> = {
+			texas_holdem: '德州扑克',
+			zha_jin_hua: '炸金花',
+			niu_niu: '牛牛',
+			san_gong: '三公',
 		}
-		return out
-	})
-
-	onLoad(() => {
-		const info = uni.getWindowInfo()
-		statusBarStyle.value = `height: ${info.statusBarHeight}px`
-	})
-
-	onShow(() => {
-		auth.restore()
-		if (!auth.isLoggedIn) {
-			uni.reLaunch({ url: '/pages/login/login' })
-			return
-		}
-		loadRooms()
-	})
-
-	const loadRooms = async () => {
-		loading.value = true
-		try {
-			const raw = await listRooms(null, null)
-			const list: RoomItem[] = []
-			for (let i = 0; i < raw.length; i++) {
-				list.push(readRoom(raw[i]))
-			}
-			allRooms.value = list
-		} catch (e) {
-			console.error('loadRooms failed', e)
-		} finally {
-			loading.value = false
-		}
+		return map[gt] || gt
 	}
 
-	const readRoom = (obj: UTSJSONObject): RoomItem => {
-		const rid = obj.getString('room_id')
-		const name = obj.getString('room_name')
-		const gt = obj.getString('game_type')
-		const base = obj.getNumber('base_score')
-		const minP = obj.getNumber('min_players')
-		const maxP = obj.getNumber('max_players')
-		const status = obj.getString('status')
-		const cur = obj.getNumber('current_round')
-		const total = obj.getNumber('total_rounds')
-		const rtype = obj.getString('room_type')
-		const createdBy = obj.getString('created_by')
-		return {
-			room_id: rid == null ? '' : rid,
-			room_name: name == null ? '' : name,
-			game_type: gt == null ? '' : gt,
-			base_score: base == null ? 0 : base,
-			min_players: minP == null ? 2 : minP,
-			max_players: maxP == null ? 6 : maxP,
-			status: status == null ? '' : status,
-			current_round: cur == null ? 0 : cur,
-			total_rounds: total == null ? 0 : total,
-			room_type: rtype == null ? 'public' : rtype,
-			created_by: createdBy == null ? '' : createdBy
-		}
+	const statusText = (s: string): string => {
+		if (s == 'waiting') return '等待中'
+		if (s == 'playing') return '进行中'
+		if (s == 'finished') return '已结束'
+		return s
 	}
 
-	const onFilterChange = () => {}
-
-	const statusText = (status: string): string => roomStatusText(status)
-
-	const statusClass = (status: string): string => {
-		return status == 'playing' ? 'mr-status-playing' : 'mr-status-ended'
+	const statusClass = (s: string): string => {
+		if (s == 'playing') return 'mr-status-green'
+		if (s == 'waiting') return 'mr-status-yellow'
+		return 'mr-status-gray'
 	}
 
-	const spectate = (r: RoomItem) => {
-		uni.navigateTo({ url: `${gameTypeRoute(r.game_type)}?room_id=${r.room_id}&as_spectator=true` })
+	const enterRoom = (room: any) => {
+		uni.navigateTo({ url: `/pages/table-texas/table-texas?room_id=${room.room_id}` })
 	}
 
-	const enter = (r: RoomItem) => {
-		uni.navigateTo({ url: `${gameTypeRoute(r.game_type)}?room_id=${r.room_id}` })
-	}
-
-	const goCreate = () => {
+	const goHall = () => {
 		uni.reLaunch({ url: '/pages/hall/hall' })
 	}
 
-	const goBack = () => {
-		uni.navigateBack()
+	const goRoomList = () => {
+		uni.navigateTo({ url: '/pages/room-list/room-list' })
+	}
+
+	const goWallet = () => {
+		uni.navigateTo({ url: '/pages/wallet/wallet' })
 	}
 </script>
 
 <style lang="scss">
 	.mr-page {
 		flex: 1;
-		background-color: $vp-ink;
+		background-color: #0A0A0F;
 	}
 
-	.mr-statusbar {
-		width: 100%;
+	.mr-container {
+		flex: 1;
+		flex-direction: row;
 	}
 
-	.mr-topbar {
+	/* 侧边栏 */
+	.mr-sidebar {
+		width: 220px;
+		background-color: #0F0F17;
+		border-right-width: 1px;
+		border-right-style: solid;
+		border-right-color: rgba(212, 175, 55, 0.1);
+		flex-direction: column;
+		padding: 24px 16px;
+	}
+
+	.mr-logo {
+		align-items: center;
+		margin-bottom: 40px;
+	}
+
+	.mr-logo-icon {
+		width: 48px;
+		height: 56px;
+		background: linear-gradient(180deg, #1a1a25 0%, #0a0a0f 100%);
+		border-width: 2px;
+		border-style: solid;
+		border-color: #D4AF37;
+		border-radius: 6px 6px 24px 24px;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 10px;
+	}
+
+	.mr-logo-spade {
+		color: #D4AF37;
+		font-size: 24px;
+		font-weight: bold;
+	}
+
+	.mr-logo-title {
+		color: #D4AF37;
+		font-size: 18px;
+		font-weight: bold;
+		letter-spacing: 2px;
+	}
+
+	.mr-nav {
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.mr-nav-item {
 		flex-direction: row;
 		align-items: center;
-		height: 52px;
-		padding-left: 16px;
-		padding-right: 16px;
-		background-color: $vp-surface;
-		border-bottom-width: 1px;
-		border-bottom-style: solid;
-		border-bottom-color: $vp-border;
+		padding: 12px 14px;
+		border-radius: 8px;
+		margin-bottom: 4px;
 	}
 
-	.mr-back {
-		height: 32px;
-		flex-direction: row;
-		align-items: center;
+	.mr-nav-active {
+		background-color: rgba(212, 175, 55, 0.12);
+		border-left-width: 3px;
+		border-left-style: solid;
+		border-left-color: #D4AF37;
 	}
 
-	.mr-pressed {
-		opacity: 0.75;
+	.mr-nav-icon {
+		color: #D4AF37;
+		font-size: 14px;
+		margin-right: 10px;
 	}
 
-	.mr-back-text {
-		color: $vp-text;
+	.mr-nav-label {
+		color: rgba(255, 255, 255, 0.6);
 		font-size: 14px;
 	}
 
-	.mr-brand {
-		flex-direction: row;
-		align-items: flex-end;
-		margin-left: 16px;
+	.mr-nav-active .mr-nav-label {
+		color: #D4AF37;
+		font-weight: bold;
 	}
 
-	.mr-brand-text {
-		color: $vp-text;
+	.mr-user {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.mr-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background: linear-gradient(135deg, #D4AF37 0%, #b8941f 100%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.mr-avatar-text {
+		color: #0A0A0F;
 		font-size: 16px;
 		font-weight: bold;
 	}
 
-	.mr-brand-sub {
-		color: $vp-muted;
-		font-size: 10px;
-		margin-left: 6px;
-		margin-bottom: 2px;
-	}
-
-	.mr-spacer {
-		flex: 1;
-	}
-
-	.mr-refresh {
-		height: 30px;
-		background-color: $vp-surface-2;
-		border-radius: $vp-radius-sm;
-		border-width: 1px;
-		border-style: solid;
-		border-color: $vp-border;
-		flex-direction: row;
-		align-items: center;
-		padding-left: 12px;
-		padding-right: 12px;
-	}
-
-	.mr-refresh-text {
-		color: $vp-text;
-		font-size: 12px;
-	}
-
-	.mr-body {
+	/* 主内容 */
+	.mr-main {
 		flex: 1;
 		flex-direction: column;
-		padding: 14px 16px;
+		padding: 24px 28px;
 	}
 
-	.mr-filter {
+	.mr-header {
 		flex-direction: row;
-		margin-bottom: 12px;
+		align-items: center;
+		margin-bottom: 20px;
 	}
 
+	.mr-title {
+		color: #ffffff;
+		font-size: 22px;
+		font-weight: bold;
+	}
+
+	.mr-divider {
+		width: 1px;
+		height: 16px;
+		background-color: rgba(255, 255, 255, 0.2);
+		margin: 0 12px;
+	}
+
+	.mr-count {
+		color: rgba(255, 255, 255, 0.4);
+		font-size: 13px;
+	}
+
+	/* 房间卡片 */
 	.mr-list {
 		flex: 1;
 	}
 
-	.mr-grid {
+	.mr-room-card {
 		flex-direction: row;
-		flex-wrap: wrap;
+		align-items: center;
+		background-color: #14141c;
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.15);
+		border-radius: 12px;
+		padding: 16px;
+		margin-bottom: 12px;
 	}
 
-	.mr-card {
-		width: 240px;
-		margin-right: 12px;
-		margin-bottom: 12px;
-		padding: 14px;
+	.mr-room-hover {
+		border-color: #D4AF37;
+		shadow: 0 0 16px rgba(212, 175, 55, 0.2);
+	}
+
+	.mr-room-icon {
+		width: 48px;
+		height: 48px;
+		border-radius: 10px;
+		background-color: rgba(212, 175, 55, 0.1);
+		align-items: center;
+		justify-content: center;
+		margin-right: 14px;
+	}
+
+	.mr-room-icon-text {
+		font-size: 24px;
+	}
+
+	.mr-room-info {
+		flex: 1;
 		flex-direction: column;
 	}
 
-	.mr-card-top {
-		flex-direction: row;
-		align-items: center;
-		justify-content: space-between;
+	.mr-room-name {
+		color: #ffffff;
+		font-size: 16px;
+		font-weight: bold;
+		margin-bottom: 4px;
 	}
 
-	.mr-no {
-		color: $vp-text;
+	.mr-room-meta {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.mr-room-tag {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 12px;
+	}
+
+	.mr-room-dot {
+		color: rgba(255, 255, 255, 0.3);
+		font-size: 12px;
+		margin: 0 6px;
+	}
+
+	.mr-room-status {
+		border-radius: 999px;
+		padding: 4px 12px;
+		margin-right: 12px;
+	}
+
+	.mr-status-green {
+		background-color: rgba(16, 185, 129, 0.2);
+	}
+
+	.mr-status-yellow {
+		background-color: rgba(234, 179, 8, 0.2);
+	}
+
+	.mr-status-gray {
+		background-color: rgba(255, 255, 255, 0.1);
+	}
+
+	.mr-room-status-text {
+		color: #ffffff;
+		font-size: 11px;
+	}
+
+	.mr-room-enter {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.mr-room-enter-text {
+		color: #D4AF37;
 		font-size: 14px;
 		font-weight: bold;
 	}
 
-	.mr-status {
-		border-radius: 999px;
-		padding: 2px 8px;
-	}
-
-	.mr-status-playing {
-		background-color: rgba(239, 68, 68, 0.16);
-	}
-
-	.mr-status-ended {
-		background-color: rgba(154, 164, 178, 0.16);
-	}
-
-	.mr-status-text {
-		color: $vp-muted;
-		font-size: 10px;
-	}
-
-	.mr-meta {
-		color: $vp-muted;
-		font-size: 12px;
-		margin-top: 6px;
-	}
-
-	.mr-btns {
-		flex-direction: row;
+	/* 空状态 */
+	.mr-empty {
+		flex: 1;
 		align-items: center;
-		margin-top: 12px;
+		justify-content: center;
 	}
 
-	.mr-btn-gap {
-		width: 8px;
+	.mr-empty-icon {
+		font-size: 48px;
+		margin-bottom: 16px;
+	}
+
+	.mr-empty-text {
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 16px;
+		margin-bottom: 8px;
+	}
+
+	.mr-empty-sub {
+		color: rgba(255, 255, 255, 0.3);
+		font-size: 13px;
+		margin-bottom: 20px;
+	}
+
+	.mr-empty-btn {
+		background: linear-gradient(135deg, #D4AF37 0%, #b8941f 100%);
+		border-radius: 8px;
+		padding: 10px 24px;
+	}
+
+	.mr-empty-btn-text {
+		color: #0A0A0F;
+		font-size: 14px;
+		font-weight: bold;
+	}
+
+	.mr-pressed {
+		opacity: 0.7;
 	}
 </style>
