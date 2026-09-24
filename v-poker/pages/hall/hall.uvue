@@ -1,78 +1,83 @@
 <template>
 	<view class="vp-page hall-page">
-		<!-- 背景图 -->
-		<image class="hall-bg" src="/static/hall-bg.png" mode="aspectFill" />
-		<view class="hall-bg-mask" />
-
 		<view class="hall-container">
-			<!-- 左侧边栏 -->
+			<!-- 左侧固定窄边栏 220px -->
 			<view class="hall-sidebar">
+				<!-- 顶部 Logo -->
 				<view class="hall-logo">
-					<view class="hall-logo-badge">
+					<view class="hall-logo-icon">
 						<text class="hall-logo-spade">♠</text>
 					</view>
-					<text class="hall-logo-text">V-POKER</text>
+					<text class="hall-logo-title">V-POKER</text>
 					<text class="hall-logo-sub">金樽俱乐部</text>
 				</view>
 
+				<!-- 中间导航 -->
 				<view class="hall-nav">
 					<view class="hall-nav-item hall-nav-active">
-						<text class="hall-nav-icon">🎮</text>
-						<text class="hall-nav-text hall-nav-text-active">大厅</text>
+						<text class="hall-nav-icon">◉</text>
+						<text class="hall-nav-label">大厅</text>
 					</view>
 					<view class="hall-nav-item" hover-class="hall-pressed" @click="goMyRooms">
-						<text class="hall-nav-icon">📋</text>
-						<text class="hall-nav-text">我的房间</text>
+						<text class="hall-nav-icon">▦</text>
+						<text class="hall-nav-label">我的房间</text>
 					</view>
 					<view class="hall-nav-item" hover-class="hall-pressed" @click="goRoomList">
-						<text class="hall-nav-icon">🔍</text>
-						<text class="hall-nav-text">房间列表</text>
+						<text class="hall-nav-icon">☰</text>
+						<text class="hall-nav-label">房间列表</text>
 					</view>
 					<view class="hall-nav-item" hover-class="hall-pressed" @click="goWallet">
-						<text class="hall-nav-icon">💰</text>
-						<text class="hall-nav-text">钱包</text>
+						<text class="hall-nav-icon">◈</text>
+						<text class="hall-nav-label">钱包</text>
 					</view>
 				</view>
 
-				<view class="hall-user" hover-class="hall-pressed" @click="goProfile">
-					<vp-avatar :name="displayName" :size="40" />
-					<view class="hall-user-meta">
+				<!-- 底部玩家信息 -->
+				<view class="hall-user">
+					<view class="hall-avatar">
+						<text class="hall-avatar-text">玩</text>
+					</view>
+					<view class="hall-user-info">
 						<text class="hall-user-name">{{ displayName }}</text>
-						<view class="hall-user-coin">
-							<text class="hall-user-coin-text">{{ balanceText }}</text>
+						<view class="hall-balance">
+							<text class="hall-balance-coin">●</text>
+							<text class="hall-balance-text">{{ balanceText }}</text>
 						</view>
 					</view>
 				</view>
 			</view>
 
-			<!-- 右侧主内容 -->
+			<!-- 右侧弹性主内容区 -->
 			<view class="hall-main">
-				<!-- 顶部标题 -->
+				<!-- 标题栏 -->
 				<view class="hall-header">
-					<text class="hall-title">选择玩法</text>
-					<text class="hall-subtitle">13款游戏 · 私密对局 · 安全结算</text>
+					<view class="hall-header-left">
+						<text class="hall-title">选择玩法</text>
+						<view class="hall-divider" />
+						<text class="hall-count">13 款游戏</text>
+					</view>
 				</view>
 
-				<!-- 游戏卡片网格 -->
+				<!-- 游戏卡片网格 3列 -->
 				<view class="hall-games">
-					<view v-for="g in games" :key="g.game_type" class="hall-game"
-						hover-class="hall-game-pressed" @click="enterGame(g)">
-						<image class="hall-game-bg" :src="gameBg(g.game_type)" mode="aspectFill" />
-						<view class="hall-game-mask" />
-						<view class="hall-game-content">
-							<text class="hall-game-name">{{ g.name }}</text>
-							<view class="hall-game-meta">
-								<text class="hall-game-meta-text">底分 {{ baseOf(g.game_type) }}</text>
-								<text class="hall-game-dot">·</text>
-								<text class="hall-game-meta-text">2-9人</text>
+					<view v-for="g in games" :key="g.game_type" class="hall-card"
+						hover-class="hall-card-hover" @click="enterGame(g)">
+						<image class="hall-card-bg" :src="gameBg(g.game_type)" mode="aspectFill" />
+						<view class="hall-card-overlay" />
+						<view class="hall-card-body">
+							<text class="hall-card-name">{{ g.name }}</text>
+							<view class="hall-card-tags">
+								<text class="hall-card-tag">底分 {{ baseOf(g.game_type) }}</text>
+								<text class="hall-card-tag-dot">·</text>
+								<text class="hall-card-tag">2-9人</text>
 							</view>
-							<view class="hall-game-footer">
-								<view class="hall-game-online">
+							<view class="hall-card-footer">
+								<view class="hall-card-online">
 									<view class="hall-online-dot" />
-									<text class="hall-online-text">{{ onlineCount(g.game_type) }}人在线</text>
+									<text class="hall-online-text">{{ onlineCount(g.game_type) }} 人在线</text>
 								</view>
-								<view class="hall-game-btn">
-									<text class="hall-game-btn-text">快速入局</text>
+								<view class="hall-card-btn">
+									<text class="hall-card-btn-text">立即加入</text>
 								</view>
 							</view>
 						</view>
@@ -153,48 +158,27 @@
 	const goWallet = () => {
 		uni.navigateTo({ url: '/pages/wallet/wallet' })
 	}
-
-	const goProfile = () => {
-		uni.navigateTo({ url: '/pages/profile/profile' })
-	}
 </script>
 
 <style lang="scss">
+	/* 主题底色 #0A0A0F 深黑，金色强调色 #D4AF37 */
 	.hall-page {
 		flex: 1;
-		background-color: #0a0e14;
+		background-color: #0A0A0F;
 	}
 
-	.hall-bg {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-	}
-
-	.hall-bg-mask {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		background: linear-gradient(
-			135deg,
-			rgba(10, 14, 20, 0.9) 0%,
-			rgba(10, 14, 20, 0.7) 100%
-		);
-	}
-
-	/* 横屏容器 */
 	.hall-container {
 		flex: 1;
 		flex-direction: row;
 	}
 
-	/* 左侧边栏 */
+	/* ========== 左侧边栏 220px ========== */
 	.hall-sidebar {
-		width: 240px;
-		background: rgba(15, 18, 25, 0.9);
+		width: 220px;
+		background-color: #0F0F17;
 		border-right-width: 1px;
 		border-right-style: solid;
-		border-right-color: rgba(212, 175, 55, 0.15);
+		border-right-color: rgba(212, 175, 55, 0.1);
 		flex-direction: column;
 		padding: 24px 16px;
 	}
@@ -204,35 +188,35 @@
 		margin-bottom: 40px;
 	}
 
-	.hall-logo-badge {
-		width: 56px;
-		height: 64px;
-		background: linear-gradient(180deg, #1c232e 0%, #0a0e14 100%);
+	.hall-logo-icon {
+		width: 48px;
+		height: 56px;
+		background: linear-gradient(180deg, #1a1a25 0%, #0a0a0f 100%);
 		border-width: 2px;
 		border-style: solid;
-		border-color: #d4af37;
-		border-radius: 8px 8px 28px 28px;
+		border-color: #D4AF37;
+		border-radius: 6px 6px 24px 24px;
 		align-items: center;
 		justify-content: center;
-		margin-bottom: 12px;
+		margin-bottom: 10px;
 	}
 
 	.hall-logo-spade {
-		color: #d4af37;
-		font-size: 28px;
+		color: #D4AF37;
+		font-size: 24px;
 		font-weight: bold;
 	}
 
-	.hall-logo-text {
-		color: #d4af37;
-		font-size: 20px;
+	.hall-logo-title {
+		color: #D4AF37;
+		font-size: 18px;
 		font-weight: bold;
-		letter-spacing: 3px;
+		letter-spacing: 2px;
 	}
 
 	.hall-logo-sub {
-		color: rgba(255, 255, 255, 0.5);
-		font-size: 12px;
+		color: rgba(255, 255, 255, 0.4);
+		font-size: 11px;
 		letter-spacing: 4px;
 		margin-top: 4px;
 	}
@@ -245,42 +229,58 @@
 	.hall-nav-item {
 		flex-direction: row;
 		align-items: center;
-		padding: 14px 12px;
-		border-radius: 10px;
+		padding: 12px 14px;
+		border-radius: 8px;
 		margin-bottom: 4px;
 	}
 
 	.hall-nav-active {
-		background: rgba(212, 175, 55, 0.15);
+		background-color: rgba(212, 175, 55, 0.12);
 		border-left-width: 3px;
 		border-left-style: solid;
-		border-left-color: #d4af37;
+		border-left-color: #D4AF37;
 	}
 
 	.hall-nav-icon {
-		font-size: 18px;
-		margin-right: 12px;
+		color: #D4AF37;
+		font-size: 14px;
+		margin-right: 10px;
 	}
 
-	.hall-nav-text {
+	.hall-nav-label {
 		color: rgba(255, 255, 255, 0.6);
 		font-size: 14px;
 	}
 
-	.hall-nav-text-active {
-		color: #d4af37;
+	.hall-nav-active .hall-nav-label {
+		color: #D4AF37;
 		font-weight: bold;
 	}
 
 	.hall-user {
 		flex-direction: row;
 		align-items: center;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 12px;
+		background-color: rgba(255, 255, 255, 0.04);
+		border-radius: 10px;
 		padding: 12px;
 	}
 
-	.hall-user-meta {
+	.hall-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background: linear-gradient(135deg, #D4AF37 0%, #b8941f 100%);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.hall-avatar-text {
+		color: #0A0A0F;
+		font-size: 16px;
+		font-weight: bold;
+	}
+
+	.hall-user-info {
 		flex-direction: column;
 		margin-left: 10px;
 	}
@@ -291,118 +291,139 @@
 		font-weight: bold;
 	}
 
-	.hall-user-coin {
-		background: rgba(212, 175, 55, 0.2);
-		border-radius: 999px;
-		padding: 2px 8px;
-		margin-top: 4px;
+	.hall-balance {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 2px;
 	}
 
-	.hall-user-coin-text {
-		color: #d4af37;
-		font-size: 11px;
+	.hall-balance-coin {
+		color: #D4AF37;
+		font-size: 10px;
+		margin-right: 4px;
+	}
+
+	.hall-balance-text {
+		color: #D4AF37;
+		font-size: 12px;
 		font-weight: bold;
 	}
 
-	/* 右侧主内容 */
+	/* ========== 右侧主内容区 ========== */
 	.hall-main {
 		flex: 1;
 		flex-direction: column;
-		padding: 24px;
+		padding: 24px 28px;
 	}
 
 	.hall-header {
 		margin-bottom: 20px;
 	}
 
+	.hall-header-left {
+		flex-direction: row;
+		align-items: center;
+	}
+
 	.hall-title {
 		color: #ffffff;
-		font-size: 24px;
+		font-size: 22px;
 		font-weight: bold;
 	}
 
-	.hall-subtitle {
-		color: rgba(255, 255, 255, 0.5);
-		font-size: 13px;
-		margin-top: 4px;
+	.hall-divider {
+		width: 1px;
+		height: 16px;
+		background-color: rgba(255, 255, 255, 0.2);
+		margin: 0 12px;
 	}
 
-	/* 游戏卡片网格 */
+	.hall-count {
+		color: rgba(255, 255, 255, 0.4);
+		font-size: 13px;
+	}
+
+	/* 游戏卡片网格 3列 */
 	.hall-games {
 		flex: 1;
 		flex-direction: row;
 		flex-wrap: wrap;
 	}
 
-	.hall-game {
+	.hall-card {
 		width: calc(33.33% - 12px);
-		height: 160px;
+		height: 150px;
 		margin-bottom: 16px;
-		margin-right: 16px;
-		border-radius: 14px;
+		margin-right: 18px;
+		border-radius: 12px;
 		overflow: hidden;
 		border-width: 1px;
 		border-style: solid;
-		border-color: rgba(212, 175, 55, 0.25);
+		border-color: rgba(212, 175, 55, 0.15);
 	}
 
-	.hall-game:nth-child(3n) {
+	.hall-card:nth-child(3n) {
 		margin-right: 0;
 	}
 
-	.hall-game-bg {
+	.hall-card-hover {
+		border-color: #D4AF37;
+		shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+	}
+
+	.hall-card-bg {
 		position: absolute;
 		width: 100%;
 		height: 100%;
 	}
 
-	.hall-game-mask {
+	.hall-card-overlay {
 		position: absolute;
 		width: 100%;
 		height: 100%;
 		background: linear-gradient(
 			180deg,
-			rgba(10, 14, 20, 0.2) 0%,
-			rgba(10, 14, 20, 0.85) 100%
+			rgba(10, 10, 15, 0.1) 0%,
+			rgba(10, 10, 15, 0.9) 100%
 		);
 	}
 
-	.hall-game-content {
+	.hall-card-body {
 		flex: 1;
 		flex-direction: column;
 		justify-content: space-between;
 		padding: 14px;
 	}
 
-	.hall-game-name {
+	.hall-card-name {
 		color: #ffffff;
 		font-size: 20px;
 		font-weight: bold;
 	}
 
-	.hall-game-meta {
+	.hall-card-tags {
 		flex-direction: row;
 		align-items: center;
 	}
 
-	.hall-game-meta-text {
+	.hall-card-tag {
 		color: rgba(255, 255, 255, 0.6);
-		font-size: 12px;
+		font-size: 11px;
 	}
 
-	.hall-game-dot {
+	.hall-card-tag-dot {
 		color: rgba(255, 255, 255, 0.3);
-		font-size: 12px;
+		font-size: 11px;
 		margin: 0 6px;
 	}
 
-	.hall-game-footer {
+	.hall-card-footer {
 		flex-direction: row;
 		align-items: flex-end;
 		justify-content: space-between;
 	}
 
-	.hall-game-online {
+	.hall-card-online {
 		flex-direction: row;
 		align-items: center;
 	}
@@ -411,30 +432,25 @@
 		width: 6px;
 		height: 6px;
 		border-radius: 3px;
-		background: #10b981;
+		background-color: #10b981;
 		margin-right: 4px;
 	}
 
 	.hall-online-text {
-		color: rgba(255, 255, 255, 0.7);
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 10px;
+	}
+
+	.hall-card-btn {
+		background: linear-gradient(135deg, #D4AF37 0%, #b8941f 100%);
+		border-radius: 6px;
+		padding: 5px 14px;
+	}
+
+	.hall-card-btn-text {
+		color: #0A0A0F;
 		font-size: 11px;
-	}
-
-	.hall-game-btn {
-		background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
-		border-radius: 999px;
-		padding: 6px 16px;
-	}
-
-	.hall-game-btn-text {
-		color: #0a0e14;
-		font-size: 12px;
 		font-weight: bold;
-	}
-
-	.hall-game-pressed {
-		opacity: 0.8;
-		transform: scale(0.98);
 	}
 
 	.hall-pressed {
