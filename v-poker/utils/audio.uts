@@ -26,7 +26,12 @@ const SOUND_SOURCES: Map<string, string> = new Map<string, string>([
 	['win-double_kong', '/static/audio/win-double_kong.wav'],
 	['win-hong_wu', '/static/audio/win-hong_wu.wav'],
 	['win-pineapple', '/static/audio/win-pineapple.wav'],
-	['win-short_deck', '/static/audio/win-short_deck.wav']
+	['win-short_deck', '/static/audio/win-short_deck.wav'],
+	// 荷官人声语音
+	['voice-welcome', '/static/audio/voice-welcome.wav'],
+	['voice-bet', '/static/audio/voice-bet.wav'],
+	['voice-deal', '/static/audio/voice-deal.wav'],
+	['voice-win', '/static/audio/voice-win.wav']
 ])
 
 /** 根据游戏类型获取胜利音效名 */
