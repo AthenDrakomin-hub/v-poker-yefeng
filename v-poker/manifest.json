@@ -54,7 +54,8 @@
             },
             "splashScreens" : {
                 "default" : {}
-            }
+            },
+            "orientation" : [ "landscape" ]
         }
     },
     "app-ios" : {

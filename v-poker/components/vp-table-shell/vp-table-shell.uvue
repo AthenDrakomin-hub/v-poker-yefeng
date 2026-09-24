@@ -62,12 +62,31 @@
 			<view v-else class="ts-actions-row">
 				<vp-button size="sm" type="gray" text="弃牌" @click="onSimple('fold')" />
 				<view class="ts-gap"></view>
+				<!-- 炸金花专属 -->
 				<vp-button v-if="game_type == 'zha_jin_hua'" size="sm" type="blue" text="看牌"
 					@click="onSimple('view_cards')" />
 				<view v-if="game_type == 'zha_jin_hua'" class="ts-gap"></view>
 				<vp-button v-if="game_type == 'zha_jin_hua'" size="sm" type="purple" text="比牌"
 					@click="onCompare" />
 				<view v-if="game_type == 'zha_jin_hua'" class="ts-gap"></view>
+				<!-- 牛牛/三公专属 -->
+				<vp-button v-if="game_type == 'niu_niu' || game_type == 'san_gong'" size="sm" type="blue" text="抢庄"
+					@click="onSimple('rob_banker')" />
+				<view v-if="game_type == 'niu_niu' || game_type == 'san_gong'" class="ts-gap"></view>
+				<vp-button v-if="game_type == 'niu_niu'" size="sm" type="purple" text="翻倍"
+					@click="onSimple('double')" />
+				<view v-if="game_type == 'niu_niu'" class="ts-gap"></view>
+				<!-- 斗地主专属 -->
+				<vp-button v-if="game_type == 'fight_bomb'" size="sm" type="blue" text="叫1分"
+					@click="onSimple('call_1')" />
+				<view v-if="game_type == 'fight_bomb'" class="ts-gap"></view>
+				<vp-button v-if="game_type == 'fight_bomb'" size="sm" type="purple" text="叫2分"
+					@click="onSimple('call_2')" />
+				<view v-if="game_type == 'fight_bomb'" class="ts-gap"></view>
+				<vp-button v-if="game_type == 'fight_bomb'" size="sm" type="red" text="叫3分"
+					@click="onSimple('call_3')" />
+				<view v-if="game_type == 'fight_bomb'" class="ts-gap"></view>
+				<!-- 通用 -->
 				<vp-button size="sm" type="gold" text="跟注" @click="onSimple('call')" />
 				<view class="ts-gap"></view>
 				<vp-button size="sm" type="gold" text="加注" @click="showRaise = true" />
@@ -82,6 +101,14 @@
 		<!-- 获胜金色特效浮层 -->
 		<view v-if="showWinFx" class="ts-win-fx">
 			<text class="ts-win-text">你赢啦！</text>
+		</view>
+
+		<!-- 聊天消息显示区 -->
+		<view class="ts-chat-area">
+			<view v-for="msg in chatMessages" :key="msg.id" class="ts-chat-msg">
+				<text class="ts-chat-user">{{ msg.user }}</text>
+				<text class="ts-chat-content">{{ msg.content }}</text>
+			</view>
 		</view>
 
 		<!-- 快捷表情面板 -->
@@ -157,6 +184,9 @@
 	const showWinFx = ref(false)
 	const showEmojiPanel = ref(false)
 	const emojiList = ['😀', '😎', '😂', '🥳', '😤', '😢', '👍', '👎', '💪', '🃏', '💰', '🎉']
+	const chatMessages = ref([
+		{ id: 1, user: '系统', content: '欢迎来到 V-POKER 金樽俱乐部' },
+	])
 
 	const toggleEmojiPanel = (): void => {
 		showEmojiPanel.value = !showEmojiPanel.value
@@ -675,6 +705,30 @@
 
 	.ts-emoji-btn-text {
 		font-size: 24px;
+	}
+
+	.ts-chat-area {
+		position: absolute;
+		left: 12px;
+		bottom: 120px;
+		width: 200px;
+		flex-direction: column;
+	}
+
+	.ts-chat-msg {
+		flex-direction: row;
+		margin-bottom: 4px;
+	}
+
+	.ts-chat-user {
+		color: #D4AF37;
+		font-size: 11px;
+		margin-right: 4px;
+	}
+
+	.ts-chat-content {
+		color: rgba(255, 255, 255, 0.8);
+		font-size: 11px;
 	}
 
 	.ts-emoji-panel {
