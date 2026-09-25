@@ -28,8 +28,8 @@
  *    - 剩余 1 人时获得全部累积奖金
  */
 
-import type { GamePlugin } from "../plugin.interface.js";
-import type { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat } from "../../shared/types.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
+import type { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase } from "../../shared/types.js";
 import { createStandardDeck, shuffleDeck } from "./deck.js";
 import { evaluate7Cards } from "./evaluator.js";
 
@@ -54,6 +54,15 @@ export class SquidGamePlugin implements GamePlugin {
   readonly game_type: GameType = "squid_game";
   readonly name = "鱿鱼模式";
   readonly supported_modes: GameMode[] = ["fixed_limit"];
+
+  readonly meta: PluginMeta = {
+    gameId: "squid_game", name: "鱿鱼模式", cardCount: 2,
+    supportSidePot: true, exchangeBased: false, minPlayers: 2, maxSeats: 6,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   private squidState: SquidRoundState = {
     glass_bridge_passed: false,

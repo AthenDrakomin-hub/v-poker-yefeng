@@ -3,13 +3,22 @@
  * 3张牌比大小，使用炸金花评估器
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState, Seat } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluateZhaJinHua } from "../zha_jin_hua/evaluator.js";
 
 export class FightBombPlugin implements GamePlugin {
   readonly game_type: GameType = "fight_bomb";
   readonly name = "炸弹";
   readonly supported_modes: GameMode[] = ["compare"];
+
+  readonly meta: PluginMeta = {
+    gameId: "fight_bomb", name: "炸弹", cardCount: 3,
+    supportSidePot: false, exchangeBased: false, minPlayers: 2, maxSeats: 6,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

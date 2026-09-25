@@ -6,13 +6,22 @@
  * Fantasy Land：头道是QQ或更大时触发（简化版仅记录）
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState, Seat } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluate5Cards } from "../texas_holdem/evaluator.js";
 
 export class PineapplePlugin implements GamePlugin {
   readonly game_type: GameType = "pineapple";
   readonly name = "菠萝";
   readonly supported_modes: GameMode[] = ["split_hand"];
+
+  readonly meta: PluginMeta = {
+    gameId: "pineapple", name: "菠萝", cardCount: 13,
+    supportSidePot: false, exchangeBased: true, minPlayers: 2, maxSeats: 4,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

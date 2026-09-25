@@ -5,12 +5,21 @@
  * 注：完整出牌流程需要出牌引擎，此处为底池模式下的牌力比大小
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState, Seat } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 
 export class GuandanPlugin implements GamePlugin {
   readonly game_type: GameType = "guandan";
   readonly name = "掼蛋";
   readonly supported_modes: GameMode[] = ["trick_taking"];
+
+  readonly meta: PluginMeta = {
+    gameId: "guandan", name: "掼蛋", cardCount: 27,
+    supportSidePot: false, exchangeBased: true, minPlayers: 4, maxSeats: 4,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

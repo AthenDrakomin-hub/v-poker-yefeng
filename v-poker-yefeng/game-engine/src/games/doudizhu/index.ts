@@ -6,12 +6,20 @@
  * 流程：发牌→叫分(抢地主)→地主得3底牌→比牌力定胜负
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState, Seat } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 
 export class DoudizhuPlugin implements GamePlugin {
   readonly game_type: GameType = "doudizhu";
   readonly name = "斗地主";
   readonly supported_modes: GameMode[] = ["trick_taking"];
+  readonly meta: PluginMeta = {
+    gameId: "doudizhu", name: "斗地主", cardCount: 17,
+    supportSidePot: false, exchangeBased: true, minPlayers: 3, maxSeats: 3,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: GameAction): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

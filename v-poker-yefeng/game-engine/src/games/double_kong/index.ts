@@ -4,12 +4,21 @@
  * 牌力：炸弹数、顺子、连对、三张、大牌综合评分
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState, Seat } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 
 export class DoubleKongPlugin implements GamePlugin {
   readonly game_type: GameType = "double_kong";
   readonly name = "双扣";
   readonly supported_modes: GameMode[] = ["trick_taking"];
+
+  readonly meta: PluginMeta = {
+    gameId: "double_kong", name: "双扣", cardCount: 27,
+    supportSidePot: false, exchangeBased: true, minPlayers: 4, maxSeats: 4,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

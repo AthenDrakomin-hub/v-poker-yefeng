@@ -3,7 +3,7 @@
  * 4张底牌，必须选2张 + 3张公共牌组合最佳5张
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, SidePot } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluate5Cards, getCombinations } from "../texas_holdem/evaluator.js";
 import { createStandardDeck, shuffleDeck } from "../texas_holdem/deck.js";
 
@@ -11,6 +11,15 @@ export class OmahaPlugin implements GamePlugin {
   readonly game_type: GameType = "omaha";
   readonly name = "奥马哈";
   readonly supported_modes: GameMode[] = ["fixed_limit"];
+
+  readonly meta: PluginMeta = {
+    gameId: "omaha", name: "奥马哈", cardCount: 4,
+    supportSidePot: true, exchangeBased: false, minPlayers: 2, maxSeats: 9,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     return shuffleDeck(createStandardDeck());

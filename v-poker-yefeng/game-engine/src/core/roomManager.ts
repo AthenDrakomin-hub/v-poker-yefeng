@@ -5,6 +5,7 @@
  */
 
 import { GamePlugin } from "../games/plugin.interface.js";
+import { validatePlugin } from "../games/pluginValidator.js";
 import { NiuNiuPlugin } from "../games/niu_niu/index.js";
 import { SanGongPlugin } from "../games/san_gong/index.js";
 import { SquidGamePlugin } from "../games/squid_game/index.js";
@@ -51,6 +52,7 @@ export class RoomManager {
   }
 
   public registerPlugin(plugin: GamePlugin): void {
+    validatePlugin(plugin);
     this.plugins.set(plugin.game_type, plugin);
   }
 

@@ -3,13 +3,22 @@
  */
 
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluateNiuNiu } from "./evaluator.js";
 
 export class NiuNiuPlugin implements GamePlugin {
   readonly game_type: GameType = "niu_niu";
   readonly name = "牛牛";
   readonly supported_modes: GameMode[] = ["banker", "free_compare"];
+
+  readonly meta: PluginMeta = {
+    gameId: "niu_niu", name: "牛牛", cardCount: 5,
+    supportSidePot: false, exchangeBased: true, minPlayers: 2, maxSeats: 6,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

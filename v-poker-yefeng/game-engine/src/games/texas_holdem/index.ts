@@ -5,7 +5,7 @@
  */
 
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, SidePot } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluate7Cards, evaluate5Cards, compareEvaluations, getCombinations } from "./evaluator.js";
 import { TexasHoldemDeck, createStandardDeck, shuffleDeck } from "./deck.js";
 
@@ -16,6 +16,15 @@ export class TexasHoldemPlugin implements GamePlugin {
   readonly game_type: GameType = "texas_holdem";
   readonly name = "德州扑克";
   readonly supported_modes: GameMode[] = ["fixed_limit"];
+
+  readonly meta: PluginMeta = {
+    gameId: "texas_holdem", name: "德州扑克", cardCount: 2,
+    supportSidePot: true, exchangeBased: false, minPlayers: 2, maxSeats: 9,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const deckManager = new TexasHoldemDeck();

@@ -4,13 +4,22 @@
  * 流程同德州：2底牌 + 5公共牌，4轮下注
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, SidePot, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluateShortDeck7 } from "./evaluator.js";
 
 export class ShortDeckPlugin implements GamePlugin {
   readonly game_type: GameType = "short_deck";
   readonly name = "短牌德州";
   readonly supported_modes: GameMode[] = ["fixed_limit"];
+
+  readonly meta: PluginMeta = {
+    gameId: "short_deck", name: "短牌德州", cardCount: 2,
+    supportSidePot: true, exchangeBased: false, minPlayers: 2, maxSeats: 9,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];

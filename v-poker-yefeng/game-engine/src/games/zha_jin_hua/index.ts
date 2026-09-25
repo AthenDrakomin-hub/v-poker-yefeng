@@ -4,13 +4,22 @@
  */
 
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Seat, Suit } from "../../shared/types.js";
-import { CompareResult, GamePlugin, HandEvaluation, PluginRoundState } from "../plugin.interface.js";
+import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
 import { evaluateZhaJinHua, compareZhaJinHua } from "./evaluator.js";
 
 export class ZhaJinHuaPlugin implements GamePlugin {
   readonly game_type: GameType = "zha_jin_hua";
   readonly name = "炸金花";
   readonly supported_modes: GameMode[] = ["compare"];
+
+  readonly meta: PluginMeta = {
+    gameId: "zha_jin_hua", name: "炸金花", cardCount: 3,
+    supportSidePot: false, exchangeBased: false, minPlayers: 2, maxSeats: 6,
+  };
+
+  validateAction(_state: PluginRoundState, _seat: Seat, _action: any): ActionValidation {
+    return { valid: true };
+  }
 
   /** 是否启用 235 反转豹子规则（默认关闭） */
   private enable235Reversal: boolean = false;
