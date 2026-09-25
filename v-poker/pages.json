@@ -107,6 +107,10 @@
 			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
 		},
 		{
+			"path": "pages/table-doudizhu/table-doudizhu",
+			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
+		},
+		{
 			"path": "pages/table-pineapple/table-pineapple",
 			"style": { "navigationStyle": "custom", "disableScroll": true, "backgroundColorContent": "#0a0e14" }
 		},

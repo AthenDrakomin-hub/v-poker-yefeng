@@ -76,7 +76,7 @@
 				<vp-button v-if="game_type == 'niu_niu'" size="sm" type="purple" text="翻倍"
 					@click="onSimple('double')" />
 				<view v-if="game_type == 'niu_niu'" class="ts-gap"></view>
-				<!-- 斗地主专属 -->
+				<!-- 叫分类(fight_bomb) -->
 				<vp-button v-if="game_type == 'fight_bomb'" size="sm" type="blue" text="叫1分"
 					@click="onSimple('call_1')" />
 				<view v-if="game_type == 'fight_bomb'" class="ts-gap"></view>
@@ -86,6 +86,13 @@
 				<vp-button v-if="game_type == 'fight_bomb'" size="sm" type="red" text="叫3分"
 					@click="onSimple('call_3')" />
 				<view v-if="game_type == 'fight_bomb'" class="ts-gap"></view>
+				<!-- 出牌类(斗地主/掼蛋/双扣/红五) -->
+				<vp-button v-if="isTrickGame" size="sm" type="gray" text="不出"
+					@click="onSimple('pass')" />
+				<view v-if="isTrickGame" class="ts-gap"></view>
+				<vp-button v-if="isTrickGame" size="sm" type="gold" text="出牌"
+					@click="onPlayCards" />
+				<view v-if="isTrickGame" class="ts-gap"></view>
 				<!-- 通用 -->
 				<vp-button size="sm" type="gold" text="跟注" @click="onSimple('call')" />
 				<view class="ts-gap"></view>
@@ -209,6 +216,16 @@
 	})
 
 	const gameName = computed((): string => gameTypeName(props.game_type))
+
+	// 出牌类游戏(斗地主/掼蛋/双扣/红五)
+	const trickGames = ['doudizhu', 'guandan', 'double_kong', 'hong_wu']
+	const isTrickGame = computed((): boolean => trickGames.indexOf(props.game_type) >= 0)
+
+	function onPlayCards() {
+		// TODO: 收集选中的手牌发送play动作
+		onSimple('play')
+	}
+
 	const tableBg = computed((): string => {
 		const map: Record<string, string> = {
 			texas_holdem: '/static/table/texas-holdem.png',
