@@ -13,6 +13,8 @@
 
 import { GameStateMachine } from "./stateMachine.js";
 import { coreEventBus } from "./eventBus.js";
+import { evaluate7Cards } from "../games/texas_holdem/evaluator.js";
+import type { Card } from "../shared/types.js";
 
 export type BotStrategy = "tight" | "loose" | "random";
 
@@ -91,6 +93,47 @@ export class BotManager {
   }
 
   /**
+   * 评估德州手牌强度 0~1
+   * - 翻前：基于底牌质量（对子/高张/同花连子）
+   * - 翻后：evaluate7Cards 评分归一化
+   */
+  private evaluateTexasHandStrength(holeCards: Card[], communityCards: Card[]): number {
+    if (communityCards.length === 0) {
+      // 翻前：底牌质量评估
+      if (holeCards.length < 2) return 0.3;
+      const [c1, c2] = holeCards;
+      const r1 = c1.rank === 1 ? 14 : c1.rank;
+      const r2 = c2.rank === 1 ? 14 : c2.rank;
+      const high = Math.max(r1, r2);
+      const low = Math.min(r1, r2);
+      const isPair = r1 === r2;
+      const isSuited = c1.suit === c2.suit;
+      const gap = high - low;
+
+      let strength = 0.2;
+      if (isPair) {
+        strength = 0.5 + (low - 2) * 0.035; // 22=0.5, AA=0.92
+      } else {
+        strength = 0.15 + (high - 2) * 0.025 + (low - 2) * 0.01;
+        if (isSuited) strength += 0.08;
+        if (gap <= 2 && gap > 0) strength += 0.05; // 连子
+        if (high >= 13) strength += 0.05; // 人头牌
+      }
+      return Math.min(1, Math.max(0, strength));
+    }
+
+    // 翻后：7张牌评估
+    const evalResult = evaluate7Cards(holeCards, communityCards);
+    // score范围：高牌~100万，皇家同花顺~1000万+14
+    // 归一化到0~1：对数缩放
+    const rawScore = evalResult.score;
+    if (rawScore <= 0) return 0.1;
+    // 用对数压缩：100万→0.3, 500万→0.6, 1000万→0.85
+    const normalized = Math.min(1, Math.log10(rawScore) / 7 - 0.55);
+    return Math.max(0.05, normalized);
+  }
+
+  /**
    * 轮到 bot 行动时调用——延迟后自动执行
    */
   scheduleBotTurn(seatIndex: number, userId: string): void {
@@ -162,6 +205,57 @@ export class BotManager {
       } else {
         action = "raise";
         amount = Math.floor(roundState.min_call_amount * 3);
+      }
+    } else if (gameType === "texas_holdem" || gameType === "omaha" || gameType === "short_deck" || gameType === "squid_game") {
+      // 德州系：基于手牌强度 + 底池赔率决策
+      const holeCards: Card[] = (seat.cards || []) as Card[];
+      const communityCards: Card[] = (roundState.community_cards || []) as Card[];
+      const handStrength = this.evaluateTexasHandStrength(holeCards, communityCards);
+      const pot = roundState.total_pot || 0;
+      const myChips = seat.chips;
+      const potOdds = callAmount > 0 ? callAmount / (pot + callAmount) : 0;
+
+      if (callAmount <= 0) {
+        // 无人下注：check / bet
+        if (handStrength > 0.7 && roll < 0.7) {
+          action = "bet";
+          amount = Math.floor(pot * 0.6) || roundState.room.base_score * 2;
+        } else if (handStrength > 0.5 && roll < 0.35) {
+          action = "bet";
+          amount = Math.floor(pot * 0.4) || roundState.room.base_score;
+        } else {
+          action = "check";
+        }
+      } else {
+        // 需跟注：基于手牌强度 vs 底池赔率
+        if (handStrength < 0.25 && potOdds > 0.15) {
+          action = "fold";
+        } else if (handStrength > 0.75) {
+          // 强牌：raise 或 call
+          if (roll < 0.5 && myChips > callAmount * 2) {
+            action = "raise";
+            amount = Math.floor(callAmount * 2.5 + pot * 0.5);
+          } else {
+            action = "call";
+          }
+        } else if (handStrength > 0.45) {
+          // 中等牌：call 为主，偶尔 raise
+          if (roll < 0.15 && myChips > callAmount * 3) {
+            action = "raise";
+            amount = Math.floor(callAmount * 2 + pot * 0.3);
+          } else if (potOdds < handStrength * 0.8) {
+            action = "call";
+          } else {
+            action = "fold";
+          }
+        } else {
+          // 弱牌：只在底池赔率极好时 call
+          if (potOdds < 0.08 && roll < 0.4) {
+            action = "call";
+          } else {
+            action = "fold";
+          }
+        }
       }
     } else if (callAmount <= 0) {
       // 德州：没有人下注，可以 check 或 bet
