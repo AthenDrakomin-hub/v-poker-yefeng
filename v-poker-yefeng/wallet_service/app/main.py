@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import engine, Base, AsyncSessionLocal
 from app.models import FeePool, Agent, Wallet
+from app.migrations import run_migrations
 from app.routers import wallet, audit, room, stats, friends, achievements, messages, tickets
 
 
@@ -31,9 +32,8 @@ async def verify_internal_key(request: Request):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """服务启动与关闭：自动建表与初始化种子数据"""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """服务启动与关闭：自动迁移+种子数据"""
+    await run_migrations()
 
     async with AsyncSessionLocal() as session:
         fee_pool_res = await session.execute(

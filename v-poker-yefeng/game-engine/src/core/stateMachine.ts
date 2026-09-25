@@ -345,11 +345,14 @@ export class GameStateMachine {
    *       结算失败也会强制收口（finishSettlement），避免牌局卡死。
    */
   private autoSettle(): void {
-    void this.settleRound().catch((err: any) => {
-      console.error(
-        `[StateMachine] auto settle failed (room ${this.roundState.room.room_id}):`,
-        err?.message ?? err
-      );
+    this.settleRound().catch((err: any) => {
+      const msg = err?.message ?? String(err);
+      console.error(`[StateMachine] auto settle failed (room ${this.roundState.room.room_id}):`, msg);
+      // 广播结算失败事件，客户端可见
+      coreEventBus.emit("settlement_failed", {
+        roomId: this.roundState.room.room_id,
+        error: msg,
+      });
       try {
         this.finishSettlement();
       } catch (e) {

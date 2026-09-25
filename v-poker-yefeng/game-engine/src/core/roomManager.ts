@@ -23,7 +23,7 @@ import { DoudizhuPlugin } from "../games/doudizhu/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
 import { SeatManager } from "./seatManager.js";
 import { GameStateMachine } from "./stateMachine.js";
-import { getRoomPlayers, clearRoomPlayers } from "./db.js";
+import { getRoomPlayers, clearRoomPlayers, saveRoomSnapshot, loadRoomSnapshots } from "./db.js";
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
@@ -107,6 +107,9 @@ export class RoomManager {
     this.stateMachines.set(room.room_id, stateMachine);
     this.seatManagers.set(room.room_id, seatManager);
 
+    // 持久化房间元信息
+    saveRoomSnapshot(room.room_id, room.game_type, room.mode, room.base_score, { status: "waiting" });
+
     return { room, stateMachine };
   }
 
@@ -158,9 +161,37 @@ export class RoomManager {
    * TODO: SQLite rooms表持久化后启用
    */
   private async restoreRoomsFromDB(): Promise<void> {
-    // SQLite模式下房间状态暂存内存，重启后房间不恢复
-    // room_players 表仍可用于玩家记录查询
-    console.log("[RoomManager] SQLite mode: in-memory rooms, restore skipped");
+    try {
+      const snapshots = await loadRoomSnapshots();
+      for (const snap of snapshots) {
+        if (this.rooms.has(snap.room_id)) continue;
+        const plugin = this.getPlugin(snap.game_type as GameType);
+        if (!plugin) continue;
+        const room: GameRoom = {
+          room_id: snap.room_id,
+          game_type: snap.game_type as GameType,
+          mode: snap.mode as any,
+          base_score: snap.base_score,
+          max_seats: 6,
+          min_players_to_start: 2,
+          platform_fee_rate: 0.05,
+          agent_commission_rate: 0.03,
+          agent_ids: [],
+          status: "waiting",
+          current_round_id: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        };
+        const seatManager = new SeatManager(room.max_seats, room.room_id);
+        const stateMachine = new GameStateMachine(room, plugin, seatManager);
+        this.rooms.set(room.room_id, room);
+        this.stateMachines.set(room.room_id, stateMachine);
+        this.seatManagers.set(room.room_id, seatManager);
+      }
+      if (snapshots.length > 0) console.log(`[RoomManager] Restored ${snapshots.length} room(s) from SQLite`);
+    } catch (e) {
+      console.error("[RoomManager] restore error:", e);
+    }
   }
 
   /**

@@ -12,6 +12,14 @@ const db = new DatabaseSync(DB_PATH);
 
 // 建表
 db.exec(`
+  CREATE TABLE IF NOT EXISTS rooms (
+    room_id TEXT PRIMARY KEY,
+    game_type TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    base_score INTEGER NOT NULL,
+    snapshot TEXT,
+    updated_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS room_players (
     room_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
@@ -128,6 +136,29 @@ export async function saveGameReplay(params: {
         params.duration_sec, Date.now());
     return true;
   } catch (e) { console.error("[DB] saveGameReplay:", e); return false; }
+}
+
+/** 保存房间快照（定期/状态变更时调用，重启后可恢复） */
+export async function saveRoomSnapshot(
+  roomId: string, gameType: string, mode: string, baseScore: number, snapshot: object
+): Promise<boolean> {
+  try {
+    db.prepare(`INSERT INTO rooms (room_id, game_type, mode, base_score, snapshot, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(room_id) DO UPDATE SET snapshot=excluded.snapshot, updated_at=excluded.updated_at`)
+      .run(roomId, gameType, mode, baseScore, JSON.stringify(snapshot), Date.now());
+    return true;
+  } catch (e) { console.error("[DB] saveRoomSnapshot:", e); return false; }
+}
+
+/** 加载所有房间快照（启动时恢复） */
+export async function loadRoomSnapshots(): Promise<Array<{
+  room_id: string; game_type: string; mode: string; base_score: number; snapshot: any;
+}>> {
+  try {
+    const rows = db.prepare(`SELECT room_id, game_type, mode, base_score, snapshot FROM rooms`).all() as any[];
+    return rows.map(r => ({ ...r, snapshot: JSON.parse(r.snapshot || "{}") }));
+  } catch (e) { return []; }
 }
 
 export default db;

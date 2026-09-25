@@ -17,12 +17,14 @@ services:
       - "${WALLET_SERVICE_PORT:-8001}:8001"
     environment:
       - PORT=8001
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:////data/wallet.db}
       - COMMISSION_SERVICE_URL=${COMMISSION_SERVICE_URL}
       - WALLET_INTERNAL_KEY=${WALLET_INTERNAL_KEY:-change-me-in-prod}
       - PLATFORM_FEE_RATE=${PLATFORM_FEE_RATE:-0.0300}
       - AGENT_COMMISSION_RATE=${AGENT_COMMISSION_RATE:-0.0300}
       - DEBUG=${DEBUG:-false}
+    volumes:
+      - wallet_data:/data
     restart: unless-stopped
     networks:
       - poker_net
@@ -78,10 +80,12 @@ services:
     environment:
       - ENGINE_PORT=8003
       - WALLET_SERVICE_URL=${WALLET_SERVICE_URL}
-      - DATABASE_URL=${DATABASE_URL_SYNC}
+      - ENGINE_DB_PATH=/data/engine.db
       - DISCONNECT_TIMEOUT_MS=${DISCONNECT_TIMEOUT_MS:-300000}
       - PLATFORM_FEE_RATE=${PLATFORM_FEE_RATE:-0.0300}
       - DEBUG=${DEBUG:-false}
+    volumes:
+      - engine_data:/data
     depends_on:
       - wallet-service
     restart: unless-stopped
@@ -151,6 +155,7 @@ services:
 volumes:
   wallet_data:
   commission_data:
+  engine_data:
   metabase_data:
 
 networks:

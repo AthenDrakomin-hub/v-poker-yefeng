@@ -213,6 +213,14 @@ coreEventBus.on("round_finished", ({ roomId, results, event_log }) => {
   broadcastRoomState(roomId);
 });
 
+coreEventBus.on("settlement_failed", ({ roomId, error }) => {
+  broadcastToRoom(roomId, {
+    type: "error",
+    data: { message: "Settlement failed: " + error },
+  });
+  console.error(`[SettlementError] room ${roomId}:`, error);
+});
+
 // ========== 定时任务 ==========
 
 /** 心跳检测：清理死连接，玩家断线通知状态机 */
