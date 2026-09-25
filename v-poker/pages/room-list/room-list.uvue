@@ -55,7 +55,7 @@
 
 				<!-- 房间卡片 -->
 				<view class="rl-list">
-					<view v-for="room in rooms" :key="room.room_id" class="rl-room-card"
+					<view v-for="room in pagedRooms" :key="room.room_id" class="rl-room-card"
 						hover-class="rl-room-hover" @click="joinRoom(room)">
 						<view class="rl-room-level" :class="levelClass(room.level)">
 							<text class="rl-room-level-text">{{ levelText(room.level) }}</text>
@@ -74,6 +74,16 @@
 							<text class="rl-room-join-text">加入</text>
 						</view>
 					</view>
+					<!-- 分页 -->
+					<view v-if="totalPages > 1" class="rl-pagination">
+						<view class="rl-page-btn" :class="{ 'rl-page-disabled': currentPage <= 1 }" @click="prevPage">
+							<text class="rl-page-btn-text">‹</text>
+						</view>
+						<text class="rl-page-info">{{ currentPage }} / {{ totalPages }}</text>
+						<view class="rl-page-btn" :class="{ 'rl-page-disabled': currentPage >= totalPages }" @click="nextPage">
+							<text class="rl-page-btn-text">›</text>
+						</view>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -81,16 +91,44 @@
 </template>
 
 <script setup lang="uts">
-	import { ref } from 'vue'
+	import { ref, computed } from 'vue'
 
 	const gameName = ref('全部游戏')
 	const gameType = ref('')
+	const currentPage = ref(1)
+	const PAGE_SIZE = 6
 
 	const rooms = ref([
 		{ room_id: '100001', room_name: '休闲娱乐局', level: 'low', blind_small: 5, blind_big: 10, players: 3, max_players: 6, total_rounds: 10 },
 		{ room_id: '100002', room_name: '高手对决', level: 'mid', blind_small: 25, blind_big: 50, players: 5, max_players: 9, total_rounds: 20 },
 		{ room_id: '100003', room_name: 'VIP专属', level: 'high', blind_small: 100, blind_big: 200, players: 2, max_players: 6, total_rounds: 30 },
+		{ room_id: '100004', room_name: '新手练习场', level: 'low', blind_small: 1, blind_big: 2, players: 4, max_players: 6, total_rounds: 10 },
+		{ room_id: '100005', room_name: '午夜牌局', level: 'mid', blind_small: 50, blind_big: 100, players: 6, max_players: 9, total_rounds: 20 },
+		{ room_id: '100006', room_name: '钻石俱乐部', level: 'high', blind_small: 200, blind_big: 400, players: 3, max_players: 6, total_rounds: 30 },
+		{ room_id: '100007', room_name: '周末狂欢', level: 'low', blind_small: 10, blind_big: 20, players: 5, max_players: 9, total_rounds: 15 },
+		{ room_id: '100008', room_name: '精英赛', level: 'mid', blind_small: 75, blind_big: 150, players: 4, max_players: 6, total_rounds: 25 },
+		{ room_id: '100009', room_name: '王者对决', level: 'high', blind_small: 500, blind_big: 1000, players: 2, max_players: 6, total_rounds: 40 },
+		{ room_id: '100010', room_name: '轻松一局', level: 'low', blind_small: 2, blind_big: 5, players: 6, max_players: 9, total_rounds: 10 },
+		{ room_id: '100011', room_name: '黄金时段', level: 'mid', blind_small: 30, blind_big: 60, players: 7, max_players: 9, total_rounds: 20 },
+		{ room_id: '100012', room_name: '至尊VIP', level: 'high', blind_small: 1000, blind_big: 2000, players: 4, max_players: 6, total_rounds: 50 },
 	])
+
+	const totalPages = computed((): number => {
+		return Math.ceil(rooms.value.length / PAGE_SIZE)
+	})
+
+	const pagedRooms = computed((): any[] => {
+		const start = (currentPage.value - 1) * PAGE_SIZE
+		return rooms.value.slice(start, start + PAGE_SIZE)
+	})
+
+	const prevPage = () => {
+		if (currentPage.value > 1) currentPage.value--
+	}
+
+	const nextPage = () => {
+		if (currentPage.value < totalPages.value) currentPage.value++
+	}
 
 	onLoad((options) => {
 		const gt = options.getString('game_type')
@@ -368,5 +406,40 @@
 
 	.rl-pressed {
 		opacity: 0.7;
+	}
+
+	/* 分页 */
+	.rl-pagination {
+		flex-direction: row;
+		align-items: center;
+		justify-content: center;
+		gap: 16px;
+		margin-top: 20px;
+	}
+
+	.rl-page-btn {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background-color: rgba(212, 175, 55, 0.1);
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.3);
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rl-page-btn-text {
+		color: #d4af37;
+		font-size: 18px;
+	}
+
+	.rl-page-disabled {
+		opacity: 0.3;
+	}
+
+	.rl-page-info {
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 13px;
 	}
 </style>
