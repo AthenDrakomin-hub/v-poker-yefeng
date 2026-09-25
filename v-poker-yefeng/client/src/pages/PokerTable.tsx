@@ -8,6 +8,8 @@ import { useTableAnimations } from "../hooks/useTableAnimations";
 import ZhaJinHuaTable from "../games/ZhaJinHuaTable";
 import NiuNiuTable from "../games/NiuNiuTable";
 import SanGongTable from "../games/SanGongTable";
+import TrickTakingTable from "../games/TrickTakingTable";
+import PokerTableGeneric from "../games/PokerTableGeneric";
 
 export default function PokerTable() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -147,6 +149,32 @@ export default function PokerTable() {
     }
   };
 
+  const handleLeave = async () => {
+    try {
+      await fetch(`/api/engine/room/${roomId}/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      navigate("/");
+    } catch (err: any) {
+      pushNotification({ type: "error", message: "离座失败: " + err.message });
+    }
+  };
+
+  const handleAddBot = async () => {
+    try {
+      await fetch(`/api/engine/room/${roomId}/bots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 1 }),
+      });
+      pushNotification({ type: "success", message: "已添加机器人" });
+    } catch (err: any) {
+      pushNotification({ type: "error", message: "加机器人失败: " + err.message });
+    }
+  };
+
   // 渲染座位
   const renderSeats = () => {
     if (!roomState) return null;
@@ -204,13 +232,16 @@ export default function PokerTable() {
           <NiuNiuTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
         ) : gameType === "san_gong" ? (
           <SanGongTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
+        ) : ["doudizhu", "guandan", "double_kong", "hong_wu"].includes(gameType) ? (
+          <TrickTakingTable roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
+        ) : ["texas_holdem", "omaha", "short_deck", "squid_game", "fight_bomb"].includes(gameType) ? (
+          <PokerTableGeneric roomState={roomState} userId={userId} onAction={handleAction} isMyTurn={isMyTurn} />
         ) : (
           <div style={styles.table}>
             {isMyTurn && (
               <div style={{ ...styles.countdown, color: countdownColor }}>{countdown}s</div>
             )}
             <div ref={potRef} style={styles.pot}>底池: {totalPot}</div>
-
             <div ref={communityRef} style={styles.communityCards}>
               {((roomState?.round_state?.community_cards || []) as any[]).map((card, idx) => (
                 <div key={idx} style={{ ...styles.card, ...styles.communityCard }}>
@@ -218,7 +249,6 @@ export default function PokerTable() {
                 </div>
               ))}
             </div>
-
             {myCards.length > 0 && (
               <div ref={myCardsRef} style={styles.myCards}>
                 <span style={styles.cardsLabel}>我的手牌:</span>
@@ -229,21 +259,25 @@ export default function PokerTable() {
                 ))}
               </div>
             )}
-
             <div style={styles.seatsGrid}>{renderSeats()}</div>
           </div>
         )}
       </div>
 
-      {gameType === "texas_holdem" && (
-        <div style={styles.actions}>
-          <button style={styles.foldBtn} onClick={() => handleAction("fold")}>弃牌</button>
-          <button style={styles.checkBtn} onClick={() => handleAction("check")}>过牌</button>
-          <button style={styles.callBtn} onClick={() => handleAction("call")}>跟注</button>
-          <button style={styles.raiseBtn} onClick={() => handleAction("raise", 200)}>加注</button>
-          <button style={styles.allInBtn} onClick={() => handleAction("all_in", 1000)}>全下</button>
-        </div>
-      )}
+      {/* 通用操作栏 */}
+      <div style={styles.bottomBar}>
+        <button onClick={handleLeave} style={styles.leaveBtn}>离座</button>
+        <button onClick={handleAddBot} style={styles.botBtn}>+ 加机器人</button>
+        {["texas_holdem", "omaha", "short_deck", "squid_game", "fight_bomb"].includes(gameType) && (
+          <div style={styles.pokerActions}>
+            <button style={styles.foldBtn} onClick={() => handleAction("fold")}>弃牌</button>
+            <button style={styles.checkBtn} onClick={() => handleAction("check")}>过牌</button>
+            <button style={styles.callBtn} onClick={() => handleAction("call")}>跟注</button>
+            <button style={styles.raiseBtn} onClick={() => handleAction("raise", 200)}>加注</button>
+            <button style={styles.allInBtn} onClick={() => handleAction("all_in", 1000)}>全下</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -288,6 +322,10 @@ const styles: Record<string, React.CSSProperties> = {
   toastError: { background: "var(--vp-danger)" },
   toastWarning: { background: "var(--vp-warning)" },
   actions: { display: "flex", justifyContent: "center", gap: "15px", padding: "20px" },
+  bottomBar: { display: "flex", justifyContent: "center", gap: "12px", padding: "15px 20px", alignItems: "center", flexWrap: "wrap" },
+  leaveBtn: { padding: "8px 16px", background: "#d94444", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  botBtn: { padding: "8px 16px", background: "#4a90d9", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" },
+  pokerActions: { display: "flex", gap: "10px" },
   foldBtn: { padding: "12px 24px", background: "#666", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
   checkBtn: { padding: "12px 24px", background: "var(--vp-info)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
   callBtn: { padding: "12px 24px", background: "var(--vp-felt)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer" },
