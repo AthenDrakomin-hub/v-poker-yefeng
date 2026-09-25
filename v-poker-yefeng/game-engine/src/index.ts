@@ -26,6 +26,10 @@ const app = new Hono();
 // ========== 生产安全：内部鉴权中间件 ==========
 const INTERNAL_AUTH_KEY = process.env.INTERNAL_AUTH_KEY || "change-me-in-prod";
 
+if (process.env.NODE_ENV === "production" && INTERNAL_AUTH_KEY === "change-me-in-prod") {
+  console.warn("⚠️  [SECURITY WARNING] Using default INTERNAL_AUTH_KEY in production! Set INTERNAL_AUTH_KEY env var.");
+}
+
 app.use("/api/*", async (c, next) => {
   // /health 不需要鉴权（Docker healthcheck 用）
   if (c.req.path === "/health") return next();
