@@ -1,5 +1,6 @@
 <template>
 	<view class="vp-page hall-page">
+		<image src="/static/bg/lobby-bg.png" class="hall-bg" mode="aspectFill" />
 		<view class="hall-container">
 			<!-- 左侧固定窄边栏 220px -->
 			<view class="hall-sidebar">
@@ -165,6 +166,15 @@
 	.hall-page {
 		flex: 1;
 		background-color: #0A0A0F;
+	}
+
+	.hall-bg {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		opacity: 0.35;
 	}
 
 	.hall-container {

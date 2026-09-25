@@ -156,10 +156,10 @@
 	}
 
 	.vpa-fold {
-		background-color: $vp-surface-2;
+		background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
 		border-width: 1px;
 		border-style: solid;
-		border-color: $vp-border;
+		border-color: #991b1b;
 	}
 
 	.vpa-check {
