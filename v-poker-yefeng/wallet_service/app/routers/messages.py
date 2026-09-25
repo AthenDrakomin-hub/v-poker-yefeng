@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 from app.database import get_db
 from app.models import Message
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/messages", tags=["messages"])
 class APIResponse(BaseModel):
     code: int = 0
     message: str = "success"
-    data: Optional[any] = None
+    data: Optional[Any] = None
 
 
 @router.get("/{user_id}", response_model=APIResponse)

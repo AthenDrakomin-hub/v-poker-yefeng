@@ -136,3 +136,51 @@ export const registerHandler = async (c: Context) => {
     data: { user_id: username, role }
   });
 };
+
+// ============================================================
+// P0 ADD: Forgot password, reset password, change password, update profile
+// ============================================================
+
+const resetTokens: Record<string, string> = {};
+
+export const forgotPasswordHandler = async (c: Context) => {
+  const body = await c.req.json();
+  const { username } = body;
+  if (!username) return c.json({ code: 400, message: "username required", data: null }, 400);
+  const user = testUsers.find((u) => u.username === username);
+  if (!user) return c.json({ code: 404, message: "user not found", data: null }, 404);
+  const token = `reset_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  resetTokens[username] = token;
+  return c.json({ code: 0, message: "reset token generated", data: { reset_token: token } });
+};
+
+export const resetPasswordHandler = async (c: Context) => {
+  const body = await c.req.json();
+  const { username, token, new_password } = body;
+  if (!username || !token || !new_password) return c.json({ code: 400, message: "username, token, new_password required", data: null }, 400);
+  if (resetTokens[username] !== token) return c.json({ code: 401, message: "invalid or expired reset token", data: null }, 401);
+  const user = testUsers.find((u) => u.username === username);
+  if (!user) return c.json({ code: 404, message: "user not found", data: null }, 404);
+  user.password_hash = bcrypt.hashSync(new_password, 10);
+  delete resetTokens[username];
+  return c.json({ code: 0, message: "password reset successful", data: { user_id: username } });
+};
+
+export const changePasswordHandler = async (c: Context) => {
+  const user = c.get("user") as { userId: string; userType: string };
+  const body = await c.req.json();
+  const { old_password, new_password } = body;
+  if (!old_password || !new_password) return c.json({ code: 400, message: "old_password and new_password required", data: null }, 400);
+  const target = testUsers.find((u) => u.username === user.userId);
+  if (!target) return c.json({ code: 404, message: "user not found", data: null }, 404);
+  const valid = bcrypt.compareSync(old_password, target.password_hash);
+  if (!valid) return c.json({ code: 401, message: "old password incorrect", data: null }, 401);
+  target.password_hash = bcrypt.hashSync(new_password, 10);
+  return c.json({ code: 0, message: "password changed", data: { user_id: user.userId } });
+};
+
+export const updateProfileHandler = async (c: Context) => {
+  const user = c.get("user") as { userId: string; userType: string };
+  const body = await c.req.json();
+  return c.json({ code: 0, message: "profile updated", data: { user_id: user.userId, ...body } });
+};

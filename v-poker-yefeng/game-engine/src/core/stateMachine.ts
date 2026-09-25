@@ -61,10 +61,22 @@ export class GameStateMachine {
 
     this.eventLog = new RoundEventLog(room.room_id, room.game_type, 0);
 
+    // 按游戏模式设置动作超时（毫秒）
+    const MODE_TIMEOUTS: Record<string, number> = {
+      fixed_limit: 30_000,   // 德州类：标准30s
+      banker: 20_000,         // 抢庄牛牛/三公：快速20s
+      free_compare: 15_000,   // 通比：15s
+      compare: 25_000,        // 炸金花：25s
+      split_hand: 15_000,     // 十三水/菠萝：15s（无下注）
+      trick_taking: 30_000,   // 斗地主等：30s
+    };
+    const defaultTimeout = Number(process.env.TURN_TIMEOUT_MS || 30_000);
+    const actionTimeout = MODE_TIMEOUTS[room.mode] ?? defaultTimeout;
+
     // 回合倒计时器：轮到谁行动时启动，超时自动 check/fold
     this.turnTimer = new TurnTimer({
       roomId: room.room_id,
-      actionTimeoutMs: Number(process.env.TURN_TIMEOUT_MS || 30_000),
+      actionTimeoutMs: actionTimeout,
       onTimeout: (seatIndex, userId) => this.handleTimeoutAction(seatIndex, userId),
       canCheck: (seatIndex) => {
         const seat = this.seatManager.getSeat(seatIndex);
@@ -154,8 +166,8 @@ export class GameStateMachine {
   }
 
   /**
-   * 处理小盲/大盲自动下注
-   * 德州扑克发牌后自动扣 SB/BB，需要同步调�?wallet-service/bet
+   * 处理初始下注：德州自动扣 SB/BB，炸金花/其他游戏扣 ante
+   * 遍历所有在局座位，凡 current_bet > 0 者都记录下注（兼容盲注和底注两种模式）
    */
   private async processBlindBets(): Promise<void> {
     const activeSeats = this.roundState.seats.filter(
@@ -163,16 +175,16 @@ export class GameStateMachine {
     );
     if (activeSeats.length < 2) return;
 
-    const sbSeat = activeSeats[0];
-    const bbSeat = activeSeats[1];
-
-    if (sbSeat.user_id && sbSeat.current_bet > 0) {
-      await this.recordPlayerBet(sbSeat.user_id, sbSeat.current_bet);
-      this.eventLog.push("blind", { user_id: sbSeat.user_id, blind: "sb", amount: sbSeat.current_bet });
+    // P0：快照 current_bet，避免 await 期间被玩家动作修改
+    const bets: Array<{ userId: string; amount: number }> = [];
+    for (const seat of activeSeats) {
+      if (seat.user_id && seat.current_bet > 0) {
+        bets.push({ userId: seat.user_id, amount: seat.current_bet });
+      }
     }
-    if (bbSeat.user_id && bbSeat.current_bet > 0) {
-      await this.recordPlayerBet(bbSeat.user_id, bbSeat.current_bet);
-      this.eventLog.push("blind", { user_id: bbSeat.user_id, blind: "bb", amount: bbSeat.current_bet });
+    for (const { userId, amount } of bets) {
+      await this.recordPlayerBet(userId, amount);
+      this.eventLog.push("blind", { user_id: userId, amount });
     }
   }
 
@@ -216,6 +228,10 @@ export class GameStateMachine {
   }
 
   public handleAction(action: GameAction): { success: boolean; error?: string } {
+    // 结算阶段不接受玩家动作，防止跳过结算直接到 FINISHED
+    if (this.roundState.phase === "SETTLING" || this.roundState.phase === "SHOWDOWN") {
+      return { success: false, error: "Round is settling, no more actions." };
+    }
     const seat = this.roundState.seats.find((s) => s.user_id === action.user_id);
     const oldCurrentBet = seat?.current_bet || 0;
 
@@ -392,7 +408,7 @@ export class GameStateMachine {
    * 执行微服务原子结�?(POST /api/wallet/game_settle)
    */
   public async settleRound(client: WalletClient = walletClient): Promise<{
-    request: GameSettleRequest;
+    request: GameSettleRequest | null;
     response: any;
   }> {
     this.turnTimer.cancel();
@@ -404,23 +420,97 @@ export class GameStateMachine {
     }
 
     const roomId = this.roundState.room.room_id;
-    const totalPot = this.roundState.total_pot > 0
-      ? this.roundState.total_pot
-      : this.roundState.room.base_score * 4;
+    const totalPot = this.roundState.total_pot;
 
+    // 判断是否为交换型游戏（抢庄/通比牛牛、三公等庄闲直接结算）
+    const isExchangeGame =
+      this.roundState.room.mode === "banker" ||
+      this.roundState.room.mode === "free_compare" ||
+      this.roundState.banker_seat_index != null;
+
+    if (isExchangeGame) {
+      // ===== 交换型结算：退款 + 用户间直接转账 =====
+      // 1. 先把牌桌钱包里的下注全部退还给玩家
+      const betEntries = Array.from(this.playerBetsThisRound.entries());
+      for (const [userId, amount] of betEntries) {
+        if (amount <= 0) continue;
+        try {
+          const refundTxId = `refund_${roomId}_${userId}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+          const refundRes = await client.refundChips({
+            transaction_id: refundTxId,
+            room_id: roomId,
+            refunds: [{ user_id: userId, amount }],
+          });
+          if (refundRes.code !== 0) {
+            console.error(`[ExchangeSettle] refund API error for ${userId}:`, refundRes.message);
+          } else {
+            console.log(`[ExchangeSettle] refunded ${amount} to ${userId} (room ${roomId})`);
+          }
+        } catch (e: any) {
+          console.error(`[ExchangeSettle] refund failed for ${userId}:`, e.message);
+        }
+      }
+
+      // 2. 按净分在玩家间直接转账：负数方 → 正数方
+      const losers = this.lastResults.filter((r) => r.net_amount < 0);
+      const winners = this.lastResults.filter((r) => r.net_amount > 0);
+      let transferIdx = 0;
+      for (const loser of losers) {
+        let remaining = Math.abs(loser.net_amount);
+        for (const winner of winners) {
+          if (remaining <= 0) break;
+          // 按赢家应收比例分配（简化：顺序扣完为止）
+          const winnerShare = winner.net_amount;
+          const transferAmount = Math.min(remaining, winnerShare);
+          if (transferAmount <= 0) continue;
+          try {
+            const txId = client.generateTransferTxId(roomId, loser.user_id, winner.user_id);
+            await client.transferChips({
+              transaction_id: txId,
+              from_user_id: loser.user_id,
+              to_user_id: winner.user_id,
+              amount: transferAmount,
+              remark: `Exchange settle round ${this.currentRoundNumber}`,
+            });
+            console.log(`[ExchangeSettle] ${loser.user_id} -> ${winner.user_id}: ${transferAmount}`);
+          } catch (e: any) {
+            console.error(`[ExchangeSettle] transfer failed:`, e.message);
+          }
+          remaining -= transferAmount;
+          transferIdx++;
+        }
+      }
+
+      this.eventLog.logSettle(totalPot, winners.map((w) => w.user_id), []);
+      console.log(`[StateMachine] exchange settle done for room ${roomId}, tx count=${transferIdx}`);
+      this.finishSettlement();
+      return { request: null, response: null };
+    }
+
+    // ===== 底池型结算（德州等）：game_settle 分池 =====
     const winnerIds = this.lastResults
-      .filter((r) => r.net_amount > 0)
+      .filter((r) => r.net_amount >= 0)
       .map((r) => r.user_id);
 
     if (winnerIds.length === 0) {
-      // 无赢家（例如全员弃牌、或净额全为 0）：跳过钱包结算，直接收口，
-      // 避免牌局永久卡在 SETTLING（原实现直接抛错）。
       console.warn(
-        `[StateMachine] no winners to settle (room ${roomId}), finishing round without wallet settle.`
+        `[StateMachine] no pot winner (room ${roomId}), refunding bets to players.`
       );
+      try {
+        await this.refundOnAbort("all_folded", client);
+      } catch (e) {
+        console.error(`[StateMachine] refund failed for room ${roomId}:`, e);
+      }
       this.eventLog.logSettle(totalPot, [], []);
       this.finishSettlement();
-      return { request: null as any, response: null };
+      return { request: null, response: null };
+    }
+
+    if (totalPot <= 0) {
+      console.warn(`[StateMachine] total_pot=0 for room ${roomId}, skipping wallet settle.`);
+      this.eventLog.logSettle(0, winnerIds, []);
+      this.finishSettlement();
+      return { request: null, response: null };
     }
 
     const txId = client.generateSettleTxId(roomId);
@@ -436,14 +526,13 @@ export class GameStateMachine {
 
     const settleRes = await client.settleGame(settlePayload);
 
-    // 记录结算事件
     this.eventLog.logSettle(
       totalPot,
       winnerIds,
       this.roundState.side_pots?.map((p: SidePot) => ({ amount: p.amount }))
     );
 
-    // 落库 game_records + game_replays（失败不影响结算主流程）
+    // 落库（失败不影响结算主流程）
     try {
       const activePlayers = this.seatManager.getSeats().filter((s) => s.user_id);
       await saveGameRecord({
@@ -453,7 +542,6 @@ export class GameStateMachine {
         total_flow: totalPot,
         player_count: activePlayers.length,
       });
-
       await saveGameReplay({
         replay_id: `replay_${txId}`,
         room_id: roomId,
@@ -470,7 +558,6 @@ export class GameStateMachine {
         result: this.lastResults,
         duration_sec: 0,
       });
-
       console.log(`[StateMachine] game_records + game_replays saved for tx ${txId}`);
     } catch (err) {
       console.error(`[StateMachine] Failed to persist game record:`, err);

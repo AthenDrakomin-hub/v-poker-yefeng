@@ -9,7 +9,7 @@ import { evaluateSanGong } from "./evaluator.js";
 export class SanGongPlugin implements GamePlugin {
   readonly game_type: GameType = "san_gong";
   readonly name = "三公";
-  readonly supported_modes: GameMode[] = ["qiang_zhuang", "tong_bi"];
+  readonly supported_modes: GameMode[] = ["banker", "free_compare"];
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];
@@ -59,7 +59,7 @@ export class SanGongPlugin implements GamePlugin {
     }
 
     if (action.action_type === "bet") {
-      if (state.room.mode === "qiang_zhuang" && seat.is_banker) {
+      if (state.room.mode === "banker" && seat.is_banker) {
         return { success: false, error: "Banker cannot bet." };
       }
       seat.bet_multiplier = action.multiplier ?? 1;
@@ -107,7 +107,7 @@ export class SanGongPlugin implements GamePlugin {
       results[s.user_id!] = 0;
     });
 
-    if (state.room.mode === "qiang_zhuang") {
+    if (state.room.mode === "banker") {
       // 庄家和闲家比牌
       let bankerSeat = activeSeats.find((s) => s.is_banker);
       if (!bankerSeat) {
@@ -200,7 +200,7 @@ export class SanGongPlugin implements GamePlugin {
   getNextPhase(state: PluginRoundState): RoundPhase {
     if (state.phase === "WAITING") return "DEALING";
     if (state.phase === "DEALING") {
-      return state.room.mode === "qiang_zhuang" ? "QIANG_ZHUANG" : "BETTING";
+      return state.room.mode === "banker" ? "QIANG_ZHUANG" : "BETTING";
     }
     if (state.phase === "QIANG_ZHUANG") {
       // 抢庄结束 → 定庄 → 进入闲家下注

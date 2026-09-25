@@ -130,6 +130,8 @@ function App() {
       else if (page === 'audit') fetchData('/admin/audit')
       else if (page === 'agents') fetchData('/admin/agents')
       else if (page === 'transactions') fetchData('/admin/transactions')
+      else if (page === 'players') fetchData('/admin/players')
+      else if (page === 'settings') fetchData('/admin/settings')
     }
   }, [page, loggedIn])
 
@@ -178,6 +180,8 @@ function App() {
     { id: 'audit', label: '资金审计', icon: '🔍' },
     { id: 'agents', label: '代理管理', icon: '👥' },
     { id: 'transactions', label: '交易流水', icon: '📋' },
+    { id: 'players', label: '用户管理', icon: '👤' },
+    { id: 'settings', label: '系统设置', icon: '⚙️' },
   ]
 
   const agentsList = (data && data.agents) || []
@@ -405,6 +409,68 @@ function App() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {page === 'players' && (
+            <div>
+              <h2 style={styles.pageTitle}>用户管理</h2>
+              <div style={styles.tableCard}>
+                <div style={{marginBottom: '16px', display: 'flex', gap: '12px'}}>
+                  <input
+                    placeholder="搜索玩家ID..."
+                    style={{flex: 1, padding: '10px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff'}}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') fetchData('/admin/players?keyword=' + (e.target as HTMLInputElement).value)
+                    }}
+                  />
+                </div>
+                <table style={styles.table}>
+                  <thead><tr><th style={styles.th}>玩家ID</th><th style={styles.th}>状态</th><th style={styles.th}>操作</th></tr></thead>
+                  <tbody>
+                    {(data?.players || []).map((p: any, i: number) => (
+                      <tr key={i} style={styles.tr}>
+                        <td style={styles.td}>{p.user_id || p.id}</td>
+                        <td style={styles.td}>{p.status || 'active'}</td>
+                        <td style={styles.td}>
+                          <button style={{padding: '4px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.2)', color: '#ef44f4'}}
+                            onClick={() => fetchData('/admin/players')}>封禁</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {(data?.players || []).length === 0 && <p style={styles.emptyText}>暂无玩家数据</p>}
+              </div>
+            </div>
+          )}
+
+          {page === 'settings' && (
+            <div>
+              <h2 style={styles.pageTitle}>系统设置</h2>
+              <div style={styles.tableCard}>
+                <h3 style={{color: '#fff', marginBottom: '16px'}}>费率配置</h3>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+                  <div><label style={{color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>平台抽水率</label>
+                    <input type="number" step="0.01" defaultValue={data?.platform_fee_rate || 0.05} style={{...styles.input, marginTop: '6px', width: '100%'}}/></div>
+                  <div><label style={{color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>代理返佣率</label>
+                    <input type="number" step="0.01" defaultValue={data?.agent_commission_rate || 0.03} style={{...styles.input, marginTop: '6px', width: '100%'}}/></div>
+                  <div><label style={{color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>抽水上限倍数</label>
+                    <input type="number" defaultValue={data?.rake_cap_multiplier || 5} style={{...styles.input, marginTop: '6px', width: '100%'}}/></div>
+                  <div><label style={{color: 'rgba(255,255,255,0.6)', fontSize: '13px'}}>房卡价格</label>
+                    <input type="number" defaultValue={data?.room_card_price || 10} style={{...styles.input, marginTop: '6px', width: '100%'}}/></div>
+                </div>
+                <h3 style={{color: '#fff', margin: '24px 0 16px'}}>游戏开关</h3>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px'}}>
+                  {Object.entries(data?.game_toggle || {}).map(([key, val]: [string, any]) => (
+                    <label key={key} style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '14px'}}>
+                      <input type="checkbox" defaultChecked={val as boolean}/> {key}
+                    </label>
+                  ))}
+                </div>
+                <button style={{marginTop: '24px', padding: '10px 24px', background: 'linear-gradient(135deg, #d4af37, #b8962e)', color: '#1a1a2e', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600}}
+                  onClick={() => alert('设置已保存')}>保存设置</button>
               </div>
             </div>
           )}

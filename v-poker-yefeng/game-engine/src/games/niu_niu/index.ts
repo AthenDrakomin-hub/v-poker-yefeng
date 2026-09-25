@@ -9,7 +9,7 @@ import { evaluateNiuNiu } from "./evaluator.js";
 export class NiuNiuPlugin implements GamePlugin {
   readonly game_type: GameType = "niu_niu";
   readonly name = "牛牛";
-  readonly supported_modes: GameMode[] = ["qiang_zhuang", "tong_bi"];
+  readonly supported_modes: GameMode[] = ["banker", "free_compare"];
 
   initDeck(): Card[] {
     const suits: Suit[] = ["S", "H", "C", "D"];
@@ -60,7 +60,7 @@ export class NiuNiuPlugin implements GamePlugin {
     }
 
     if (action.action_type === "bet") {
-      if (state.room.mode === "qiang_zhuang" && seat.is_banker) {
+      if (state.room.mode === "banker" && seat.is_banker) {
         return { success: false, error: "Banker cannot bet as player." };
       }
       seat.bet_multiplier = action.multiplier ?? 1;
@@ -114,7 +114,7 @@ export class NiuNiuPlugin implements GamePlugin {
       results[s.user_id!] = 0;
     });
 
-    if (state.room.mode === "qiang_zhuang") {
+    if (state.room.mode === "banker") {
       // 抢庄牛牛模式：庄家与每位闲家单独比牌
       let bankerSeat = activeSeats.find((s) => s.is_banker);
       if (!bankerSeat) {
@@ -210,7 +210,7 @@ export class NiuNiuPlugin implements GamePlugin {
   getNextPhase(state: PluginRoundState): RoundPhase {
     if (state.phase === "WAITING") return "DEALING";
     if (state.phase === "DEALING") {
-      return state.room.mode === "qiang_zhuang" ? "QIANG_ZHUANG" : "BETTING";
+      return state.room.mode === "banker" ? "QIANG_ZHUANG" : "BETTING";
     }
     if (state.phase === "QIANG_ZHUANG") {
       // 抢庄结束 → 定庄 → 进入闲家下注

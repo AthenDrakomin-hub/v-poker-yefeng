@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 from app.database import get_db
 from app.models import Achievement, UserAchievement
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/achievements", tags=["achievements"])
 class APIResponse(BaseModel):
     code: int = 0
     message: str = "success"
-    data: Optional[any] = None
+    data: Optional[Any] = None
 
 
 @router.get("/{user_id}", response_model=APIResponse)

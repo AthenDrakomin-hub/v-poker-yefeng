@@ -16,9 +16,15 @@ export type GameType =
   | "texas_holdem" | "zha_jin_hua" | "niu_niu" | "san_gong" | "squid_game"
   | "guandan" | "fight_bomb" | "omaha"
   | "thirteen_water" | "double_kong" | "hong_wu"
-  | "pineapple" | "short_deck";
+  | "pineapple" | "short_deck" | "doudizhu";
 
-export type GameMode = "fixed" | "normal" | "qiang_zhuang" | "tong_bi";
+export type GameMode =
+  | "fixed_limit"    // 限注扑克：德州/奥马哈/短牌，盲注+下注轮
+  | "banker"         // 抢庄比牌：牛牛/三公，一人当庄其他人比庄
+  | "free_compare"    // 通比：牛牛/三公，无人当庄互相比
+  | "compare"        // 比大小：炸金花/炸弹，3张牌下注后摊牌
+  | "split_hand"     // 分道比牌：十三水/菠萝，13张分3道
+  | "trick_taking";  // 出牌类：斗地主/掼蛋/双扣/红五，轮流出牌
 
 export type RoomStatus = "waiting" | "playing" | "settling" | "closed";
 

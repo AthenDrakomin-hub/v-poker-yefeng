@@ -42,7 +42,7 @@ export function evaluateNiuNiu(cards: Card[]): HandEvaluation {
       rank_name: "五小牛",
       rank_level: 100,
       score: 100000 + sorted[0].rank * 10 + sorted[1].rank,
-      multiplier: 5,
+      multiplier: 8,
       best_cards: sorted
     };
   }
@@ -71,9 +71,24 @@ export function evaluateNiuNiu(cards: Card[]): HandEvaluation {
       rank_name: "五花牛",
       rank_level: 80,
       score: 80000 + sorted[0].rank * 10 + sorted[1].rank,
-      multiplier: 4,
+      multiplier: 5,
       best_cards: sorted
     };
+  }
+
+  // 3.5 四花牛：4张JQK + 1张10点牌(10/J/Q/K中的10)
+  const faceCount = cards.filter((c) => c.rank >= 11).length;
+  if (faceCount === 4) {
+    const otherCard = cards.find((c) => c.rank < 11);
+    if (otherCard && otherCard.rank === 10) {
+      return {
+        rank_name: "四花牛",
+        rank_level: 75,
+        score: 75000 + sorted[0].rank * 10 + sorted[1].rank,
+        multiplier: 4,
+        best_cards: sorted
+      };
+    }
   }
 
   // 4. 普通牛牛与牛一 ~ 牛九算法 (遍历组合 C(5, 3))

@@ -14,7 +14,7 @@ import { adminRouter } from "./admin/index.js";
 import { debugRouter } from "./debug/index.js";
 import { roomRouter } from "./rooms/index.js";
 import { walletRouter } from "./wallet/index.js";
-import { loginHandler, registerHandler } from "./auth/index.js";
+import { loginHandler, registerHandler, forgotPasswordHandler, resetPasswordHandler, changePasswordHandler, updateProfileHandler, authMiddleware } from "./auth/index.js";
 import { statsRouter } from "./stats/index.js";
 import { friendRouter } from "./friends/index.js";
 import { rankRouter } from "./rank/index.js";
@@ -107,6 +107,10 @@ app.use("/api/auth/login", async (c, next) => {
 // 认证登录接口（公开，不需要 token）
 app.post("/api/auth/login", loginHandler);
 app.post("/api/auth/register", registerHandler);
+app.post("/api/auth/forgot-password", forgotPasswordHandler);
+app.post("/api/auth/reset-password", resetPasswordHandler);
+app.post("/api/auth/change-password", authMiddleware(["player", "agent", "admin", "support"]), changePasswordHandler);
+app.put("/api/auth/profile", authMiddleware(["player", "agent", "admin", "support"]), updateProfileHandler);
 
 // 注册微服务路由
 app.route("/api/agent", agentRouter);

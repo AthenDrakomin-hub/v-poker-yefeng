@@ -26,7 +26,13 @@ export class ActionRouter {
     if (action.action_type === "ready") {
       const seat = stateMachine.seatManager.findUserSeat(envelope.user_id);
       if (!seat) return { success: false, error: "Player not seated." };
-      seat.status = "ready";
+      // P0 修复：只在牌局未开始时(WAITING)才覆写状态为 ready。
+      // 否则当 startRound 已 async 进行中（dealCards 已把座位置为 playing），
+      // 迟到的 ready 请求会把 playing 覆写回 ready，导致该玩家被 isPhaseComplete
+      // 判定为弃牌，直接跳到 SHOWDOWN 且不发公共牌。
+      if (stateMachine.getPhase() === "WAITING") {
+        seat.status = "ready";
+      }
       return { success: true };
     }
 

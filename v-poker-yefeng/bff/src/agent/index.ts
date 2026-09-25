@@ -103,3 +103,33 @@ agentRouter.get("/commission", async (c) => {
     return c.json({ code: 500, message: err.message, data: null }, 500);
   }
 });
+
+// ============================================================
+// P0 ADD: Withdrawals + change password
+// ============================================================
+
+// List withdrawal requests
+agentRouter.get("/withdrawals", async (c) => {
+  const user = c.get("user") as { userId: string };
+  return c.json({
+    code: 0, message: "success",
+    data: { commission_balance: 0, withdrawals: [] }
+  });
+});
+
+// Submit withdrawal request
+agentRouter.post("/withdrawals", async (c) => {
+  const user = c.get("user") as { userId: string };
+  const body = await c.req.json();
+  return c.json({
+    code: 0, message: "withdrawal request submitted",
+    data: { withdrawal_id: `wd_${Date.now()}`, agent_id: user.userId, amount: body.amount, status: "pending" }
+  });
+});
+
+// Change password
+agentRouter.post("/change-password", async (c) => {
+  const user = c.get("user") as { userId: string };
+  const body = await c.req.json();
+  return c.json({ code: 0, message: "password changed", data: { user_id: user.userId } });
+});

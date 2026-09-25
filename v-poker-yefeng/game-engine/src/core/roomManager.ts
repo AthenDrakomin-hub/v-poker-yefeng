@@ -18,6 +18,7 @@ import { DoubleKongPlugin } from "../games/double_kong/index.js";
 import { HongWuPlugin } from "../games/hong_wu/index.js";
 import { PineapplePlugin } from "../games/pineapple/index.js";
 import { ShortDeckPlugin } from "../games/short_deck/index.js";
+import { DoudizhuPlugin } from "../games/doudizhu/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
 import { SeatManager } from "./seatManager.js";
 import { GameStateMachine } from "./stateMachine.js";
@@ -43,6 +44,7 @@ export class RoomManager {
     this.registerPlugin(new HongWuPlugin());
     this.registerPlugin(new PineapplePlugin());
     this.registerPlugin(new ShortDeckPlugin());
+    this.registerPlugin(new DoudizhuPlugin());
 
     // 启动时从数据库恢复房间
     this.restoreRoomsFromDB();

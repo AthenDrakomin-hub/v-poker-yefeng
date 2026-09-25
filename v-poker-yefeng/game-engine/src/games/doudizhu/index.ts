@@ -21,8 +21,10 @@ export class DoudizhuPlugin implements GamePlugin {
         deck.push({ suit, rank, code: `${suit}-${rank}` });
       }
     }
-    deck.push({ suit: "S", rank: 15, code: "BJ" });
-    deck.push({ suit: "S", rank: 16, code: "RJ" });
+    // 小王=15, 大王=16 (suit用J表示joker)
+    deck.push({ suit: "S", rank: 15, code: "BJ" }); // 小王
+    deck.push({ suit: "S", rank: 16, code: "RJ" }); // 大王
+    // 洗牌
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -32,6 +34,7 @@ export class DoudizhuPlugin implements GamePlugin {
 
   dealCards(state: PluginRoundState): void {
     const active = state.seats.filter((s) => s.status === "playing" || s.status === "ready");
+    // 每人17张
     for (const seat of active) {
       seat.cards = [];
       seat.status = "playing";
@@ -41,6 +44,7 @@ export class DoudizhuPlugin implements GamePlugin {
       }
       seat.hand_result = this.evaluateHand(seat.cards);
     }
+    // 3张底牌留给地主
     state.community_cards = state.deck.splice(0, 3);
     state.betting_round_count = 1;
   }
@@ -48,92 +52,152 @@ export class DoudizhuPlugin implements GamePlugin {
   handleAction(state: PluginRoundState, action: GameAction): { success: boolean; error?: string } {
     const seat = state.seats.find((s) => s.user_id === action.user_id);
     if (!seat) return { success: false, error: "Seat not found." };
+
+    // 叫分阶段：qiang_zhuang 动作选择地主
     if (action.action_type === "qiang_zhuang") {
+      // 简化：第一个叫分的当地主
       if (state.banker_seat_index === null) {
         state.banker_seat_index = seat.seat_index;
         seat.is_banker = true;
+        // 地主拿底牌
         seat.cards = [...seat.cards, ...state.community_cards];
         seat.hand_result = this.evaluateHand(seat.cards);
       }
       seat.has_acted = true;
       return { success: true };
     }
+
     if (action.action_type === "fold") { seat.status = "folded"; seat.has_acted = true; return { success: true }; }
     if (action.action_type === "check" || action.action_type === "call") { seat.has_acted = true; return { success: true }; }
     return { success: false, error: `Unknown: ${action.action_type}` };
   }
 
+  /** 斗地主牌力评估：火箭+炸弹+大牌+顺子组合 */
   evaluateHand(cards: Card[]): HandEvaluation {
     if (cards.length === 0) return { rank_name: "无牌", rank_level: 0, score: 0, multiplier: 1 };
+
     const byRank = new Map<number, Card[]>();
     for (const c of cards) {
       if (!byRank.has(c.rank)) byRank.set(c.rank, []);
       byRank.get(c.rank)!.push(c);
     }
-    let rockets = 0, bombs = 0, threeKinds = 0, pairs = 0, bigScore = 0;
+
+    let rockets = 0;
+    let bombs = 0;
+    let threeKinds = 0;
+    let pairs = 0;
+    let bigScore = 0;
+
     for (const [rank, group] of byRank) {
-      if (group.length === 4) { bombs++; bigScore += rank * 50; }
-      else if (group.length === 3) { threeKinds++; bigScore += rank * 10; }
-      else if (group.length === 2) { pairs++; bigScore += rank * 2; }
-      if (rank === 16) bigScore += 1000;
-      if (rank === 15) bigScore += 500;
+      if (group.length === 4) {
+        bombs++;
+        bigScore += rank * 50;
+      } else if (group.length === 3) {
+        threeKinds++;
+        bigScore += rank * 10;
+      } else if (group.length === 2) {
+        pairs++;
+        bigScore += rank * 2;
+      }
+      // 大小王
+      if (rank === 16) bigScore += 1000; // 大王
+      if (rank === 15) bigScore += 500;  // 小王
     }
+
+    // 火箭 = 大小王都有
     if (byRank.has(15) && byRank.has(16)) rockets = 1;
+
+    // 顺子检测
     const uniqueRanks = [...byRank.keys()].filter((r) => r <= 13).sort((a, b) => a - b);
     let straights = 0, run = 1;
     for (let i = 1; i < uniqueRanks.length; i++) {
-      if (uniqueRanks[i] === uniqueRanks[i - 1] + 1) { run++; if (run >= 5) straights++; }
-      else run = 1;
+      if (uniqueRanks[i] === uniqueRanks[i - 1] + 1) {
+        run++;
+        if (run >= 5) straights++;
+      } else run = 1;
     }
+
     const score = rockets * 50000 + bombs * 10000 + threeKinds * 500 + pairs * 50 + straights * 200 + bigScore;
     let name = "普通";
     if (rockets > 0) name = "火箭!";
     else if (bombs > 0) name = `${bombs}个炸弹`;
     else if (threeKinds > 0) name = `${threeKinds}个三张`;
-    return { rank_name: name, rank_level: rockets * 100 + bombs * 50 + threeKinds * 10, score, multiplier: 1 + bombs + rockets * 2 };
+
+    return {
+      rank_name: name,
+      rank_level: rockets * 100 + bombs * 50 + threeKinds * 10,
+      score,
+      multiplier: 1 + bombs + rockets * 2,
+    };
   }
 
   compareHands(state: PluginRoundState): CompareResult {
     const alive = state.seats.filter((s) => s.status !== "empty" && s.status !== "folded");
-    const rankings = alive.map((s) => ({ user_id: s.user_id!, seat_index: s.seat_index, evaluation: s.hand_result || this.evaluateHand(s.cards) }));
+    const rankings = alive.map((s) => ({
+      user_id: s.user_id!, seat_index: s.seat_index,
+      evaluation: s.hand_result || this.evaluateHand(s.cards),
+    }));
     rankings.sort((a, b) => b.evaluation.score - a.evaluation.score);
     return { winner_user_ids: rankings.length > 0 ? [rankings[0].user_id] : [], rankings };
   }
 
   calculateNetScores(state: PluginRoundState): PlayerNetResult[] {
+    // 斗地主：地主1人 vs 农民2人
+    // 零和净分：地主赢收2家，农民赢地主赔2家，炸弹/火箭翻倍
     const unit = state.room.base_score;
     const results: PlayerNetResult[] = [];
     const alive = state.seats.filter((s) => s.status !== "empty" && s.status !== "folded");
+
+    // 找地主
     const landlord = alive.find((s) => s.is_banker);
     if (!landlord) {
       const comp = this.compareHands(state);
       const winnerId = comp.winner_user_ids[0];
       for (const s of alive) {
-        results.push({ user_id: s.user_id!, net_amount: s.user_id === winnerId ? unit * (alive.length - 1) : -unit, hand_name: s.hand_result?.rank_name || "?" });
+        results.push({
+          user_id: s.user_id!,
+          net_amount: s.user_id === winnerId ? unit * (alive.length - 1) : -unit,
+          hand_name: s.hand_result?.rank_name || "?",
+        });
       }
       return results;
     }
+
     const farmers = alive.filter((s) => !s.is_banker);
     const landlordEval = landlord.hand_result || this.evaluateHand(landlord.cards);
     const farmersAvgScore = farmers.reduce((sum, f) => sum + (f.hand_result?.score || this.evaluateHand(f.cards).score), 0) / Math.max(1, farmers.length);
+    // 炸弹倍数：地主和农民谁有炸弹/火箭就翻倍
     const maxMult = Math.max(landlordEval.multiplier, ...farmers.map((f) => f.hand_result?.multiplier || 1));
+
     if (landlordEval.score > farmersAvgScore) {
+      // 地主赢：收每家农民 unit*mult
       results.push({ user_id: landlord.user_id!, net_amount: unit * farmers.length * maxMult, hand_name: landlordEval.rank_name });
-      for (const f of farmers) results.push({ user_id: f.user_id!, net_amount: -unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
+      for (const f of farmers) {
+        results.push({ user_id: f.user_id!, net_amount: -unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
+      }
     } else {
+      // 农民赢：地主赔每家农民 unit*mult
       results.push({ user_id: landlord.user_id!, net_amount: -unit * farmers.length * maxMult, hand_name: landlordEval.rank_name });
-      for (const f of farmers) results.push({ user_id: f.user_id!, net_amount: unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
+      for (const f of farmers) {
+        results.push({ user_id: f.user_id!, net_amount: unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
+      }
     }
     return results;
   }
 
   getActionSeats(state: PluginRoundState): Seat[] {
-    if (state.phase === "QIANG_ZHUANG") return state.seats.filter((s) => s.status === "playing" && !s.is_banker).sort((a, b) => a.seat_index - b.seat_index);
+    if (state.phase === "QIANG_ZHUANG") {
+      return state.seats.filter((s) => s.status === "playing" && !s.is_banker).sort((a, b) => a.seat_index - b.seat_index);
+    }
     return state.seats.filter((s) => s.status === "playing").sort((a, b) => a.seat_index - b.seat_index);
   }
 
   isPhaseComplete(state: PluginRoundState): boolean {
-    if (state.phase === "QIANG_ZHUANG") return state.seats.filter((s) => s.status === "playing").every((s) => s.has_acted || s.is_banker);
+    if (state.phase === "QIANG_ZHUANG") {
+      // 所有人都叫分了
+      const alive = state.seats.filter((s) => s.status === "playing");
+      return alive.every((s) => s.has_acted || s.is_banker);
+    }
     const alive = state.seats.filter((s) => s.status === "playing");
     if (alive.length <= 1) return true;
     return alive.every((s) => s.has_acted);

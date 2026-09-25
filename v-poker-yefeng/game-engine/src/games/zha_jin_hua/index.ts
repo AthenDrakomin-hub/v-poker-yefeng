@@ -10,7 +10,7 @@ import { evaluateZhaJinHua, compareZhaJinHua } from "./evaluator.js";
 export class ZhaJinHuaPlugin implements GamePlugin {
   readonly game_type: GameType = "zha_jin_hua";
   readonly name = "炸金花";
-  readonly supported_modes: GameMode[] = ["normal"];
+  readonly supported_modes: GameMode[] = ["compare"];
 
   /** 是否启用 235 反转豹子规则（默认关闭） */
   private enable235Reversal: boolean = false;

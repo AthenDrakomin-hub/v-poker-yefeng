@@ -53,7 +53,7 @@ interface SquidRoundState {
 export class SquidGamePlugin implements GamePlugin {
   readonly game_type: GameType = "squid_game";
   readonly name = "鱿鱼模式";
-  readonly supported_modes: GameMode[] = ["normal"];
+  readonly supported_modes: GameMode[] = ["fixed_limit"];
 
   private squidState: SquidRoundState = {
     glass_bridge_passed: false,

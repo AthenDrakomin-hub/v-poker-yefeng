@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
 import uuid
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 class APIResponse(BaseModel):
     code: int = 0
     message: str = "success"
-    data: Optional[any] = None
+    data: Optional[Any] = None
 
 
 class TicketCreateRequest(BaseModel):

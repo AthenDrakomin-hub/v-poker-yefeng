@@ -186,6 +186,35 @@ export class WalletClient {
     }
   }
 
+  // 3b. 用户间转账（庄闲结算用）：转出方 → 转入方
+  // ----------------------------------------------------------
+
+  public async transferChips(
+    request: {
+      transaction_id: string;
+      from_user_id: string;
+      to_user_id: string;
+      amount: number;
+      remark?: string;
+    },
+    maxRetries = 2
+  ): Promise<WalletApiResponse<any>> {
+    const url = `${this.walletServiceUrl}/api/wallet/transfer`;
+    try {
+      const response = await this.fetchWithRetry(url, request, maxRetries);
+      return (await response.json()) as WalletApiResponse<any>;
+    } catch (err: any) {
+      this.enqueuePending("transfer", request);
+      throw new Error(`Transfer failed and queued for retry: ${err?.message}`);
+    }
+  }
+
+  public generateTransferTxId(roomId: string, from: string, to: string): string {
+    const ts = Date.now();
+    const nonce = Math.random().toString(36).slice(2, 8);
+    return `transfer_${roomId}_${from}_${to}_${ts}_${nonce}`;
+  }
+
   // ----------------------------------------------------------
   // 内部：带重试的 fetch
   // ----------------------------------------------------------

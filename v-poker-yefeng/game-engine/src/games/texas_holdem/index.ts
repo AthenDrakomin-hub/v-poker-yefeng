@@ -15,7 +15,7 @@ export { evaluate7Cards, evaluate5Cards, compareEvaluations, getCombinations };
 export class TexasHoldemPlugin implements GamePlugin {
   readonly game_type: GameType = "texas_holdem";
   readonly name = "德州扑克";
-  readonly supported_modes: GameMode[] = ["fixed"];
+  readonly supported_modes: GameMode[] = ["fixed_limit"];
 
   initDeck(): Card[] {
     const deckManager = new TexasHoldemDeck();

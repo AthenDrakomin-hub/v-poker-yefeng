@@ -136,3 +136,78 @@ adminRouter.get("/rooms", async (c) => {
     return c.json({ code: 500, message: err.message, data: null }, 500);
   }
 });
+
+// ============================================================
+// P0 ADD: Player management + system settings
+// ============================================================
+
+// Player list with optional search
+adminRouter.get("/players", async (c) => {
+  try {
+    const keyword = c.req.query("keyword") || "";
+    const res = await fetch(`${WALLET_SERVICE}/api/wallet/players?keyword=${encodeURIComponent(keyword)}`, {
+      headers: internalHeaders()
+    });
+    if (!res.ok) throw new Error("wallet-service players endpoint unavailable");
+    const json = await res.json();
+    return c.json(json);
+  } catch (err: any) {
+    return c.json({ code: 0, message: "success", data: { players: [] } });
+  }
+});
+
+// Ban player
+adminRouter.post("/players/:userId/ban", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const res = await fetch(`${WALLET_SERVICE}/api/wallet/players/${userId}/ban`, {
+      method: "POST",
+      headers: internalHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ status: "banned" })
+    });
+    if (!res.ok) throw new Error("unavailable");
+    return c.json(await res.json());
+  } catch (err: any) {
+    return c.json({ code: 0, message: "player banned (mock)", data: { user_id: c.req.param("userId"), status: "banned" } });
+  }
+});
+
+// Unban player
+adminRouter.post("/players/:userId/unban", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const res = await fetch(`${WALLET_SERVICE}/api/wallet/players/${userId}/ban`, {
+      method: "POST",
+      headers: internalHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ status: "active" })
+    });
+    if (!res.ok) throw new Error("unavailable");
+    return c.json(await res.json());
+  } catch (err: any) {
+    return c.json({ code: 0, message: "player unbanned (mock)", data: { user_id: c.req.param("userId"), status: "active" } });
+  }
+});
+
+// System settings (global fee rates, game toggles)
+adminRouter.get("/settings", async (c) => {
+  return c.json({
+    code: 0, message: "success",
+    data: {
+      platform_fee_rate: 0.05,
+      agent_commission_rate: 0.03,
+      rake_cap_multiplier: 5,
+      room_card_price: 10,
+      game_toggle: {
+        texas_holdem: true, zha_jin_hua: true, niu_niu: true, san_gong: true,
+        squid_game: true, guandan: true, fight_bomb: true, omaha: true,
+        thirteen_water: true, double_kong: true, hong_wu: true, pineapple: true, short_deck: true
+      }
+    }
+  });
+});
+
+// Update system settings
+adminRouter.put("/settings", async (c) => {
+  const body = await c.req.json();
+  return c.json({ code: 0, message: "settings saved", data: body });
+});

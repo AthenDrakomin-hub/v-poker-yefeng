@@ -36,37 +36,37 @@ export function evaluateSanGong(cards: Card[]): HandEvaluation {
 
   const isAllSameRank = cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
 
-  // 1. 大三公 (KKK, QQQ, JJJ)
+  // 1. 大三公 (KKK, QQQ, JJJ) — 9倍
   if (isAllSameRank && cards[0].rank >= 11) {
     const rankName = cards[0].rank === 13 ? "大三公(暴头K)" : cards[0].rank === 12 ? "大三公(Q)" : "大三公(J)";
     return {
       rank_name: rankName,
       rank_level: 100,
       score: 100000 + cards[0].rank,
-      multiplier: 5,
+      multiplier: 9,
       best_cards: sorted
     };
   }
 
-  // 2. 小三公 (AAA, 999.. 222, 10-10-10)
+  // 2. 小三公 (AAA, 101010, 999.. 222) — 7倍
   if (isAllSameRank) {
     const rVal = cards[0].rank === 1 ? 14 : cards[0].rank;
     return {
       rank_name: `小三公(${cards[0].rank === 1 ? "A" : cards[0].rank})`,
       rank_level: 80,
       score: 80000 + rVal,
-      multiplier: 4,
+      multiplier: 7,
       best_cards: sorted
     };
   }
 
-  // 3. 混三公 (3张全部是公牌 JQK)
+  // 3. 混三公 (3张公牌但不全同，如KQJ、QQJ) — 5倍
   if (faceCardsCount === 3) {
     return {
       rank_name: "混三公",
       rank_level: 60,
       score: 60000 + sorted[0].rank * 10 + sorted[1].rank,
-      multiplier: 3,
+      multiplier: 5,
       best_cards: sorted
     };
   }
