@@ -158,7 +158,8 @@
 	}
 
 	.vpb-pressed {
-		opacity: 0.85;
+		opacity: 0.8;
+		transform: scale(0.95);
 	}
 
 	.vpb-disabled {
