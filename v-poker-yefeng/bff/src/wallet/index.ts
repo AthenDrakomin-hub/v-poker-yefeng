@@ -37,11 +37,13 @@ walletRouter.get("/balance/:user_id", (c) => {
   return forward(c, `/api/wallet/balance/${c.req.param("user_id")}`, "GET");
 });
 
-// 查询流水（limit 1..100 默认 50，offset 默认 0）
-walletRouter.get("/transactions/:user_id", (c) => {
+// 查询流水（兼容路径参数和query参数）
+walletRouter.get("/transactions/:user_id?", (c) => {
+  const userId = c.req.param("user_id") || c.req.query("user_id");
+  if (!userId) return c.json({ code: 400, message: "user_id required" }, 400);
   const limit = c.req.query("limit") || "50";
   const offset = c.req.query("offset") || "0";
-  return forward(c, `/api/wallet/transactions/${c.req.param("user_id")}?limit=${limit}&offset=${offset}`, "GET");
+  return forward(c, `/api/wallet/transactions/${userId}?limit=${limit}&offset=${offset}`, "GET");
 });
 
 // 自由转账：from_user_id 由服务端从 JWT 注入，防止越权

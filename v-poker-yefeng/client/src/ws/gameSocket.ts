@@ -28,13 +28,15 @@ export interface RoomState {
 // 动作类型
 export type ActionType =
   | "fold" | "check" | "call" | "raise" | "all_in"
-  | "ready" | "view_cards" | "compare" | "bet";
+  | "ready" | "view_cards" | "compare" | "bet"
+  | "play" | "pass" | "qiang_zhuang";
 
 export interface GameAction {
   action_type: ActionType;
   user_id: string;
   amount?: number;
   multiplier?: number;
+  cards?: Array<{ suit: string; rank: number; code: string }>;
 }
 
 // WebSocket 消息类型
