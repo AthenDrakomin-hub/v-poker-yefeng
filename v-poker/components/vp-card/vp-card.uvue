@@ -1,9 +1,18 @@
 <template>
 	<view class="vpc" :class="root_class">
-		<!-- 背面：PNG 牌背 -->
-		<image v-if="show_back" class="vpc-img" src="/static/cards/CardBack.png" mode="aspectFit" />
-		<!-- 正面：PNG 牌面 -->
-		<image v-else class="vpc-img" :src="cardImage" mode="aspectFit" />
+		<!-- 背面：CSS矢量图案 -->
+		<view v-if="show_back" class="vpc-back">
+			<view class="vpc-back-pattern" />
+			<view class="vpc-back-border" />
+		</view>
+		<!-- 正面：CSS矢量绘制 -->
+		<view v-else class="vpc-front">
+			<view class="vpc-corner" :class="is_red ? 'vpc-red' : 'vpc-black'">
+				<text class="vpc-rank">{{ rank_label }}</text>
+				<text class="vpc-suit-sm">{{ suit_symbol }}</text>
+			</view>
+			<text class="vpc-suit-lg" :class="is_red ? 'vpc-red' : 'vpc-black'">{{ suit_symbol }}</text>
+		</view>
 	</view>
 </template>
 
@@ -11,9 +20,8 @@
 	import { computed } from 'vue'
 
 	/**
-	 * 扑克牌
+	 * 扑克牌 — CSS矢量绘制，无限清晰无锯齿
 	 * code 格式："{suit}-{rank}"，如 "S-1"、"H-11"；空 code 或 face_down 时显示背面
-	 * 素材映射：S→3(黑桃), H→2(红桃), D→1(方块), C→0(梅花); rank 1(A)→14
 	 */
 	type VpCardProps = {
 		code: string
@@ -27,37 +35,35 @@
 		return props.face_down || props.code.length == 0
 	})
 
-	/** code "S-1" -> "/static/cards/3_14.png" */
-	const cardImage = computed((): string => {
-		if (props.code.length == 0) {
-			return '/static/cards/CardBack.png'
-		}
+	const suit_char = computed((): string => {
 		const parts = props.code.split('-')
-		if (parts.length < 2) {
-			return '/static/cards/CardBack.png'
-		}
-		const suitChar = parts[0]
-		const rankStr = parts[1]
+		return parts.length >= 2 ? parts[0] : 'S'
+	})
 
-		// 花色映射
-		let suitIdx = 0
-		if (suitChar == 'S') {
-			suitIdx = 3
-		} else if (suitChar == 'H') {
-			suitIdx = 2
-		} else if (suitChar == 'D') {
-			suitIdx = 1
-		} else if (suitChar == 'C') {
-			suitIdx = 0
-		}
+	const rank_num = computed((): number => {
+		const parts = props.code.split('-')
+		return parts.length >= 2 ? parseInt(parts[1]) : 1
+	})
 
-		// rank 映射：1(A)→14
-		let rankNum = parseInt(rankStr)
-		if (rankNum == 1) {
-			rankNum = 14
-		}
+	const suit_symbol = computed((): string => {
+		if (suit_char.value == 'S') return '♠'
+		if (suit_char.value == 'H') return '♥'
+		if (suit_char.value == 'D') return '♦'
+		if (suit_char.value == 'C') return '♣'
+		return '♠'
+	})
 
-		return `/static/cards/${suitIdx}_${rankNum}.png`
+	const rank_label = computed((): string => {
+		const r = rank_num.value
+		if (r == 1 || r == 14) return 'A'
+		if (r == 11) return 'J'
+		if (r == 12) return 'Q'
+		if (r == 13) return 'K'
+		return String(r)
+	})
+
+	const is_red = computed((): boolean => {
+		return suit_char.value == 'H' || suit_char.value == 'D'
 	})
 
 	const root_class = computed((): string => {
@@ -68,21 +74,101 @@
 <style lang="scss">
 	.vpc {
 		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.vpc-sm {
-		width: 32px;
-		height: 45px;
+		width: 34px;
+		height: 48px;
 	}
 
 	.vpc-md {
-		width: 44px;
-		height: 62px;
+		width: 48px;
+		height: 68px;
 	}
 
-	.vpc-img {
+	/* 牌背：CSS矢量 */
+	.vpc-back {
 		width: 100%;
 		height: 100%;
-		border-radius: 4px;
+		border-radius: 5px;
+		background-color: #1e3a8a;
+		overflow: hidden;
+		position: relative;
+		border-width: 2px;
+		border-style: solid;
+		border-color: #d4af37;
+	}
+
+	.vpc-back-pattern {
+		position: absolute;
+		width: 200%;
+		height: 200%;
+		background: repeating-linear-gradient(
+			45deg,
+			#1e3a8a 0px,
+			#1e3a8a 4px,
+			#2563eb 4px,
+			#2563eb 8px
+		);
+		opacity: 0.6;
+	}
+
+	.vpc-back-border {
+		position: absolute;
+		left: 3px;
+		top: 3px;
+		right: 3px;
+		bottom: 3px;
+		border-radius: 3px;
+		border-width: 1px;
+		border-style: solid;
+		border-color: rgba(212, 175, 55, 0.5);
+	}
+
+	/* 牌面：CSS矢量 */
+	.vpc-front {
+		width: 100%;
+		height: 100%;
+		background-color: #ffffff;
+		border-radius: 5px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+	}
+
+	.vpc-corner {
+		position: absolute;
+		left: 3px;
+		top: 2px;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.vpc-rank {
+		font-size: 11px;
+		font-weight: bold;
+		line-height: 11px;
+	}
+
+	.vpc-suit-sm {
+		font-size: 10px;
+		line-height: 10px;
+		margin-top: 1px;
+	}
+
+	.vpc-suit-lg {
+		font-size: 22px;
+	}
+
+	.vpc-red {
+		color: #d42b2b;
+	}
+
+	.vpc-black {
+		color: #1a1a1a;
 	}
 </style>

@@ -54,10 +54,10 @@
 	 * 注意：uni-app x 样式不继承，文字样式必须直接作用于 <text>
 	 * ============================================================ */
 
-	/* 页面根容器 */
+	/* 页面根容器 — 简洁深色，不干扰核心内容 */
 	.vp-page {
 		flex-direction: column;
-		background: radial-gradient(ellipse at 50% 0%, #1a2535 0%, #0f172a 50%, #0a0e14 100%);
+		background-color: #0d1117;
 	}
 
 	.vp-row {
