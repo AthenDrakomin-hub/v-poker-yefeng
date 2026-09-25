@@ -116,11 +116,19 @@
 	}
 
 	.vpb-red {
-		background-color: $vp-danger;
+		background: linear-gradient(180deg, #f06060 0%, #d94444 50%, #b03030 100%);
+		border-width: 1px;
+		border-style: solid;
+		border-color: #ff8080;
+		box-shadow: 0 2px 8px rgba(217, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 	}
 
 	.vpb-green {
-		background-color: $vp-success;
+		background: linear-gradient(180deg, #4cd97b 0%, #2dbb5e 50%, #1e9945 100%);
+		border-width: 1px;
+		border-style: solid;
+		border-color: #6de89a;
+		box-shadow: 0 2px 8px rgba(45, 187, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 	}
 
 	.vpb-purple {
