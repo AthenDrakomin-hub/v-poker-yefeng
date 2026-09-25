@@ -23,7 +23,7 @@ import { DoudizhuPlugin } from "../games/doudizhu/index.js";
 import { GameMode, GameRoom, GameType } from "../shared/types.js";
 import { SeatManager } from "./seatManager.js";
 import { GameStateMachine } from "./stateMachine.js";
-import pool, { getRoomPlayers, clearRoomPlayers } from "./db.js";
+import { getRoomPlayers, clearRoomPlayers } from "./db.js";
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
@@ -155,57 +155,12 @@ export class RoomManager {
 
   /**
    * 从数据库恢复所有进行中的房间（服务器重启后调用）
+   * TODO: SQLite rooms表持久化后启用
    */
   private async restoreRoomsFromDB(): Promise<void> {
-    try {
-      // 查询所有 playing 状态的房间
-      const result = await pool.query(
-        `SELECT * FROM rooms WHERE status IN ('waiting', 'playing')`
-      );
-
-      for (const row of result.rows) {
-        const roomId = row.room_id;
-
-        // 检查是否已经在内存中
-        if (this.rooms.has(roomId)) continue;
-
-        // 创建房间对象
-        const room: GameRoom = {
-          room_id: roomId,
-          game_type: row.game_type,
-          mode: row.mode,
-          base_score: row.base_score,
-          max_seats: row.max_players,
-          min_players_to_start: row.min_players,
-          platform_fee_rate: parseFloat(row.platform_fee_rate),
-          agent_commission_rate: parseFloat(row.agent_commission_rate),
-          agent_ids: [], // 从其他地方恢复
-          status: row.status,
-          current_round_id: null,
-          created_at: Number(row.created_at),
-          updated_at: Number(row.updated_at)
-        };
-
-        const plugin = this.getPlugin(room.game_type);
-        if (!plugin) continue;
-
-        const seatManager = new SeatManager(room.max_seats, room.room_id);
-        const stateMachine = new GameStateMachine(room, plugin, seatManager);
-
-        this.rooms.set(room.room_id, room);
-        this.stateMachines.set(room.room_id, stateMachine);
-        this.seatManagers.set(room.room_id, seatManager);
-
-        // 恢复玩家
-        await seatManager.restoreFromDB();
-
-        console.log(`[RoomManager] Restored room ${roomId} (${room.game_type})`);
-      }
-
-      console.log(`[RoomManager] Restored ${this.rooms.size} rooms from DB`);
-    } catch (error) {
-      console.error("[RoomManager] restoreRoomsFromDB error:", error);
-    }
+    // SQLite模式下房间状态暂存内存，重启后房间不恢复
+    // room_players 表仍可用于玩家记录查询
+    console.log("[RoomManager] SQLite mode: in-memory rooms, restore skipped");
   }
 
   /**

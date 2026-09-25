@@ -1,21 +1,49 @@
 /**
- * PostgreSQL 数据库客户端
- * 用于 room_players 表持久化
+ * SQLite 数据库客户端（替代 PostgreSQL，开箱即用）
+ * 用于 room_players / game_records / game_replays 持久化
+ * 使用 Node 22 内置 node:sqlite，零依赖
  */
 
-import { Pool } from "pg";
+import { DatabaseSync } from "node:sqlite";
+import path from "node:path";
 
-// 从环境变量读取数据库连接
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poker_admin:PokerDB2024@localhost:5432/poker_platform",
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+const DB_PATH = process.env.ENGINE_DB_PATH || path.join(process.cwd(), "engine.db");
+const db = new DatabaseSync(DB_PATH);
 
-/**
- * 玩家在房间中的状态
- */
+// 建表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS room_players (
+    room_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    seat_no INTEGER NOT NULL,
+    is_ready INTEGER DEFAULT 0,
+    joined_at INTEGER NOT NULL,
+    left_at INTEGER,
+    status TEXT DEFAULT 'sitting',
+    PRIMARY KEY (room_id, user_id)
+  );
+  CREATE TABLE IF NOT EXISTS game_records (
+    transaction_id TEXT PRIMARY KEY,
+    room_id TEXT NOT NULL,
+    round_no INTEGER NOT NULL,
+    total_flow INTEGER NOT NULL,
+    player_count INTEGER NOT NULL,
+    settlement_status TEXT DEFAULT 'settled',
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS game_replays (
+    replay_id TEXT PRIMARY KEY,
+    room_id TEXT NOT NULL,
+    game_type TEXT NOT NULL,
+    round_no INTEGER NOT NULL,
+    players TEXT,
+    actions TEXT,
+    result TEXT,
+    duration_sec INTEGER,
+    created_at INTEGER NOT NULL
+  );
+`);
+
 export interface RoomPlayer {
   room_id: string;
   user_id: string;
@@ -26,185 +54,80 @@ export interface RoomPlayer {
   status: "sitting" | "left" | "kicked";
 }
 
-/**
- * 加入房间 - 写入 room_players 表
- */
-export async function joinRoom(
-  roomId: string,
-  userId: string,
-  seatNo: number
-): Promise<boolean> {
+export async function joinRoom(roomId: string, userId: string, seatNo: number): Promise<boolean> {
   try {
-    await pool.query(
-      `INSERT INTO room_players (room_id, user_id, seat_no, is_ready, joined_at, left_at, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (room_id, user_id) 
-       DO UPDATE SET status = 'sitting', seat_no = $3, left_at = NULL`,
-      [roomId, userId, seatNo, false, Date.now(), null, "sitting"]
-    );
+    db.prepare(`INSERT INTO room_players (room_id, user_id, seat_no, is_ready, joined_at, left_at, status)
+      VALUES (?, ?, ?, 0, ?, NULL, 'sitting')
+      ON CONFLICT(room_id, user_id) DO UPDATE SET status='sitting', seat_no=excluded.seat_no, left_at=NULL`)
+      .run(roomId, userId, seatNo, Date.now());
     return true;
-  } catch (error) {
-    console.error("[DB] joinRoom error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] joinRoom:", e); return false; }
 }
 
-/**
- * 离开房间 - 更新状态为 left
- */
-export async function leaveRoom(
-  roomId: string,
-  userId: string
-): Promise<boolean> {
+export async function leaveRoom(roomId: string, userId: string): Promise<boolean> {
   try {
-    await pool.query(
-      `UPDATE room_players 
-       SET status = 'left', left_at = $1 
-       WHERE room_id = $2 AND user_id = $3`,
-      [Date.now(), roomId, userId]
-    );
+    db.prepare(`UPDATE room_players SET status='left', left_at=? WHERE room_id=? AND user_id=?`)
+      .run(Date.now(), roomId, userId);
     return true;
-  } catch (error) {
-    console.error("[DB] leaveRoom error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] leaveRoom:", e); return false; }
 }
 
-/**
- * 更新准备状态
- */
-export async function updateReady(
-  roomId: string,
-  userId: string,
-  isReady: boolean
-): Promise<boolean> {
+export async function updateReady(roomId: string, userId: string, isReady: boolean): Promise<boolean> {
   try {
-    await pool.query(
-      `UPDATE room_players 
-       SET is_ready = $1 
-       WHERE room_id = $2 AND user_id = $3`,
-      [isReady, roomId, userId]
-    );
+    db.prepare(`UPDATE room_players SET is_ready=? WHERE room_id=? AND user_id=?`)
+      .run(isReady ? 1 : 0, roomId, userId);
     return true;
-  } catch (error) {
-    console.error("[DB] updateReady error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] updateReady:", e); return false; }
 }
 
-/**
- * 查询房间所有在席玩家
- */
 export async function getRoomPlayers(roomId: string): Promise<RoomPlayer[]> {
   try {
-    const result = await pool.query(
-      `SELECT * FROM room_players 
-       WHERE room_id = $1 AND status = 'sitting'
-       ORDER BY seat_no`,
-      [roomId]
-    );
-    return result.rows;
-  } catch (error) {
-    console.error("[DB] getRoomPlayers error:", error);
-    return [];
-  }
+    const rows = db.prepare(`SELECT * FROM room_players WHERE room_id=? AND status='sitting' ORDER BY seat_no`)
+      .all(roomId) as any[];
+    return rows.map(r => ({ ...r, is_ready: !!r.is_ready }));
+  } catch (e) { console.error("[DB] getRoomPlayers:", e); return []; }
 }
 
-/**
- * 查询单个玩家在房间的状态
- */
-export async function getPlayerInRoom(
-  roomId: string,
-  userId: string
-): Promise<RoomPlayer | null> {
+export async function getPlayerInRoom(roomId: string, userId: string): Promise<RoomPlayer | null> {
   try {
-    const result = await pool.query(
-      `SELECT * FROM room_players 
-       WHERE room_id = $1 AND user_id = $2`,
-      [roomId, userId]
-    );
-    return result.rows[0] || null;
-  } catch (error) {
-    console.error("[DB] getPlayerInRoom error:", error);
-    return null;
-  }
+    const row = db.prepare(`SELECT * FROM room_players WHERE room_id=? AND user_id=?`)
+      .get(roomId, userId) as any;
+    if (!row) return null;
+    return { ...row, is_ready: !!row.is_ready };
+  } catch (e) { return null; }
 }
 
-/**
- * 清理房间所有玩家（房间解散时调用）
- */
 export async function clearRoomPlayers(roomId: string): Promise<boolean> {
   try {
-    await pool.query(
-      `DELETE FROM room_players WHERE room_id = $1`,
-      [roomId]
-    );
+    db.prepare(`DELETE FROM room_players WHERE room_id=?`).run(roomId);
     return true;
-  } catch (error) {
-    console.error("[DB] clearRoomPlayers error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] clearRoomPlayers:", e); return false; }
 }
 
-/**
- * 保存游戏记录（game_records 表）
- */
 export async function saveGameRecord(params: {
-  transaction_id: string;
-  room_id: string;
-  round_no: number;
-  total_flow: number;
-  player_count: number;
+  transaction_id: string; room_id: string; round_no: number;
+  total_flow: number; player_count: number;
 }): Promise<boolean> {
   try {
-    await pool.query(
-      `INSERT INTO game_records (transaction_id, room_id, round_no, total_flow, player_count, settlement_status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'settled', $6)
-       ON CONFLICT (transaction_id) DO NOTHING`,
-      [params.transaction_id, params.room_id, params.round_no, params.total_flow, params.player_count, Date.now()]
-    );
+    db.prepare(`INSERT OR IGNORE INTO game_records (transaction_id, room_id, round_no, total_flow, player_count, settlement_status, created_at)
+      VALUES (?, ?, ?, ?, ?, 'settled', ?)`)
+      .run(params.transaction_id, params.room_id, params.round_no, params.total_flow, params.player_count, Date.now());
     return true;
-  } catch (error) {
-    console.error("[DB] saveGameRecord error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] saveGameRecord:", e); return false; }
 }
 
-/**
- * 保存牌谱回放（game_replays 表）
- */
 export async function saveGameReplay(params: {
-  replay_id: string;
-  room_id: string;
-  game_type: string;
-  round_no: number;
-  players: any;
-  actions: any;
-  result: any;
-  duration_sec: number;
+  replay_id: string; room_id: string; game_type: string; round_no: number;
+  players: any; actions: any; result: any; duration_sec: number;
 }): Promise<boolean> {
   try {
-    await pool.query(
-      `INSERT INTO game_replays (replay_id, room_id, game_type, round_no, players, actions, result, duration_sec, created_at)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)
-       ON CONFLICT (replay_id) DO NOTHING`,
-      [
-        params.replay_id,
-        params.room_id,
-        params.game_type,
-        params.round_no,
-        JSON.stringify(params.players),
-        JSON.stringify(params.actions),
-        JSON.stringify(params.result),
-        params.duration_sec,
-        Date.now(),
-      ]
-    );
+    db.prepare(`INSERT OR IGNORE INTO game_replays (replay_id, room_id, game_type, round_no, players, actions, result, duration_sec, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(params.replay_id, params.room_id, params.game_type, params.round_no,
+        JSON.stringify(params.players), JSON.stringify(params.actions), JSON.stringify(params.result),
+        params.duration_sec, Date.now());
     return true;
-  } catch (error) {
-    console.error("[DB] saveGameReplay error:", error);
-    return false;
-  }
+  } catch (e) { console.error("[DB] saveGameReplay:", e); return false; }
 }
 
-export default pool;
+export default db;

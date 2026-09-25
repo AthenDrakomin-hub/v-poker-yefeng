@@ -227,7 +227,7 @@ export class GameStateMachine {
     }
   }
 
-  public handleAction(action: GameAction): { success: boolean; error?: string } {
+  public async handleAction(action: GameAction): Promise<{ success: boolean; error?: string }> {
     // 结算阶段不接受玩家动作，防止跳过结算直接到 FINISHED
     if (this.roundState.phase === "SETTLING" || this.roundState.phase === "SHOWDOWN") {
       return { success: false, error: "Round is settling, no more actions." };
@@ -240,18 +240,21 @@ export class GameStateMachine {
 
     if (!result.success) return result;
 
-    // 玩家正常动作后取消倒计�?
+    // 玩家正常动作后取消倒计时
     this.turnTimer.cancel();
 
-    // 如果是下注类动作，计算增量并调用 wallet-service/bet
+    // 如果是下注类动作，计算增量并调用 wallet-service/bet（同步等待，防止资金不平）
     const betActions = ["bet", "call", "raise", "all_in"];
     if (betActions.includes(action.action_type) && seat) {
       const newCurrentBet = seat.current_bet;
       const delta = newCurrentBet - oldCurrentBet;
       if (delta > 0) {
-        this.recordPlayerBet(action.user_id, delta).catch((err) => {
-          console.error(`[Bet Async Failed]`, err);
-        });
+        const ok = await this.recordPlayerBet(action.user_id, delta);
+        if (!ok) {
+          // 扣款失败：回滚座位置，拒绝该动作
+          seat.current_bet = oldCurrentBet;
+          return { success: false, error: "Wallet bet failed: insufficient balance" };
+        }
       }
     }
 
@@ -358,7 +361,7 @@ export class GameStateMachine {
   /**
    * 回合超时动作：能 check 就 check，否则 fold
    */
-  private handleTimeoutAction(seatIndex: number, userId: string): void {
+  private async handleTimeoutAction(seatIndex: number, userId: string): Promise<void> {
     const seat = this.seatManager.getSeat(seatIndex);
     if (!seat || !seat.user_id || (seat.status !== "playing" && seat.status !== "all_in")) {
       return;
@@ -369,10 +372,10 @@ export class GameStateMachine {
 
     if (seat.current_bet >= this.roundState.current_highest_bet) {
       // 可以过牌
-      this.handleAction({ user_id: userId, action_type: "check" });
+      await this.handleAction({ user_id: userId, action_type: "check" });
     } else {
-      // 不能过牌，自动弃�?
-      this.handleAction({ user_id: userId, action_type: "fold" });
+      // 不能过牌，自动弃牌
+      await this.handleAction({ user_id: userId, action_type: "fold" });
     }
   }
 

@@ -373,7 +373,7 @@ app.post("/api/engine/room/:id/action", async (c) => {
   const body = await c.req.json();
   const { user_id, action } = body;
 
-  const result = coreActionRouter.routeAction({ room_id: roomId, user_id, action });
+  const result = await coreActionRouter.routeAction({ room_id: roomId, user_id, action });
   if (!result.success) {
     return c.json({ code: 400, message: result.error }, 400);
   }
@@ -504,7 +504,7 @@ if (process.env.NODE_ENV !== "test") {
       clientInfo.lastPing = Date.now();
     });
 
-    ws.on("message", (raw: Buffer) => {
+    ws.on("message", async (raw: Buffer) => {
       try {
         const msg = JSON.parse(raw.toString());
         clientInfo.lastPing = Date.now();
@@ -592,7 +592,7 @@ if (process.env.NODE_ENV !== "test") {
             return;
           }
 
-          const result = coreActionRouter.routeAction({ room_id: roomId, user_id, action });
+          const result = await coreActionRouter.routeAction({ room_id: roomId, user_id, action });
 
           // ready 后若满足开局条件则自动开局（此前无任何开局入口，牌局永远停在 WAITING）
           if (result.success && action?.action_type === "ready") {

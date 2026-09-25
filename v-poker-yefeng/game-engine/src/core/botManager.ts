@@ -122,7 +122,7 @@ export class BotManager {
    *  - 有下注要 call：投入低于总筹码 10% 就 call，否则 fold
    *  - 偶尔 raise（15% 概率）
    */
-  private executeBotAction(seatIndex: number, userId: string): void {
+  private async executeBotAction(seatIndex: number, userId: string): Promise<void> {
     const seat = this.stateMachine.seatManager.getSeat(seatIndex);
     if (!seat || seat.user_id !== userId) return;
 
@@ -197,7 +197,7 @@ export class BotManager {
     );
 
     // 通过状态机执行动作
-    this.stateMachine.handleAction({
+    await this.stateMachine.handleAction({
       user_id: userId,
       action_type: action,
       amount,

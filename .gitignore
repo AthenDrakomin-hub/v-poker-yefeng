@@ -26,3 +26,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 v-poker/static/audio/_backup/
+*.db
+engine.log
+wallet.log
