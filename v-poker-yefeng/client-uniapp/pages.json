@@ -1,0 +1,26 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": { "navigationBarTitleText": "登录", "disableScroll": true }
+    },
+    {
+      "path": "pages/lobby/lobby",
+      "style": { "navigationBarTitleText": "游戏大厅", "disableScroll": true }
+    },
+    {
+      "path": "pages/table/table",
+      "style": { "navigationBarTitleText": "牌桌", "disableScroll": true }
+    },
+    {
+      "path": "pages/wallet/wallet",
+      "style": { "navigationBarTitleText": "钱包" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#1a3a2a",
+    "backgroundColor": "#0d1f15",
+    "backgroundTextStyle": "light"
+  }
+}

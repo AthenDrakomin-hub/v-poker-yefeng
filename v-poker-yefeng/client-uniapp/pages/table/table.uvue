@@ -1,0 +1,258 @@
+<template>
+  <view class="container" flatten="true">
+    <!-- 顶部栏 -->
+    <view class="top-bar">
+      <text class="back" @tap="goBack">← 返回</text>
+      <text class="phase">阶段: {{ phase }}</text>
+      <text class="pot">底池: {{ pot }}</text>
+    </view>
+
+    <!-- 牌桌 -->
+    <view class="table">
+      <!-- 公共牌 -->
+      <view class="community-row">
+        <text v-for="(c, i) in communityCards" :key="i" class="community-card">{{ c }}</text>
+      </view>
+
+      <!-- 其他玩家座位 -->
+      <view class="opponents">
+        <view v-for="(seat, i) in otherSeats" :key="i" class="opp-seat">
+          <text class="opp-name">{{ seat.user_id || "空" }}</text>
+          <text class="opp-chips">💰{{ seat.chips || 0 }}</text>
+          <text v-if="seat.current_bet > 0" class="opp-bet">下注 {{ seat.current_bet }}</text>
+        </view>
+      </view>
+
+      <!-- 我的手牌 -->
+      <view class="my-hand">
+        <text
+          v-for="(card, i) in myCards"
+          :key="i"
+          class="my-card"
+          :class="{ selected: selectedCards.has(i) }"
+          @tap="toggleCard(i)"
+        >{{ card }}</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="actions">
+      <block v-if="isTrickGame">
+        <button class="vp-btn vp-btn-ghost" @tap="handlePass">不出</button>
+        <button class="vp-btn vp-btn-primary" @tap="handlePlay" :disabled="selectedCards.size === 0">
+          出牌({{ selectedCards.size }})
+        </button>
+      </block>
+      <block v-else>
+        <button class="vp-btn vp-btn-danger" @tap="send('fold')">弃牌</button>
+        <button class="vp-btn vp-btn-ghost" @tap="send('check')">过牌</button>
+        <button class="vp-btn vp-btn-ghost" @tap="send('call')">跟注</button>
+        <button class="vp-btn vp-btn-primary" @tap="send('raise')">加注</button>
+        <button class="vp-btn vp-btn-danger" @tap="send('all_in')">全下</button>
+      </block>
+    </view>
+  </view>
+</template>
+
+<script setup lang="uts">
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
+import { engineApi } from "../../common/api.uts";
+import { gameWS } from "../../common/ws.uts";
+
+const roomId = ref("");
+const gameType = ref("");
+const userId = uni.getStorageSync("userId") as string || "";
+
+const phase = ref("WAITING");
+const pot = ref(0);
+const communityCards = ref<string[]>([]);
+const myCards = ref<string[]>([]);
+const otherSeats = ref<any[]>([]);
+const selectedCards = ref(new Set<number>());
+
+const trickGames = ["doudizhu", "guandan", "double_kong", "hong_wu"];
+const isTrickGame = computed(() => trickGames.indexOf(gameType.value) >= 0);
+
+onLoad((options: any) => {
+  roomId.value = options.roomId || "";
+  gameType.value = options.gameType || "texas_holdem";
+});
+
+onMounted(async () => {
+  await loadRoomState();
+  gameWS.connect(
+    roomId.value,
+    userId,
+    onStateUpdate,
+    onNotification
+  );
+});
+
+onUnmounted(() => {
+  gameWS.disconnect();
+});
+
+async function loadRoomState() {
+  try {
+    const res = await engineApi.getRoom(roomId.value);
+    if (res.code === 0) {
+      onStateUpdate(res.data);
+    }
+  } catch (e) {
+    console.error("加载房间失败", e);
+  }
+}
+
+function onStateUpdate(state: any) {
+  phase.value = state.round_state?.phase || "WAITING";
+  pot.value = state.round_state?.total_pot || 0;
+  communityCards.value = (state.round_state?.community_cards || []).map((c: any) =>
+    typeof c === "string" ? c : c.code
+  );
+  const mySeat = (state.seats || []).find((s: any) => s.user_id === userId);
+  myCards.value = (mySeat?.cards || []).map((c: any) =>
+    typeof c === "string" ? c : c.code
+  );
+  otherSeats.value = (state.seats || []).filter((s: any) => s.user_id !== userId);
+}
+
+function onNotification(msg: any) {
+  console.log("通知", msg);
+}
+
+function toggleCard(index: number) {
+  if (!isTrickGame.value) return;
+  const next = new Set(selectedCards.value);
+  if (next.has(index)) next.delete(index);
+  else next.add(index);
+  selectedCards.value = next;
+}
+
+function send(actionType: string) {
+  gameWS.sendAction(actionType);
+  uni.showToast({ title: actionType, icon: "none" });
+}
+
+function handlePlay() {
+  const cards = Array.from(selectedCards.value).map((i) => myCards.value[i]);
+  gameWS.sendAction("play", 0, cards.map((code) => ({ code })));
+  selectedCards.value = new Set();
+}
+
+function handlePass() {
+  gameWS.sendAction("pass");
+}
+
+function goBack() {
+  uni.navigateBack();
+}
+</script>
+
+<style>
+.container {
+  flex: 1;
+  background-color: #0d1f15;
+}
+.top-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 30rpx;
+  background-color: #1a3a2a;
+}
+.back {
+  color: #c9a84c;
+  font-size: 28rpx;
+}
+.phase {
+  color: #ffffff;
+  font-size: 24rpx;
+}
+.pot {
+  color: #c9a84c;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+.table {
+  flex: 1;
+  margin: 20rpx;
+  background: linear-gradient(180deg, #2d5a3d 0%, #1a3a2a 100%);
+  border-radius: 40rpx;
+  border-width: 4rpx;
+  border-color: #c9a84c;
+  padding: 30rpx;
+}
+.community-row {
+  flex-direction: row;
+  justify-content: center;
+  gap: 12rpx;
+  margin-bottom: 30rpx;
+}
+.community-card {
+  width: 80rpx;
+  height: 110rpx;
+  background-color: #ffffff;
+  border-radius: 8rpx;
+  text-align: center;
+  line-height: 110rpx;
+  color: #333333;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+.opponents {
+  flex-direction: row;
+  justify-content: center;
+  gap: 30rpx;
+  margin-bottom: 30rpx;
+}
+.opp-seat {
+  background-color: rgba(0,0,0,0.4);
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  align-items: center;
+}
+.opp-name {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+.opp-chips {
+  color: #c9a84c;
+  font-size: 22rpx;
+  margin-top: 4rpx;
+}
+.opp-bet {
+  color: #ffff99;
+  font-size: 20rpx;
+}
+.my-hand {
+  flex-direction: row;
+  justify-content: center;
+  gap: 8rpx;
+  flex-wrap: wrap;
+}
+.my-card {
+  width: 80rpx;
+  height: 110rpx;
+  background-color: #ffffff;
+  border-radius: 8rpx;
+  text-align: center;
+  line-height: 110rpx;
+  color: #333333;
+  font-size: 22rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+.my-card.selected {
+  background-color: #c9a84c;
+  color: #000000;
+}
+.actions {
+  flex-direction: row;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+</style>

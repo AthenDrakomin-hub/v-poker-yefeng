@@ -1,0 +1,43 @@
+{
+  "name": "V-POKER",
+  "appid": "__UNI__VPOKER",
+  "description": "V-POKER 棋牌游戏平台",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "waiting": true,
+      "autoclose": true,
+      "delay": 0
+    },
+    "modules": {},
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>"
+        ],
+        "minSdkVersion": "24",
+        "targetSdkVersion": "34"
+      },
+      "ios": {
+        "idfa": false
+      },
+      "sdkConfigs": {}
+    }
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false },
+    "usingComponents": true
+  },
+  "vueVersion": "3",
+  "uni-app-x": {
+    "vapor": true,
+    "minUniVersion": "5.0"
+  }
+}
