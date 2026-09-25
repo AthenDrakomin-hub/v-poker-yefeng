@@ -21,12 +21,25 @@ roomRouter.use("*", authMiddleware(["player", "agent", "admin"]));
  * wallet 侧 mode（cash 等）→ game-engine 插件支持的 mode
  * 插件 supported_modes：texas=[fixed]、zjh=[normal]、niu_niu/san_gong=[qiang_zhuang|tong_bi]
  */
+/**
+ * BFF业务mode → 引擎GameMode（新6种语义名）
+ * 旧名兼容映射：fixed→fixed_limit, normal→compare,
+ * qiang_zhuang→banker, tong_bi→free_compare
+ */
 function engineModeOf(gameType: string, mode: string): string {
-  if (gameType === "texas_holdem") return "fixed";
-  if (gameType === "zha_jin_hua") return "normal";
-  if (gameType === "niu_niu" || gameType === "san_gong") {
-    return mode === "tong_bi" ? "tong_bi" : "qiang_zhuang";
+  // 已是新名直接返回
+  if (["fixed_limit","banker","free_compare","compare","split_hand","trick_taking"].includes(mode)) {
+    return mode;
   }
+  // 旧名兼容
+  if (mode === "fixed" || gameType === "texas_holdem" || gameType === "omaha" || gameType === "short_deck") return "fixed_limit";
+  if (mode === "normal" || gameType === "zha_jin_hua" || gameType === "fight_bomb") return "compare";
+  if (mode === "tong_bi") return "free_compare";
+  if (mode === "qiang_zhuang") return "banker";
+  // 按游戏类型默认
+  if (gameType === "niu_niu" || gameType === "san_gong") return "banker";
+  if (gameType === "thirteen_water" || gameType === "pineapple") return "split_hand";
+  if (gameType === "doudizhu" || gameType === "guandan" || gameType === "double_kong" || gameType === "hong_wu") return "trick_taking";
   return mode;
 }
 
