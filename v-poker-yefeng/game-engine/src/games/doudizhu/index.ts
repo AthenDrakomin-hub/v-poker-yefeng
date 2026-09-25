@@ -1,9 +1,9 @@
 /**
  * 斗地主 (Dou Di Zhu)
  * 3人游戏：1地主2农民，54张牌(含大小王)
- * 牌型：火箭(双王)>炸弹(4同点)>单张>对子>三张>三带一>三带二>顺子>连对>飞机
- * 牌点：大王>小王>2>A>K>...>3
- * 流程：发牌→叫分(抢地主)→地主得3底牌→比牌力定胜负
+ * 流程：发牌→叫分(抢地主)→地主得3底牌→轮流出牌→先出完者胜
+ * 牌型：火箭(双王)>炸弹(4同点)>单张>对子>三张>三带一>三带二>顺子≥5
+ * 倍数：每出一次炸弹/火箭翻倍
  */
 import { Card, GameAction, GameMode, GameType, PlayerNetResult, RoundPhase, Suit } from "../../shared/types.js";
 import { ActionValidation, CompareResult, GamePlugin, HandEvaluation, PluginMeta, PluginRoundState, Seat } from "../plugin.interface.js";
@@ -29,10 +29,8 @@ export class DoudizhuPlugin implements GamePlugin {
         deck.push({ suit, rank, code: `${suit}-${rank}` });
       }
     }
-    // 小王=15, 大王=16 (suit用J表示joker)
     deck.push({ suit: "S", rank: 15, code: "BJ" }); // 小王
     deck.push({ suit: "S", rank: 16, code: "RJ" }); // 大王
-    // 洗牌
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -42,7 +40,6 @@ export class DoudizhuPlugin implements GamePlugin {
 
   dealCards(state: PluginRoundState): void {
     const active = state.seats.filter((s) => s.status === "playing" || s.status === "ready");
-    // 每人17张
     for (const seat of active) {
       seat.cards = [];
       seat.status = "playing";
@@ -52,163 +49,158 @@ export class DoudizhuPlugin implements GamePlugin {
       }
       seat.hand_result = this.evaluateHand(seat.cards);
     }
-    // 3张底牌留给地主
     state.community_cards = state.deck.splice(0, 3);
     state.betting_round_count = 1;
+    // 存储当前出牌数据
+    (state as any).lastPlayed = null; // { seat_index, cards: Card[] }
+    (state as any).bombCount = 0;
   }
 
   handleAction(state: PluginRoundState, action: GameAction): { success: boolean; error?: string } {
     const seat = state.seats.find((s) => s.user_id === action.user_id);
     if (!seat) return { success: false, error: "Seat not found." };
 
-    // 叫分阶段：qiang_zhuang 动作选择地主
-    if (action.action_type === "qiang_zhuang") {
-      // 简化：第一个叫分的当地主
-      if (state.banker_seat_index === null) {
-        state.banker_seat_index = seat.seat_index;
-        seat.is_banker = true;
-        // 地主拿底牌
-        seat.cards = [...seat.cards, ...state.community_cards];
-        seat.hand_result = this.evaluateHand(seat.cards);
+    // 叫分阶段
+    if (state.phase === "QIANG_ZHUANG") {
+      if (action.action_type === "qiang_zhuang") {
+        if (state.banker_seat_index === null) {
+          state.banker_seat_index = seat.seat_index;
+          seat.is_banker = true;
+          seat.cards = [...seat.cards, ...state.community_cards];
+        }
+        seat.has_acted = true;
+        return { success: true };
       }
-      seat.has_acted = true;
-      return { success: true };
+      if (action.action_type === "fold" || action.action_type === "pass") {
+        seat.has_acted = true;
+        return { success: true };
+      }
     }
 
-    if (action.action_type === "fold") { seat.status = "folded"; seat.has_acted = true; return { success: true }; }
-    if (action.action_type === "check" || action.action_type === "call") { seat.has_acted = true; return { success: true }; }
-    return { success: false, error: `Unknown: ${action.action_type}` };
+    // 出牌阶段
+    if (state.phase === "BETTING") {
+      // pass：不出牌
+      if (action.action_type === "pass") {
+        seat.has_acted = true;
+        return { success: true };
+      }
+      // play：出牌，cards在action里
+      if (action.action_type === "play" || action.action_type === "bet") {
+        const playedCards = (action as any).cards as Card[] || [];
+        if (playedCards.length === 0) return { success: false, error: "No cards played" };
+        // 校验牌都在玩家手里
+        for (const c of playedCards) {
+          const idx = seat.cards.findIndex((sc) => sc.code === c.code);
+          if (idx === -1) return { success: false, error: `Card ${c.code} not in hand` };
+          seat.cards.splice(idx, 1);
+        }
+        // 记录
+        (state as any).lastPlayed = { seat_index: seat.seat_index, cards: playedCards };
+        // 炸弹计数
+        if (this.isBomb(playedCards)) {
+          (state as any).bombCount = ((state as any).bombCount || 0) + 1;
+        }
+        seat.has_acted = true;
+        // 出完了？
+        if (seat.cards.length === 0) {
+          (state as any).winnerSeat = seat.seat_index;
+        }
+        return { success: true };
+      }
+    }
+
+    return { success: false, error: `Unknown action: ${action.action_type}` };
   }
 
-  /** 斗地主牌力评估：火箭+炸弹+大牌+顺子组合 */
+  private isBomb(cards: Card[]): boolean {
+    if (cards.length === 4 && cards.every((c) => c.rank === cards[0].rank)) return true;
+    if (cards.length === 2 && cards[0].rank === 15 && cards[1].rank === 16) return true; // 火箭
+    return false;
+  }
+
   evaluateHand(cards: Card[]): HandEvaluation {
     if (cards.length === 0) return { rank_name: "无牌", rank_level: 0, score: 0, multiplier: 1 };
-
-    const byRank = new Map<number, Card[]>();
-    for (const c of cards) {
-      if (!byRank.has(c.rank)) byRank.set(c.rank, []);
-      byRank.get(c.rank)!.push(c);
+    const byRank = new Map<number, number>();
+    for (const c of cards) byRank.set(c.rank, (byRank.get(c.rank) || 0) + 1);
+    let bombs = 0, rockets = 0;
+    for (const [rank, count] of byRank) {
+      if (count === 4) bombs++;
+      if (rank === 15 && byRank.has(16)) rockets = 1;
     }
-
-    let rockets = 0;
-    let bombs = 0;
-    let threeKinds = 0;
-    let pairs = 0;
-    let bigScore = 0;
-
-    for (const [rank, group] of byRank) {
-      if (group.length === 4) {
-        bombs++;
-        bigScore += rank * 50;
-      } else if (group.length === 3) {
-        threeKinds++;
-        bigScore += rank * 10;
-      } else if (group.length === 2) {
-        pairs++;
-        bigScore += rank * 2;
-      }
-      // 大小王
-      if (rank === 16) bigScore += 1000; // 大王
-      if (rank === 15) bigScore += 500;  // 小王
-    }
-
-    // 火箭 = 大小王都有
-    if (byRank.has(15) && byRank.has(16)) rockets = 1;
-
-    // 顺子检测
-    const uniqueRanks = [...byRank.keys()].filter((r) => r <= 13).sort((a, b) => a - b);
-    let straights = 0, run = 1;
-    for (let i = 1; i < uniqueRanks.length; i++) {
-      if (uniqueRanks[i] === uniqueRanks[i - 1] + 1) {
-        run++;
-        if (run >= 5) straights++;
-      } else run = 1;
-    }
-
-    const score = rockets * 50000 + bombs * 10000 + threeKinds * 500 + pairs * 50 + straights * 200 + bigScore;
-    let name = "普通";
-    if (rockets > 0) name = "火箭!";
-    else if (bombs > 0) name = `${bombs}个炸弹`;
-    else if (threeKinds > 0) name = `${threeKinds}个三张`;
-
     return {
-      rank_name: name,
-      rank_level: rockets * 100 + bombs * 50 + threeKinds * 10,
-      score,
+      rank_name: cards.length === 20 ? "地主20张" : `${cards.length}张`,
+      rank_level: bombs * 10 + rockets * 20,
+      score: cards.length,
       multiplier: 1 + bombs + rockets * 2,
     };
   }
 
   compareHands(state: PluginRoundState): CompareResult {
-    const alive = state.seats.filter((s) => s.status !== "empty" && s.status !== "folded");
-    const rankings = alive.map((s) => ({
-      user_id: s.user_id!, seat_index: s.seat_index,
-      evaluation: s.hand_result || this.evaluateHand(s.cards),
-    }));
-    rankings.sort((a, b) => b.evaluation.score - a.evaluation.score);
-    return { winner_user_ids: rankings.length > 0 ? [rankings[0].user_id] : [], rankings };
+    const winner = (state as any).winnerSeat;
+    if (winner !== undefined && winner !== null) {
+      const s = state.seats[winner];
+      return { winner_user_ids: [s.user_id!], rankings: [{ user_id: s.user_id!, seat_index: winner, evaluation: s.hand_result! }] };
+    }
+    // 兜底：剩牌最少的赢
+    const alive = state.seats.filter((s) => s.status !== "empty");
+    alive.sort((a, b) => a.cards.length - b.cards.length);
+    return { winner_user_ids: [alive[0]?.user_id || ""], rankings: alive.map((s) => ({ user_id: s.user_id!, seat_index: s.seat_index, evaluation: s.hand_result! })) };
   }
 
   calculateNetScores(state: PluginRoundState): PlayerNetResult[] {
-    // 斗地主：地主1人 vs 农民2人
-    // 零和净分：地主赢收2家，农民赢地主赔2家，炸弹/火箭翻倍
     const unit = state.room.base_score;
     const results: PlayerNetResult[] = [];
-    const alive = state.seats.filter((s) => s.status !== "empty" && s.status !== "folded");
+    const alive = state.seats.filter((s) => s.status !== "empty");
+    const bombMult = Math.pow(2, (state as any).bombCount || 0);
 
-    // 找地主
     const landlord = alive.find((s) => s.is_banker);
-    if (!landlord) {
+    const farmers = alive.filter((s) => !s.is_banker);
+    const winnerSeat = (state as any).winnerSeat;
+
+    if (winnerSeat === undefined || winnerSeat === null) {
+      // 没人出完（超时兜底），按剩牌少的
       const comp = this.compareHands(state);
       const winnerId = comp.winner_user_ids[0];
       for (const s of alive) {
-        results.push({
-          user_id: s.user_id!,
-          net_amount: s.user_id === winnerId ? unit * (alive.length - 1) : -unit,
-          hand_name: s.hand_result?.rank_name || "?",
-        });
+        results.push({ user_id: s.user_id!, net_amount: s.user_id === winnerId ? unit : -unit, hand_name: "超时结算" });
       }
       return results;
     }
 
-    const farmers = alive.filter((s) => !s.is_banker);
-    const landlordEval = landlord.hand_result || this.evaluateHand(landlord.cards);
-    const farmersAvgScore = farmers.reduce((sum, f) => sum + (f.hand_result?.score || this.evaluateHand(f.cards).score), 0) / Math.max(1, farmers.length);
-    // 炸弹倍数：地主和农民谁有炸弹/火箭就翻倍
-    const maxMult = Math.max(landlordEval.multiplier, ...farmers.map((f) => f.hand_result?.multiplier || 1));
-
-    if (landlordEval.score > farmersAvgScore) {
-      // 地主赢：收每家农民 unit*mult
-      results.push({ user_id: landlord.user_id!, net_amount: unit * farmers.length * maxMult, hand_name: landlordEval.rank_name });
-      for (const f of farmers) {
-        results.push({ user_id: f.user_id!, net_amount: -unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
-      }
+    const winner = state.seats[winnerSeat];
+    if (landlord && winner.is_banker) {
+      // 地主赢
+      results.push({ user_id: winner.user_id!, net_amount: unit * farmers.length * bombMult, hand_name: "地主胜" });
+      for (const f of farmers) results.push({ user_id: f.user_id!, net_amount: -unit * bombMult, hand_name: "农民负" });
     } else {
-      // 农民赢：地主赔每家农民 unit*mult
-      results.push({ user_id: landlord.user_id!, net_amount: -unit * farmers.length * maxMult, hand_name: landlordEval.rank_name });
-      for (const f of farmers) {
-        results.push({ user_id: f.user_id!, net_amount: unit * maxMult, hand_name: f.hand_result?.rank_name || "?" });
-      }
+      // 农民赢
+      results.push({ user_id: landlord!.user_id!, net_amount: -unit * farmers.length * bombMult, hand_name: "地主负" });
+      for (const f of farmers) results.push({ user_id: f.user_id!, net_amount: unit * bombMult, hand_name: "农民胜" });
     }
     return results;
   }
 
   getActionSeats(state: PluginRoundState): Seat[] {
-    if (state.phase === "QIANG_ZHUANG") {
-      return state.seats.filter((s) => s.status === "playing" && !s.is_banker).sort((a, b) => a.seat_index - b.seat_index);
+    // 地主先出牌
+    if (state.phase === "BETTING") {
+      const landlord = state.seats.find((s) => s.is_banker);
+      if (landlord && !(state as any).lastPlayed) return [landlord];
+      // 否则按座位顺序轮转（简化：返回所有未出完牌的）
+      return state.seats.filter((s) => s.status === "playing" && s.cards.length > 0);
     }
     return state.seats.filter((s) => s.status === "playing").sort((a, b) => a.seat_index - b.seat_index);
   }
 
   isPhaseComplete(state: PluginRoundState): boolean {
     if (state.phase === "QIANG_ZHUANG") {
-      // 所有人都叫分了
       const alive = state.seats.filter((s) => s.status === "playing");
       return alive.every((s) => s.has_acted || s.is_banker);
     }
-    const alive = state.seats.filter((s) => s.status === "playing");
-    if (alive.length <= 1) return true;
-    return alive.every((s) => s.has_acted);
+    if (state.phase === "BETTING") {
+      // 有人出完牌
+      return (state as any).winnerSeat !== undefined && (state as any).winnerSeat !== null;
+    }
+    return true;
   }
 
   getNextPhase(state: PluginRoundState): RoundPhase {

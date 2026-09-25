@@ -13,10 +13,12 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { WebSocketServer, WebSocket } from "ws";
+import { verify } from "hono/jwt";
 import { coreRoomManager } from "./core/roomManager.js";
 import { coreActionRouter } from "./core/actionRouter.js";
 import { coreEventBus } from "./core/eventBus.js";
 import { walletClient } from "./bridge/walletClient.js";
+import { saveRoomSnapshot } from "./core/db.js";
 import { GameMode, GameType } from "./shared/types.js";
 
 const app = new Hono();
@@ -360,6 +362,16 @@ app.post("/api/engine/room/:id/seat", async (c) => {
   }
 
   broadcastRoomState(roomId);
+
+  // 持久化座位信息（重启恢复）
+  const room = coreRoomManager.getRoom(roomId);
+  if (room) {
+    const seats = sm.seatManager.getSeats().map(s => ({
+      seat_index: s.seat_index, user_id: s.user_id, chips: s.chips, status: s.status,
+    }));
+    saveRoomSnapshot(roomId, room.game_type, room.mode, room.base_score, { seats });
+  }
+
   return c.json({ code: 0, message: result.message, data: { seat_index: empty.seat_index } });
 });
 
@@ -415,6 +427,32 @@ app.post("/api/engine/room/:id/settle", async (c) => {
       data: null,
     }, 500);
   }
+});
+
+/** 5.5 玩家离座 */
+app.post("/api/engine/room/:id/leave", async (c) => {
+  const roomId = c.req.param("id");
+  const sm = coreRoomManager.getStateMachine(roomId);
+  if (!sm) return c.json({ code: 404, message: "Room not found" }, 404);
+  const body = await c.req.json().catch(() => ({} as any));
+  const userId = String(body.user_id || "");
+  if (!userId) return c.json({ code: 400, message: "user_id required" }, 400);
+  // 局中不能离座
+  if (sm.getPhase() !== "WAITING" && sm.getPhase() !== "FINISHED") {
+    return c.json({ code: 400, message: "Cannot leave during active round" }, 400);
+  }
+  const seat = sm.seatManager.findUserSeat(userId);
+  if (seat) { seat.status = "empty"; seat.user_id = ""; }
+  broadcastRoomState(roomId);
+  return c.json({ code: 0, message: "Left room" });
+});
+
+/** 5.6 解散房间 */
+app.delete("/api/engine/room/:id", async (c) => {
+  const roomId = c.req.param("id");
+  if (!coreRoomManager.getRoom(roomId)) return c.json({ code: 404, message: "Room not found" }, 404);
+  coreRoomManager.removeRoom(roomId);
+  return c.json({ code: 0, message: "Room closed" });
 });
 
 /** 6. 获取对局回放（事件日志） */
@@ -525,6 +563,23 @@ if (process.env.NODE_ENV !== "test") {
 
         // 加入房间（支持 as_spectator 旁观模式）
         if (msg.type === "join_room") {
+          // JWT验签：token合法才允许入座；spectator无需token
+          if (!msg.as_spectator && msg.token) {
+            try {
+              const payload = await verify(msg.token, process.env.JWT_SECRET || "poker-platform-dev-secret-2024", "HS256") as any;
+              if (payload.sub && payload.sub !== msg.user_id) {
+                ws.send(JSON.stringify({ type: "error", message: "Token user mismatch" }));
+                return;
+              }
+            } catch {
+              ws.send(JSON.stringify({ type: "error", message: "Invalid token" }));
+              return;
+            }
+          } else if (!msg.as_spectator && process.env.NODE_ENV === "production") {
+            ws.send(JSON.stringify({ type: "error", message: "Token required in production" }));
+            return;
+          }
+
           clientInfo.userId = msg.user_id;
           clientInfo.roomId = msg.room_id;
           clientInfo.isSpectator = !!msg.as_spectator;

@@ -187,6 +187,14 @@ export class RoomManager {
         this.rooms.set(room.room_id, room);
         this.stateMachines.set(room.room_id, stateMachine);
         this.seatManagers.set(room.room_id, seatManager);
+
+        // 恢复座位（重启后玩家自动重新入座）
+        const savedSeats = snap.snapshot?.seats || [];
+        for (const s of savedSeats) {
+          if (s.user_id) {
+            await seatManager.sitDown(s.seat_index, s.user_id, s.chips || 0, false);
+          }
+        }
       }
       if (snapshots.length > 0) console.log(`[RoomManager] Restored ${snapshots.length} room(s) from SQLite`);
     } catch (e) {
